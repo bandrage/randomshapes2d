@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>RandomShapes2D · Geometry Studio</title>
+<style>
+  :root{
+    --bg:#0e0e12;
+    --panel:rgba(20,20,26,.80);
+    --line:rgba(255,255,255,.09);
+    --txt:#e9e9f0;
+    --dim:#8b8b9a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{
+    margin:0;height:100%;overflow:hidden;background:#0e0e12;color:var(--txt);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    overscroll-behavior:none;
+  }
+  #c{display:block;touch-action:none;cursor:crosshair;position:relative;z-index:1}
+  #ui{
+    position:fixed;top:14px;left:14px;width:274px;
+    max-height:calc(100dvh - 28px);display:flex;flex-direction:column;
+    background:var(--panel);
+    backdrop-filter:blur(14px) saturate(1.4);
+    -webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+    font-size:12px;user-select:none;z-index:10;overflow:hidden;
+  }
+  #ui.collapsed .body{display:none}
+  .hd{display:flex;align-items:center;gap:8px;padding:11px 12px;border-bottom:1px solid var(--line);flex:0 0 auto;}
+  .hd b{flex:1;font-size:12.5px;font-weight:600;letter-spacing:.02em}
+  .hd .dot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,#6ee7ff,#a78bfa,#f472b6);box-shadow:0 0 10px rgba(110,231,255,.7);}
+  #collapse{width:24px;height:24px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);cursor:pointer;font-size:14px;line-height:1;font-family:inherit;}
+  #collapse:hover{background:rgba(255,255,255,.12)}
+  .body{padding:10px 12px 12px;overflow-y:auto;overscroll-behavior:contain}
+  .body::-webkit-scrollbar{width:6px}
+  .body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
+  section + section{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .lbl{font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-bottom:8px;}
+  .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+  .chips.two{grid-template-columns:repeat(2,1fr)}
+  .chips button{padding:6px 2px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--dim);font-size:11px;cursor:pointer;transition:.15s;font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .chips button:hover{background:rgba(255,255,255,.09);color:#fff}
+  .chips button.on{background:linear-gradient(135deg,rgba(110,231,255,.22),rgba(167,139,250,.22));border-color:rgba(110,231,255,.55);color:#fff;box-shadow:inset 0 0 12px rgba(110,231,255,.15);}
+  .row{display:flex;align-items:center;gap:8px;margin:7px 0}
+  .row > span{flex:0 0 52px;color:var(--dim);font-size:11px}
+  .row > i{flex:0 0 36px;text-align:right;font-style:normal;color:#b9b9c9;font-size:10.5px;font-variant-numeric:tabular-nums;}
+  .row input[type=range]{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:3px;border-radius:3px;background:rgba(255,255,255,.14);outline:none;cursor:pointer;}
+  .row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#e9e9f0;border:none;cursor:pointer;box-shadow:0 0 0 3px rgba(110,231,255,.18);}
+  .row input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#e9e9f0;border:none;cursor:pointer;}
+  .row input[type=range]:disabled{opacity:.3;pointer-events:none}
+  select, input[type=color]{flex:1;min-width:0;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:5px 7px;font-size:11px;font-family:inherit;outline:none;cursor:pointer;}
+  select option{background:#1a1a22}
+  input[type=color]{padding:2px;height:26px}
+  .sw{flex:1;display:flex;justify-content:flex-end}
+  .sw input{display:none}
+  .sw span{width:34px;height:19px;border-radius:10px;background:rgba(255,255,255,.14);position:relative;transition:.2s;cursor:pointer;display:block;}
+  .sw span::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.2s;}
+  .sw input:checked + span{background:linear-gradient(135deg,#6ee7ff,#a78bfa)}
+  .sw input:checked + span::after{transform:translateX(15px)}
+  .modeHint{margin-top:7px;font-size:10.5px;line-height:1.5;color:#7a7a8c;min-height:15px;}
+  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .actions button{padding:8px 0;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);font-size:11.5px;cursor:pointer;font-family:inherit;transition:.15s;}
+  .actions button:hover{background:rgba(255,255,255,.12)}
+  .actions button:active{transform:scale(.96)}
+  .disabled-section{opacity:.28;pointer-events:none;user-select:none;filter:grayscale(.6);transition:opacity .2s, filter .2s;}
+  #hueBar{height:8px;border-radius:4px;margin:4px 0 2px;background:linear-gradient(to right,hsl(0,85%,62%), hsl(60,85%,62%), hsl(120,85%,62%),hsl(180,85%,62%), hsl(240,85%,62%), hsl(300,85%,62%), hsl(360,85%,62%));position:relative;}
+  #hueBar .cursor{position:absolute;top:-3px;width:2px;height:14px;background:#fff;border-radius:1px;box-shadow:0 0 4px rgba(0,0,0,.6);transform:translateX(-1px);pointer-events:none;}
+  #hueBar .range{position:absolute;top:0;height:100%;background:rgba(255,255,255,.35);border-radius:4px;pointer-events:none;}
+
+  /* ===== 自定义形状面板 ===== */
+  #customPanel{
+    position:fixed;top:14px;right:14px;width:160px;
+    max-height:calc(100dvh - 28px);
+    display:flex;flex-direction:column;
+    background:var(--panel);
+    backdrop-filter:blur(14px) saturate(1.4);
+    -webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+    padding:10px;font-size:12px;user-select:none;z-index:10;
+    overflow:hidden;
+  }
+  /* ★ 关键修复：hidden 时强制不显示（否则 display:flex 会覆盖 hidden） */
+  #customPanel[hidden]{
+    display:none !important;
+  }
+
+  #customPanel .lbl{font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-bottom:6px;flex:0 0 auto;}
+  #customSlots{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding-right:2px;}
+  #customSlots::-webkit-scrollbar{width:5px}
+  #customSlots::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
+  .custom-slot{margin-bottom:8px;}
+  .custom-slot:last-child{margin-bottom:2px}
+  .custom-preview{width:100%;height:66px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;transition:.15s;}
+  .custom-preview:hover{background:rgba(255,255,255,.08);border-color:rgba(110,231,255,.5);}
+  .custom-preview.selecting{border-color:#6ee7ff;box-shadow:0 0 0 2px rgba(110,231,255,.3), inset 0 0 12px rgba(110,231,255,.15);background:rgba(110,231,255,.08);}
+  .custom-preview canvas{max-width:92%;max-height:92%;}
+  .custom-empty{color:var(--dim);font-size:10.5px;pointer-events:none;}
+  .custom-hint{position:absolute;bottom:2px;right:5px;font-size:9px;color:rgba(255,255,255,.4);pointer-events:none;}
+  .custom-weight{display:flex;align-items:center;gap:6px;margin-top:4px;}
+  .custom-weight input[type=range]{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:3px;border-radius:3px;background:rgba(255,255,255,.14);outline:none;cursor:pointer;}
+  .custom-weight input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#e9e9f0;border:none;cursor:pointer;box-shadow:0 0 0 2px rgba(110,231,255,.18);}
+  .custom-weight input[type=range]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:#e9e9f0;border:none;cursor:pointer;}
+  .custom-weight i{flex:0 0 18px;text-align:right;font-style:normal;color:#b9b9c9;font-size:10px;font-variant-numeric:tabular-nums;}
+
+  #selOverlay{position:fixed;display:none;border:1.5px dashed #6ee7ff;background:rgba(110,231,255,.12);box-shadow:0 0 0 1px rgba(0,0,0,.3);pointer-events:none;z-index:5;}
+  #hint{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.3);font-size:12px;letter-spacing:.1em;pointer-events:none;white-space:nowrap;animation:fade 8s forwards;z-index:5;}
+  @keyframes fade{0%,55%{opacity:1}100%{opacity:0}}
+  @media (max-width:520px){
+    #ui{width:calc(100vw - 24px);left:12px;top:12px}
+    #hint{font-size:11px}
+    #customPanel{top:auto;bottom:14px;right:12px;width:140px;max-height:60dvh;}
+    .custom-preview{height:56px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="selOverlay"></div>
+
+<div id="ui">
+  <div class="hd">
+    <span class="dot"></span>
+    <b>RandomShapes2D</b>
+    <button id="collapse" title="折叠">−</button>
+  </div>
+
+  <div class="body">
+
+    <section style="margin-top:0;padding-top:0;border-top:none">
+      <div class="lbl">工具</div>
+      <div class="chips two" id="tools">
+        <button data-v="place" class="on">放置</button>
+        <button data-v="paint">绘画</button>
+      </div>
+    </section>
+
+    <div id="placePanel">
+      <section>
+        <div class="lbl">形状</div>
+        <div class="chips" id="shapes">
+          <button data-v="random" class="on">随机</button>
+          <button data-v="poly">多边形</button>
+          <button data-v="star">星形</button>
+          <button data-v="rect">矩形</button>
+          <button data-v="circle">圆</button>
+          <button data-v="arc">扇形</button>
+          <button data-v="line">线</button>
+          <button data-v="cross">十字</button>
+          <button data-v="spokes">放射</button>
+          <button data-v="blob">墨块</button>
+          <button data-v="custom">自定义</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="lbl">笔触</div>
+        <div class="row"><span>大小</span><input id="pSize" type="range" min="6" max="160" value="30"><i>30</i></div>
+        <div class="row"><span>大小变化</span><input id="pSizeVar" type="range" min="0" max="100" value="55"><i>55%</i></div>
+        <div class="row"><span>间距</span><input id="pSpacing" type="range" min="3" max="80" value="18"><i>18</i></div>
+        <div class="row"><span>抖动</span><input id="pJitter" type="range" min="0" max="40" value="8"><i>8</i></div>
+        <div class="row"><span>透明度</span><input id="pAlpha" type="range" min="5" max="100" value="85"><i>85%</i></div>
+        <div class="row"><span>线宽</span><input id="pLw" type="range" min="1" max="120" value="20"><i>2.0</i></div>
+      </section>
+
+      <section>
+        <div class="lbl">控制模式</div>
+        <div class="chips two" id="ctrlModes">
+          <button data-v="scatter" class="on">散布</button>
+          <button data-v="drag">拖拽</button>
+        </div>
+        <div class="modeHint" id="ctrlHint">拖动时按间距连续放置形状</div>
+      </section>
+
+      <section id="pModeSection">
+        <div class="lbl">绘制模式</div>
+        <div class="chips" id="pModes">
+          <button data-v="stroke">线</button>
+          <button data-v="fill">填充</button>
+          <button data-v="mix" class="on">混合</button>
+        </div>
+        <div class="modeHint" id="pModeHint">随机描边或填充，每次都不一样</div>
+      </section>
+    </div>
+
+    <div id="paintPanel" hidden>
+      <section>
+        <div class="lbl">绘画模式</div>
+        <div class="chips" id="paintModes">
+          <button data-v="line" class="on">线</button>
+          <button data-v="fill">填充</button>
+          <button data-v="erase">擦除</button>
+        </div>
+        <div class="modeHint" id="paintHint">自由画线</div>
+      </section>
+
+      <section>
+        <div class="lbl">笔刷</div>
+        <div class="row"><span>笔宽</span><input id="bWidth" type="range" min="1" max="120" value="8"><i>8</i></div>
+        <div class="row" id="bSmoothRow"><span>平滑</span><input id="bSmooth" type="range" min="0" max="90" value="35"><i>35%</i></div>
+        <div class="row" id="bAlphaRow"><span>透明度</span><input id="bAlpha" type="range" min="5" max="100" value="100"><i>100%</i></div>
+      </section>
+    </div>
+
+    <section id="colorSec">
+      <div class="lbl">颜色</div>
+      <div id="colorHueGroup">
+        <div id="hueBar">
+          <div class="range" id="hueRange"></div>
+          <div class="cursor" id="hueCursor"></div>
+        </div>
+        <div class="row"><span>色相</span><input id="hue" type="range" min="0" max="360" value="210"><i>210</i></div>
+        <div class="row"><span>渐变</span><input id="hueGradient" type="range" min="0" max="100" value="0"><i>0%</i></div>
+        <div class="row"><span>随机颜色</span><label class="sw"><input id="hueRandom" type="checkbox"><span></span></label></div>
+      </div>
+      <div id="colorSatLightGroup">
+        <div class="row"><span>饱和</span><input id="sat" type="range" min="0" max="100" value="85"><i>85%</i></div>
+        <div class="row"><span>亮度</span><input id="light" type="range" min="0" max="100" value="62"><i>62%</i></div>
+      </div>
+      <div class="row" id="blendRow"><span>混合</span>
+        <select id="blend">
+          <option value="source-over">正常</option>
+          <option value="multiply">正片叠底</option>
+          <option value="screen">滤色</option>
+          <option value="difference">差值</option>
+          <option value="overlay">叠加</option>
+          <option value="lighten">变亮</option>
+          <option value="darken">变暗</option>
+        </select>
+      </div>
+      <div class="row"><span>背景</span><input id="bg" type="color" value="#0e0e12"></div>
+    </section>
+
+    <section class="actions">
+      <button id="undo">撤销</button>
+      <button id="clear">清空</button>
+      <button id="save">保存</button>
+    </section>
+  </div>
+</div>
+
+<div id="customPanel" hidden>
+  <div class="lbl">自定义形状 · 权重 (总 10)</div>
+  <div id="customSlots"></div>
+</div>
+
+<div id="hint">按住拖动 · 放置 / 绘画 · Ctrl+V 粘贴图片</div>
+
+<script>
+(() => {
+'use strict';
+
+const TAU  = Math.PI * 2;
+const rnd  = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+
+const cfg = {
+  tool: 'place',
+  shape: 'random',
+  pSize: 30, pSizeVar: 0.55, pSpacing: 18, pJitter: 8,
+  pAlpha: 0.85, pLw: 2, pMode: 'mix',
+  ctrlMode: 'scatter',
+  paintMode: 'line',
+  bWidth: 8, bSmooth: 0.35, bAlpha: 1.0,
+  hue: 210, hueGradient: 0, hueRandom: false,
+  sat: 85, light: 62,
+  blend: 'source-over', bg: '#0e0e12'
+};
+
+/* =========================================================
+   画布
+   ========================================================= */
+const cvs = document.getElementById('c');
+const vctx = cvs.getContext('2d', { alpha: false });
+
+const baseCvs   = document.createElement('canvas');
+const bctx      = baseCvs.getContext('2d');
+const strokeBuf = document.createElement('canvas');
+const sctx      = strokeBuf.getContext('2d');
+
+const conicCvs = document.createElement('canvas');
+const conicCtx = conicCvs.getContext('2d');
+
+let dpr = 1;
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = window.innerWidth, h = window.innerHeight;
+  const nw = Math.round(w * dpr), nh = Math.round(h * dpr);
+  if (cvs.width === nw && cvs.height === nh) return;
+
+  let old = null;
+  if (baseCvs.width && baseCvs.height) {
+    old = document.createElement('canvas');
+    old.width = baseCvs.width;
+    old.height = baseCvs.height;
+    old.getContext('2d').drawImage(baseCvs, 0, 0);
+  }
+
+  for (const c of [cvs, baseCvs, strokeBuf]) {
+    c.width = nw;
+    c.height = nh;
+  }
+  cvs.style.width = w + 'px';
+  cvs.style.height = h + 'px';
+
+  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (old) {
+    bctx.save();
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.globalAlpha = 1;
+    bctx.drawImage(old, 0, 0, nw, nh);
+    bctx.restore();
+  }
+
+  renderView();
+}
+
+let strokeActive = false;
+let strokeBlend  = 'source-over';
+let strokeAlpha  = 1;
+let rafPending   = false;
+
+function renderView() {
+  vctx.setTransform(1, 0, 0, 1, 0, 0);
+  vctx.globalCompositeOperation = 'source-over';
+  vctx.globalAlpha = 1;
+
+  vctx.fillStyle = cfg.bg;
+  vctx.fillRect(0, 0, cvs.width, cvs.height);
+
+  vctx.drawImage(baseCvs, 0, 0);
+
+  if (strokeActive) {
+    vctx.globalCompositeOperation = strokeBlend;
+    vctx.globalAlpha = strokeAlpha;
+    vctx.drawImage(strokeBuf, 0, 0);
+  }
+}
+
+function scheduleRender() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    rafPending = false;
+    renderView();
+  });
+}
+
+/* =========================================================
+   颜色工具
+   ========================================================= */
+let huePhase = 0;
+let hueDir   = 1;
+const HUE_CYCLE_STEPS = 24;
+
+function hueRange() {
+  return (cfg.hueGradient / 100) * 180;
+}
+
+function nextColor() {
+  const r = hueRange();
+  let h = cfg.hue;
+
+  if (r > 0) {
+    if (cfg.hueRandom) {
+      h += (Math.random() * 2 - 1) * r;
+    } else {
+      h += (huePhase * 2 - 1) * r;
+      huePhase += hueDir / HUE_CYCLE_STEPS;
+      if (huePhase >= 1) { huePhase = 1; hueDir = -1; }
+      else if (huePhase <= 0) { huePhase = 0; hueDir = 1; }
+    }
+  }
+
+  h = ((h % 360) + 360) % 360;
+  return `hsl(${h.toFixed(1)} ${cfg.sat}% ${cfg.light}%)`;
+}
+
+function hslToRgb(h, s, l) {
+  h = ((h % 1) + 1) % 1;
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+/* =========================================================
+   扇区色块
+   ========================================================= */
+const FILL_SECTORS = 72;
+let fillSectorColors = null;
+
+function initFillSectors() {
+  const span = (cfg.hueGradient / 100) * 360;
+  const step = span / FILL_SECTORS;
+
+  const hues = new Array(FILL_SECTORS);
+  for (let i = 0; i < FILL_SECTORS; i++) {
+    const h = cfg.hue + i * step;
+    hues[i] = ((h % 360) + 360) % 360;
+  }
+
+  if (cfg.hueRandom) {
+    shuffleArray(hues);
+  }
+
+  const colors = new Array(FILL_SECTORS);
+  for (let i = 0; i < FILL_SECTORS; i++) {
+    colors[i] = hslToRgb(hues[i] / 360, cfg.sat / 100, cfg.light / 100);
+  }
+  fillSectorColors = colors;
+}
+
+function buildSectorCanvas(radius) {
+  const MAX_DIM = 360;
+  const size = Math.min(MAX_DIM, Math.max(32, Math.ceil(radius * 2)));
+
+  if (conicCvs.width !== size) {
+    conicCvs.width  = size;
+    conicCvs.height = size;
+  }
+
+  const img = conicCtx.createImageData(size, size);
+  const d = img.data;
+  const half = size / 2;
+  const sectorSize = TAU / FILL_SECTORS;
+  const colors = fillSectorColors;
+
+  for (let y = 0; y < size; y++) {
+    const dy = y - half + 0.5;
+    const rowBase = y * size;
+    for (let x = 0; x < size; x++) {
+      const dx = x - half + 0.5;
+      let angle = Math.atan2(dy, dx) + Math.PI;
+      let sector = Math.floor(angle / sectorSize);
+      if (sector >= FILL_SECTORS) sector = FILL_SECTORS - 1;
+      if (sector < 0) sector = 0;
+
+      const rgb = colors[sector];
+      const pi = (rowBase + x) * 4;
+      d[pi]     = rgb[0];
+      d[pi + 1] = rgb[1];
+      d[pi + 2] = rgb[2];
+      d[pi + 3] = 255;
+    }
+  }
+  conicCtx.putImageData(img, 0, 0);
+  return conicCvs;
+}
+
+function updateHueBar() {
+  const bar   = document.getElementById('hueBar');
+  const cur   = document.getElementById('hueCursor');
+  const range = document.getElementById('hueRange');
+  if (!bar || !cur || !range) return;
+
+  const w = bar.clientWidth;
+  if (!w) return;
+
+  const r = hueRange();
+  const centerX = (cfg.hue / 360) * w;
+
+  cur.style.left = centerX + 'px';
+
+  const halfW = (r / 360) * w;
+  const left  = centerX - halfW;
+  const right = centerX + halfW;
+
+  range.style.left  = Math.max(0, left) + 'px';
+  range.style.width = Math.max(0, Math.min(w, right) - Math.max(0, left)) + 'px';
+
+  if (r < 1) range.style.width = '0px';
+}
+
+/* =========================================================
+   路径构造
+   ========================================================= */
+function polyPath(g, r, n) {
+  for (let i = 0; i < n; i++) {
+    const a = i / n * TAU - Math.PI / 2;
+    const rr = r * rnd(0.9, 1.05);
+    const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+    i ? g.lineTo(x, y) : g.moveTo(x, y);
+  }
+  g.closePath();
+}
+
+function starPath(g, r, n, inner) {
+  const m = n * 2;
+  for (let i = 0; i < m; i++) {
+    const rad = (i % 2 ? inner : 1) * r;
+    const a = i / m * TAU - Math.PI / 2;
+    const x = Math.cos(a) * rad, y = Math.sin(a) * rad;
+    i ? g.lineTo(x, y) : g.moveTo(x, y);
+  }
+  g.closePath();
+}
+
+const STROKE_ONLY = new Set(['line', 'cross', 'spokes']);
+const SHAPE_KEYS  = ['poly', 'star', 'rect', 'circle', 'arc',
+                     'line', 'cross', 'spokes', 'blob'];
+
+function buildPath(g, type, r) {
+  g.beginPath();
+  switch (type) {
+    case 'poly': polyPath(g, r, 3 + ((Math.random() * 5) | 0)); break;
+    case 'star': starPath(g, r, 3 + ((Math.random() * 4) | 0), rnd(0.32, 0.6)); break;
+    case 'rect': {
+      const w = r * rnd(1.1, 2.1), h = r * rnd(1.1, 2.1);
+      g.rect(-w / 2, -h / 2, w, h);
+      break;
+    }
+    case 'circle': g.arc(0, 0, r * rnd(0.7, 1), 0, TAU); break;
+    case 'arc': {
+      const a0 = rnd(0, TAU), sw = rnd(0.6, 3.2);
+      g.moveTo(0, 0); g.arc(0, 0, r, a0, a0 + sw); g.closePath();
+      break;
+    }
+    case 'line': {
+      const a = rnd(0, TAU), len = r * rnd(1.2, 2.6);
+      g.moveTo(-Math.cos(a) * len / 2, -Math.sin(a) * len / 2);
+      g.lineTo(Math.cos(a) * len / 2, Math.sin(a) * len / 2);
+      break;
+    }
+    case 'cross': {
+      const a = rnd(0, TAU), len = r * rnd(0.8, 1.4);
+      for (let k = 0; k < 2; k++) {
+        const ang = a + k * Math.PI / 2;
+        g.moveTo(-Math.cos(ang) * len, -Math.sin(ang) * len);
+        g.lineTo(Math.cos(ang) * len, Math.sin(ang) * len);
+      }
+      break;
+    }
+    case 'spokes': {
+      const n = 3 + ((Math.random() * 7) | 0);
+      const r0 = r * rnd(0.08, 0.35);
+      for (let i = 0; i < n; i++) {
+        const a = i / n * TAU;
+        g.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+        g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      break;
+    }
+    case 'blob': {
+      const n = 6 + ((Math.random() * 4) | 0);
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        const a = i / n * TAU;
+        const rad = r * rnd(0.55, 1.15);
+        pts.push([Math.cos(a) * rad, Math.sin(a) * rad]);
+      }
+      const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+      const s = mid(pts[n - 1], pts[0]);
+      g.moveTo(s[0], s[1]);
+      for (let i = 0; i < n; i++) {
+        const cur = pts[i], nx = pts[(i + 1) % n], m = mid(cur, nx);
+        g.quadraticCurveTo(cur[0], cur[1], m[0], m[1]);
+      }
+      g.closePath();
+      break;
+    }
+  }
+}
+
+function buildUnitPath(type) {
+  const p = new Path2D();
+  switch (type) {
+    case 'poly': {
+      const n = 3 + ((Math.random() * 5) | 0);
+      for (let i = 0; i < n; i++) {
+        const a = i / n * TAU - Math.PI / 2;
+        const rr = rnd(0.9, 1.05);
+        const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+        i ? p.lineTo(x, y) : p.moveTo(x, y);
+      }
+      p.closePath();
+      break;
+    }
+    case 'star': {
+      const n = 3 + ((Math.random() * 4) | 0);
+      const inner = rnd(0.32, 0.6);
+      const m = n * 2;
+      for (let i = 0; i < m; i++) {
+        const rad = (i % 2 ? inner : 1);
+        const a = i / m * TAU - Math.PI / 2;
+        const x = Math.cos(a) * rad, y = Math.sin(a) * rad;
+        i ? p.lineTo(x, y) : p.moveTo(x, y);
+      }
+      p.closePath();
+      break;
+    }
+    case 'rect': {
+      const hw = rnd(0.55, 1.05), hh = rnd(0.55, 1.05);
+      p.rect(-hw, -hh, hw * 2, hh * 2);
+      break;
+    }
+    case 'circle': p.arc(0, 0, rnd(0.7, 1), 0, TAU); break;
+    case 'arc': {
+      const a0 = rnd(0, TAU), sw = rnd(0.6, 3.2);
+      p.moveTo(0, 0); p.arc(0, 0, 1, a0, a0 + sw); p.closePath();
+      break;
+    }
+    case 'line': {
+      const a = rnd(0, TAU), len = rnd(1.2, 2.6) / 2;
+      p.moveTo(-Math.cos(a) * len, -Math.sin(a) * len);
+      p.lineTo(Math.cos(a) * len, Math.sin(a) * len);
+      break;
+    }
+    case 'cross': {
+      const a = rnd(0, TAU), len = rnd(0.8, 1.4);
+      for (let k = 0; k < 2; k++) {
+        const ang = a + k * Math.PI / 2;
+        p.moveTo(-Math.cos(ang) * len, -Math.sin(ang) * len);
+        p.lineTo(Math.cos(ang) * len, Math.sin(ang) * len);
+      }
+      break;
+    }
+    case 'spokes': {
+      const n = 3 + ((Math.random() * 7) | 0);
+      const r0 = rnd(0.08, 0.35);
+      for (let i = 0; i < n; i++) {
+        const a = i / n * TAU;
+        p.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+        p.lineTo(Math.cos(a), Math.sin(a));
+      }
+      break;
+    }
+    case 'blob': {
+      const n = 6 + ((Math.random() * 4) | 0);
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        const a = i / n * TAU;
+        const rad = rnd(0.55, 1.15);
+        pts.push([Math.cos(a) * rad, Math.sin(a) * rad]);
+      }
+      const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const s = mid(pts[n - 1], pts[0]);
+      p.moveTo(s[0], s[1]);
+      for (let i = 0; i < n; i++) {
+        const cur = pts[i], nx = pts[(i + 1) % n], m = mid(cur, nx);
+        p.quadraticCurveTo(cur[0], cur[1], m[0], m[1]);
+      }
+      p.closePath();
+      break;
+    }
+  }
+  return p;
+}
+
+function makeShapeDecision(type) {
+  const color = nextColor();
+
+  let a = cfg.pAlpha;
+  if (a >= 0.999) a = 1;
+  else a *= rnd(0.75, 1);
+  a = Math.min(1, Math.max(0.02, a));
+
+  const lw = Math.max(0.3, cfg.pLw * rnd(0.7, 1.3));
+
+  const canFill = !STROKE_ONLY.has(type);
+  let useFill;
+  if (cfg.pMode === 'stroke')    useFill = false;
+  else if (cfg.pMode === 'fill') useFill = canFill;
+  else                           useFill = canFill && Math.random() < 0.5;
+
+  return { color, alpha: a, lw, useFill, canFill };
+}
+
+/* =========================================================
+   UI 状态联动
+   ========================================================= */
+function setDisabled(el, disabled) {
+  if (!el) return;
+  el.classList.toggle('disabled-section', !!disabled);
+}
+
+function updateUIState() {
+  const isPlace = cfg.tool === 'place';
+
+  const pModeSection     = document.getElementById('pModeSection');
+  const colorHueGroup    = document.getElementById('colorHueGroup');
+  const colorSatLightGrp = document.getElementById('colorSatLightGroup');
+  const blendRow         = document.getElementById('blendRow');
+  const bSmoothRow       = document.getElementById('bSmoothRow');
+  const bAlphaRow        = document.getElementById('bAlphaRow');
+
+  if (isPlace) {
+    const isCustom     = cfg.shape === 'custom';
+    const isStrokeOnly = STROKE_ONLY.has(cfg.shape);
+
+    if (isCustom) {
+      setDisabled(pModeSection, true);
+      setDisabled(colorHueGroup, true);
+      setDisabled(colorSatLightGrp, true);
+    } else if (isStrokeOnly) {
+      setDisabled(pModeSection, true);
+      setDisabled(colorHueGroup, false);
+      setDisabled(colorSatLightGrp, false);
+    } else {
+      setDisabled(pModeSection, false);
+      setDisabled(colorHueGroup, false);
+      setDisabled(colorSatLightGrp, false);
+    }
+
+    setDisabled(blendRow, false);
+    setDisabled(bSmoothRow, false);
+    setDisabled(bAlphaRow, false);
+
+  } else {
+    const isLine  = cfg.paintMode === 'line';
+    const isErase = cfg.paintMode === 'erase';
+
+    setDisabled(bSmoothRow, !isLine);
+    setDisabled(bAlphaRow, isErase);
+
+    setDisabled(colorHueGroup, isErase);
+    setDisabled(colorSatLightGrp, isErase);
+
+    setDisabled(blendRow, isErase);
+    setDisabled(pModeSection, false);
+  }
+}
+
+/* =========================================================
+   自定义形状（5 个）
+   ========================================================= */
+const CUSTOM_SLOT_COUNT = 5;
+let customShapes  = new Array(CUSTOM_SLOT_COUNT).fill(null);
+let customWeights = [2, 2, 2, 2, 2];
+let selectingSlot = -1;
+
+let selecting   = false;
+let isSelDragging = false;
+let selStartX = 0, selStartY = 0, selEndX = 0, selEndY = 0;
+let selPointerId = null;
+
+const customPanel   = document.getElementById('customPanel');
+const customSlots   = document.getElementById('customSlots');
+const selOverlay    = document.getElementById('selOverlay');
+
+const previewEls = new Array(CUSTOM_SLOT_COUNT);
+const weightEls  = new Array(CUSTOM_SLOT_COUNT);
+const weightValEls = new Array(CUSTOM_SLOT_COUNT);
+
+function buildCustomSlotsUI() {
+  customSlots.innerHTML = '';
+  for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'custom-slot';
+
+    const preview = document.createElement('div');
+    preview.className = 'custom-preview';
+    preview.dataset.idx = i;
+    preview.addEventListener('click', () => {
+      if (selecting && selectingSlot === i) {
+        exitSelectionMode();
+      } else {
+        exitSelectionMode();
+        enterSelectionMode(i);
+      }
+    });
+    previewEls[i] = preview;
+
+    const weightRow = document.createElement('div');
+    weightRow.className = 'custom-weight';
+
+    const range = document.createElement('input');
+    range.type = 'range';
+    range.min = '0';
+    range.max = '10';
+    range.step = '1';
+    range.value = String(customWeights[i]);
+    range.dataset.idx = i;
+    range.addEventListener('input', () => onWeightChange(i, parseInt(range.value, 10)));
+    weightEls[i] = range;
+
+    const val = document.createElement('i');
+    val.textContent = String(customWeights[i]);
+    weightValEls[i] = val;
+
+    weightRow.appendChild(range);
+    weightRow.appendChild(val);
+
+    slot.appendChild(preview);
+    slot.appendChild(weightRow);
+    customSlots.appendChild(slot);
+
+    updateSlotPreview(i);
+  }
+}
+
+function onWeightChange(idx, newVal) {
+  let otherSum = 0;
+  for (let j = 0; j < CUSTOM_SLOT_COUNT; j++) {
+    if (j !== idx) otherSum += customWeights[j];
+  }
+  const maxAllowed = Math.max(0, 10 - otherSum);
+  const finalVal = Math.max(0, Math.min(newVal, maxAllowed));
+
+  customWeights[idx] = finalVal;
+  weightEls[idx].value = String(finalVal);
+  weightValEls[idx].textContent = String(finalVal);
+}
+
+function updateSlotPreview(idx) {
+  const preview = previewEls[idx];
+  if (!preview) return;
+  preview.innerHTML = '';
+
+  const cs = customShapes[idx];
+  if (!cs) {
+    const empty = document.createElement('div');
+    empty.className = 'custom-empty';
+    empty.textContent = '点击载入';
+    preview.appendChild(empty);
+    return;
+  }
+
+  const boxW = preview.clientWidth  || 130;
+  const boxH = preview.clientHeight || 66;
+  const maxW = boxW - 8, maxH = boxH - 8;
+  const scale = Math.min(maxW / cs.w, maxH / cs.h, 1);
+
+  const c = document.createElement('canvas');
+  c.width  = Math.max(1, Math.round(cs.w * scale * dpr));
+  c.height = Math.max(1, Math.round(cs.h * scale * dpr));
+  c.style.width  = (cs.w * scale) + 'px';
+  c.style.height = (cs.h * scale) + 'px';
+  const cx = c.getContext('2d');
+  cx.drawImage(cs.canvas, 0, 0, c.width, c.height);
+  preview.appendChild(c);
+
+  const hint = document.createElement('div');
+  hint.className = 'custom-hint';
+  hint.textContent = '重选';
+  preview.appendChild(hint);
+}
+
+function enterSelectionMode(slotIdx) {
+  selecting = true;
+  selectingSlot = slotIdx;
+  previewEls[slotIdx].classList.add('selecting');
+  cvs.style.cursor = 'crosshair';
+  showToast('拖动框选要载入的形状区域');
+}
+
+function exitSelectionMode() {
+  if (selectingSlot >= 0 && previewEls[selectingSlot]) {
+    previewEls[selectingSlot].classList.remove('selecting');
+  }
+  selecting = false;
+  selectingSlot = -1;
+  isSelDragging = false;
+  selPointerId = null;
+  cvs.style.cursor = '';
+  selOverlay.style.display = 'none';
+}
+
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+    padding:14px 22px;background:rgba(10,10,14,.92);color:#fff;
+    border:1px solid rgba(110,231,255,.4);border-radius:12px;
+    font-size:13px;letter-spacing:.02em;z-index:200;
+    box-shadow:0 8px 30px rgba(0,0,0,.6);
+    pointer-events:none;opacity:0;transition:opacity .18s;
+    max-width:80vw;text-align:center;line-height:1.5;
+  `;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.style.opacity = '1');
+  setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 250);
+  }, 1900);
+}
+
+function updateSelOverlay() {
+  const left = Math.min(selStartX, selEndX);
+  const top  = Math.min(selStartY, selEndY);
+  const w = Math.abs(selEndX - selStartX);
+  const h = Math.abs(selEndY - selStartY);
+  selOverlay.style.left   = left + 'px';
+  selOverlay.style.top    = top + 'px';
+  selOverlay.style.width  = w + 'px';
+  selOverlay.style.height = h + 'px';
+  selOverlay.style.display = 'block';
+}
+
+function cropShape(left, top, w, h) {
+  if (selectingSlot < 0) return;
+
+  const sx = Math.round(left * dpr);
+  const sy = Math.round(top * dpr);
+  const sw = Math.round(w * dpr);
+  const sh = Math.round(h * dpr);
+  if (sw < 4 || sh < 4) return;
+
+  const cw = baseCvs.width, ch = baseCvs.height;
+  const cx0 = Math.max(0, Math.min(cw - 1, sx));
+  const cy0 = Math.max(0, Math.min(ch - 1, sy));
+  const cw2 = Math.min(cw - cx0, sw);
+  const ch2 = Math.min(ch - cy0, sh);
+  if (cw2 < 4 || ch2 < 4) return;
+
+  const c = document.createElement('canvas');
+  c.width = cw2;
+  c.height = ch2;
+  const cx = c.getContext('2d');
+  cx.drawImage(baseCvs, cx0, cy0, cw2, ch2, 0, 0, cw2, ch2);
+
+  customShapes[selectingSlot] = {
+    canvas: c,
+    w: cw2 / dpr,
+    h: ch2 / dpr
+  };
+  updateSlotPreview(selectingSlot);
+}
+
+/* 只有「工具=放置」且「形状=自定义」时才显示面板 */
+function updateCustomPanelVisibility() {
+  const show = cfg.tool === 'place' && cfg.shape === 'custom';
+  customPanel.hidden = !show;
+  if (show) {
+    for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) updateSlotPreview(i);
+  } else {
+    exitSelectionMode();
+  }
+}
+
+function pickWeightedCustomShape() {
+  const candidates = [];
+  let total = 0;
+  for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) {
+    if (customShapes[i] && customWeights[i] > 0) {
+      candidates.push(i);
+      total += customWeights[i];
+    }
+  }
+  if (total <= 0) {
+    const loaded = [];
+    for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) {
+      if (customShapes[i]) loaded.push(i);
+    }
+    if (loaded.length === 0) return null;
+    return customShapes[loaded[(Math.random() * loaded.length) | 0]];
+  }
+  let r = Math.random() * total;
+  for (const i of candidates) {
+    r -= customWeights[i];
+    if (r <= 0) return customShapes[i];
+  }
+  return customShapes[candidates[candidates.length - 1]];
+}
+
+function hasAnyCustomShape() {
+  for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) {
+    if (customShapes[i]) return true;
+  }
+  return false;
+}
+
+/* =========================================================
+   自定义形状：放置
+   ========================================================= */
+function stampCustomShape(x, y, pressure, cs) {
+  if (!cs) return;
+
+  const p = (pressure && pressure > 0) ? pressure : 0.5;
+  const scale = 0.55 + p * 0.9;
+  const targetSize = cfg.pSize * scale * rnd(1 - cfg.pSizeVar, 1 + cfg.pSizeVar);
+
+  const maxDim = Math.max(cs.w, cs.h);
+  const s = targetSize / maxDim;
+
+  let a = cfg.pAlpha;
+  if (a >= 0.999) a = 1;
+  else a *= rnd(0.75, 1);
+  a = Math.min(1, Math.max(0.02, a));
+
+  const rot = Math.random() * TAU;
+  const ox = x + rnd(-cfg.pJitter, cfg.pJitter);
+  const oy = y + rnd(-cfg.pJitter, cfg.pJitter);
+
+  const g = bctx;
+  g.save();
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.globalCompositeOperation = cfg.blend;
+  g.globalAlpha = a;
+  g.translate(ox, oy);
+  g.rotate(rot);
+  g.drawImage(
+    cs.canvas,
+    -cs.w * s / 2, -cs.h * s / 2,
+    cs.w * s, cs.h * s
+  );
+  g.restore();
+
+  scheduleRender();
+}
+
+function stampShape(x, y, pressure) {
+  const type = cfg.shape === 'random' ? pick(SHAPE_KEYS) : cfg.shape;
+
+  if (type === 'custom') {
+    const cs = pickWeightedCustomShape();
+    if (!cs) return;
+    stampCustomShape(x, y, pressure, cs);
+    return;
+  }
+
+  const p = (pressure && pressure > 0) ? pressure : 0.5;
+  const scale = 0.55 + p * 0.9;
+
+  const base = cfg.pSize * scale * rnd(1 - cfg.pSizeVar, 1 + cfg.pSizeVar);
+  const r = Math.max(0.8, base / 2);
+
+  const dec = makeShapeDecision(type);
+
+  const rot = Math.random() * TAU;
+  const ox  = x + rnd(-cfg.pJitter, cfg.pJitter);
+  const oy  = y + rnd(-cfg.pJitter, cfg.pJitter);
+
+  const g = bctx;
+  g.save();
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.globalCompositeOperation = cfg.blend;
+  g.globalAlpha = dec.alpha;
+  g.translate(ox, oy);
+  g.rotate(rot);
+  g.lineWidth = dec.lw;
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.fillStyle = dec.color;
+  g.strokeStyle = dec.color;
+  buildPath(g, type, r);
+  if (dec.useFill) g.fill();
+  else             g.stroke();
+  g.restore();
+
+  scheduleRender();
+}
+
+/* =========================================================
+   拖拽
+   ========================================================= */
+let dragShape = null;
+
+function startDragShape(x, y) {
+  const type = cfg.shape === 'random' ? pick(SHAPE_KEYS) : cfg.shape;
+
+  if (type === 'custom') {
+    const cs = pickWeightedCustomShape();
+    if (!cs) return;
+    let a = cfg.pAlpha;
+    if (a >= 0.999) a = 1;
+    else a *= rnd(0.75, 1);
+    a = Math.min(1, Math.max(0.02, a));
+
+    dragShape = {
+      isCustom: true,
+      ox: x, oy: y,
+      shapeCanvas: cs.canvas,
+      shapeW: cs.w,
+      shapeH: cs.h,
+      alpha: a
+    };
+
+    strokeBlend = cfg.blend;
+    strokeAlpha = a;
+
+    clearStrokeBuf();
+    strokeActive = true;
+    renderDragShape(x, y);
+    return;
+  }
+
+  const dec = makeShapeDecision(type);
+
+  dragShape = {
+    ox: x, oy: y,
+    unitPath: buildUnitPath(type),
+    color: dec.color,
+    alpha: dec.alpha,
+    lw: dec.lw,
+    useFill: dec.useFill
+  };
+
+  strokeBlend = cfg.blend;
+  strokeAlpha = dec.alpha;
+
+  clearStrokeBuf();
+  strokeActive = true;
+  renderDragShape(x, y);
+}
+
+function renderDragShape(x, y) {
+  const ds = dragShape;
+  if (!ds) return;
+
+  const dx = x - ds.ox, dy = y - ds.oy;
+  const dist = Math.hypot(dx, dy);
+
+  const radius = dist < 3 ? Math.max(6, cfg.pSize / 2) : dist;
+  const rot = Math.atan2(dy, dx);
+
+  clearStrokeBuf();
+
+  const g = sctx;
+  g.save();
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.globalCompositeOperation = 'source-over';
+  g.globalAlpha = 1;
+  g.translate(ds.ox, ds.oy);
+  g.rotate(rot);
+
+  if (ds.isCustom) {
+    const maxDim = Math.max(ds.shapeW, ds.shapeH);
+    const s = (radius * 2) / maxDim;
+    g.drawImage(
+      ds.shapeCanvas,
+      -ds.shapeW * s / 2, -ds.shapeH * s / 2,
+      ds.shapeW * s, ds.shapeH * s
+    );
+  } else {
+    g.scale(radius, radius);
+    g.lineWidth = Math.max(0.0008, ds.lw / radius);
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.fillStyle = ds.color;
+    g.strokeStyle = ds.color;
+    if (ds.useFill) g.fill(ds.unitPath);
+    else            g.stroke(ds.unitPath);
+  }
+
+  g.restore();
+  scheduleRender();
+}
+
+/* =========================================================
+   绘画
+   ========================================================= */
+let strokeColor = '#fff';
+let strokePts   = [];
+let lastPt      = { x: 0, y: 0 };
+let smoothPt    = { x: 0, y: 0 };
+let linePrev    = { x: 0, y: 0 };
+let lineLastMid = { x: 0, y: 0 };
+
+let strokeOriginX = 0;
+let strokeOriginY = 0;
+
+/* 线渐变状态 */
+let lineProgress = 0;
+const LINE_GRADIENT_LENGTH = 320;
+
+let lastPointerPos = { x: 0, y: 0 };
+
+function clearStrokeBuf() {
+  sctx.save();
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.clearRect(0, 0, strokeBuf.width, strokeBuf.height);
+  sctx.restore();
+}
+
+function prepStrokeCtx() {
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  sctx.globalCompositeOperation = 'source-over';
+  sctx.globalAlpha = 1;
+  sctx.lineCap = 'round';
+  sctx.lineJoin = 'round';
+  sctx.strokeStyle = strokeColor;
+  sctx.fillStyle = strokeColor;
+  sctx.lineWidth = cfg.bWidth;
+}
+
+function updateLineSegmentColor(segLen) {
+  const r = hueRange();
+
+  if (cfg.hueRandom) {
+    let h = cfg.hue + (Math.random() * 2 - 1) * r;
+    h = ((h % 360) + 360) % 360;
+    sctx.strokeStyle = `hsl(${h.toFixed(1)} ${cfg.sat}% ${cfg.light}%)`;
+    return;
+  }
+
+  if (r <= 0) {
+    sctx.strokeStyle = `hsl(${cfg.hue.toFixed(1)} ${cfg.sat}% ${cfg.light}%)`;
+    return;
+  }
+
+  lineProgress += segLen;
+  const t = (lineProgress / LINE_GRADIENT_LENGTH) % 1;
+  let h = cfg.hue - r + 2 * r * t;
+  h = ((h % 360) + 360) % 360;
+  sctx.strokeStyle = `hsl(${h.toFixed(1)} ${cfg.sat}% ${cfg.light}%)`;
+}
+
+function redrawLasso() {
+  clearStrokeBuf();
+  prepStrokeCtx();
+
+  const pts = strokePts;
+  const n = pts.length;
+  const rad = Math.max(0.5, cfg.bWidth / 2);
+  const isErase = cfg.paintMode === 'erase';
+  const isFill  = cfg.paintMode === 'fill';
+
+  if (n === 0) return;
+
+  if (n === 1) {
+    const col = isErase ? '#000' : strokeColor;
+    sctx.beginPath();
+    sctx.arc(pts[0].x, pts[0].y, rad, 0, TAU);
+    sctx.fillStyle = col;
+    sctx.fill();
+    return;
+  }
+
+  if (n === 2) {
+    const col = isErase ? '#000' : strokeColor;
+    sctx.beginPath();
+    sctx.moveTo(pts[0].x, pts[0].y);
+    sctx.lineTo(pts[1].x, pts[1].y);
+    sctx.strokeStyle = col;
+    sctx.lineWidth = cfg.bWidth;
+    sctx.lineCap = 'round';
+    sctx.stroke();
+    return;
+  }
+
+  sctx.beginPath();
+  const mx0 = (pts[0].x + pts[1].x) / 2;
+  const my0 = (pts[0].y + pts[1].y) / 2;
+  sctx.moveTo(mx0, my0);
+
+  for (let i = 1; i < n - 1; i++) {
+    const cur  = pts[i];
+    const next = pts[i + 1];
+    const mx = (cur.x + next.x) / 2;
+    const my = (cur.y + next.y) / 2;
+    sctx.quadraticCurveTo(cur.x, cur.y, mx, my);
+  }
+  const last = pts[n - 1];
+  sctx.quadraticCurveTo(last.x, last.y, mx0, my0);
+  sctx.closePath();
+
+  if (isErase) {
+    sctx.fillStyle = '#000';
+    sctx.strokeStyle = '#000';
+    sctx.lineWidth = cfg.bWidth;
+    sctx.lineJoin = 'round';
+    sctx.lineCap = 'round';
+    sctx.fill();
+    sctx.stroke();
+    return;
+  }
+
+  if (isFill && fillSectorColors) {
+    const cx = strokeOriginX;
+    const cy = strokeOriginY;
+
+    let maxR = 0;
+    for (let i = 0; i < n; i++) {
+      const d = Math.hypot(pts[i].x - cx, pts[i].y - cy);
+      if (d > maxR) maxR = d;
+    }
+    maxR += cfg.bWidth;
+    if (maxR < 4) maxR = 4;
+
+    const sectorCanvas = buildSectorCanvas(maxR);
+
+    sctx.save();
+    sctx.clip();
+    sctx.drawImage(
+      sectorCanvas,
+      cx - maxR, cy - maxR,
+      maxR * 2, maxR * 2
+    );
+    sctx.restore();
+    return;
+  }
+
+  sctx.fillStyle = strokeColor;
+  sctx.strokeStyle = strokeColor;
+  sctx.fill();
+  sctx.stroke();
+}
+
+function startPaintStroke(x, y) {
+  strokeOriginX = x;
+  strokeOriginY = y;
+
+  if (cfg.paintMode === 'fill') {
+    initFillSectors();
+    const rgb = fillSectorColors[0];
+    strokeColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+  } else {
+    strokeColor = nextColor();
+  }
+
+  if (cfg.paintMode === 'line') {
+    lineProgress = 0;
+  }
+
+  strokeBlend = cfg.paintMode === 'erase' ? 'destination-out' : cfg.blend;
+  strokeAlpha = cfg.paintMode === 'erase' ? 1 : Math.max(0.02, cfg.bAlpha);
+
+  clearStrokeBuf();
+  prepStrokeCtx();
+
+  lastPt.x = smoothPt.x = x;
+  lastPt.y = smoothPt.y = y;
+  strokePts = [{ x, y }];
+
+  sctx.beginPath();
+  sctx.arc(x, y, Math.max(0.5, cfg.bWidth / 2), 0, TAU);
+  sctx.fill();
+
+  if (cfg.paintMode === 'line') {
+    linePrev.x = lineLastMid.x = x;
+    linePrev.y = lineLastMid.y = y;
+  }
+
+  strokeActive = true;
+  scheduleRender();
+}
+
+function continuePaintStroke(x, y) {
+  if (!strokeActive) return;
+
+  if (cfg.paintMode === 'line') {
+    const k = 1 - cfg.bSmooth;
+    smoothPt.x += (x - smoothPt.x) * k;
+    smoothPt.y += (y - smoothPt.y) * k;
+
+    const dx = smoothPt.x - linePrev.x;
+    const dy = smoothPt.y - linePrev.y;
+    const segLen = Math.hypot(dx, dy);
+    if (segLen < 0.6) return;
+
+    const mx = (linePrev.x + smoothPt.x) / 2;
+    const my = (linePrev.y + smoothPt.y) / 2;
+
+    updateLineSegmentColor(segLen);
+
+    sctx.beginPath();
+    sctx.moveTo(lineLastMid.x, lineLastMid.y);
+    sctx.quadraticCurveTo(linePrev.x, linePrev.y, mx, my);
+    sctx.stroke();
+
+    lineLastMid.x = mx;
+    lineLastMid.y = my;
+    linePrev.x = smoothPt.x;
+    linePrev.y = smoothPt.y;
+
+  } else {
+    const dx = x - lastPt.x, dy = y - lastPt.y;
+    if (dx * dx + dy * dy < 1.44) return;
+
+    strokePts.push({ x, y });
+    if (strokePts.length > 4000) strokePts.shift();
+    lastPt.x = x;
+    lastPt.y = y;
+
+    redrawLasso();
+  }
+
+  scheduleRender();
+}
+
+function commitStroke() {
+  if (!strokeActive) return;
+
+  if (cfg.tool === 'paint' && cfg.paintMode === 'line') {
+    sctx.beginPath();
+    sctx.moveTo(lineLastMid.x, lineLastMid.y);
+    sctx.quadraticCurveTo(linePrev.x, linePrev.y, linePrev.x, linePrev.y);
+    sctx.stroke();
+  }
+
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = strokeBlend;
+  bctx.globalAlpha = strokeAlpha;
+  bctx.drawImage(strokeBuf, 0, 0);
+  bctx.restore();
+
+  clearStrokeBuf();
+  strokeActive = false;
+  renderView();
+}
+
+/* =========================================================
+   指针输入
+   ========================================================= */
+let drawing   = false;
+let ptrId     = null;
+let placePrev = { x: 0, y: 0 };
+let placeAcc  = 0;
+
+function abortActive() {
+  if (dragShape) {
+    dragShape = null;
+    strokeActive = false;
+    clearStrokeBuf();
+    renderView();
+  }
+  if (drawing) {
+    drawing = false;
+    ptrId = null;
+  }
+}
+
+cvs.addEventListener('pointerdown', e => {
+  if (selecting) {
+    e.preventDefault();
+    isSelDragging = true;
+    selPointerId = e.pointerId;
+    cvs.setPointerCapture(e.pointerId);
+    selStartX = selEndX = e.clientX;
+    selStartY = selEndY = e.clientY;
+    updateSelOverlay();
+    return;
+  }
+
+  e.preventDefault();
+  if (drawing) return;
+
+  if (cfg.tool === 'place' && cfg.shape === 'custom' && !hasAnyCustomShape()) {
+    showToast('请点击右上角的「自定义形状」框选载入至少一个形状');
+    return;
+  }
+
+  drawing = true;
+  ptrId = e.pointerId;
+  cvs.setPointerCapture(e.pointerId);
+
+  takeSnapshot();
+
+  const x = e.clientX, y = e.clientY;
+  const pressure = e.pressure > 0 ? e.pressure : 0.5;
+
+  if (cfg.tool === 'place') {
+    if (cfg.ctrlMode === 'scatter') {
+      placePrev.x = x;
+      placePrev.y = y;
+      placeAcc = 0;
+      stampShape(x, y, pressure);
+    } else {
+      startDragShape(x, y);
+    }
+  } else {
+    startPaintStroke(x, y);
+  }
+}, { passive: false });
+
+cvs.addEventListener('pointermove', e => {
+  lastPointerPos.x = e.clientX;
+  lastPointerPos.y = e.clientY;
+
+  if (isSelDragging && e.pointerId === selPointerId) {
+    e.preventDefault();
+    selEndX = e.clientX;
+    selEndY = e.clientY;
+    updateSelOverlay();
+    return;
+  }
+
+  if (!drawing || e.pointerId !== ptrId) return;
+  e.preventDefault();
+
+  const x = e.clientX, y = e.clientY;
+  const pressure = e.pressure > 0 ? e.pressure : 0.5;
+
+  if (cfg.tool === 'place') {
+    if (cfg.ctrlMode === 'scatter') {
+      const dx = x - placePrev.x, dy = y - placePrev.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 0.01) return;
+
+      const ux = dx / dist, uy = dy / dist;
+      const spacing = Math.max(2, cfg.pSpacing);
+      let travelled = 0;
+
+      while (placeAcc + (dist - travelled) >= spacing) {
+        const need = spacing - placeAcc;
+        travelled += need;
+        placeAcc = 0;
+        stampShape(
+          placePrev.x + ux * travelled,
+          placePrev.y + uy * travelled,
+          pressure
+        );
+      }
+      placeAcc += dist - travelled;
+      placePrev.x = x;
+      placePrev.y = y;
+
+    } else {
+      renderDragShape(x, y);
+    }
+
+  } else {
+    continuePaintStroke(x, y);
+  }
+}, { passive: false });
+
+function endStroke(e) {
+  if (isSelDragging && (!e || e.pointerId === selPointerId)) {
+    isSelDragging = false;
+
+    const left = Math.min(selStartX, selEndX);
+    const top  = Math.min(selStartY, selEndY);
+    const w = Math.abs(selEndX - selStartX);
+    const h = Math.abs(selEndY - selStartY);
+
+    selOverlay.style.display = 'none';
+    selPointerId = null;
+
+    if (w > 8 && h > 8) {
+      cropShape(left, top, w, h);
+      exitSelectionMode();
+    }
+    return;
+  }
+
+  if (!drawing) return;
+  if (e && e.pointerId !== ptrId) return;
+  drawing = false;
+  ptrId = null;
+
+  if (cfg.tool === 'place') {
+    if (cfg.ctrlMode === 'drag' && dragShape) {
+      commitStroke();
+      dragShape = null;
+    }
+  } else {
+    commitStroke();
+  }
+}
+cvs.addEventListener('pointerup', endStroke);
+cvs.addEventListener('pointercancel', endStroke);
+
+/* =========================================================
+   粘贴图片
+   ========================================================= */
+window.addEventListener('paste', e => {
+  let imageBlob = null;
+
+  const items = e.clipboardData && e.clipboardData.items;
+  if (items) {
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image') === 0) {
+        imageBlob = items[i].getAsFile();
+        break;
+      }
+    }
+  }
+
+  if (!imageBlob && e.clipboardData && e.clipboardData.files) {
+    for (let i = 0; i < e.clipboardData.files.length; i++) {
+      const f = e.clipboardData.files[i];
+      if (f.type && f.type.indexOf('image') === 0) {
+        imageBlob = f;
+        break;
+      }
+    }
+  }
+
+  if (!imageBlob) return;
+  e.preventDefault();
+
+  const url = URL.createObjectURL(imageBlob);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    pasteImageToCanvas(img);
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    showToast('图片加载失败');
+  };
+  img.src = url;
+});
+
+function pasteImageToCanvas(img) {
+  lastSnap = 0;
+  takeSnapshot();
+
+  const maxW = window.innerWidth  * 0.8;
+  const maxH = window.innerHeight * 0.8;
+  const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+  const drawW = img.width  * scale;
+  const drawH = img.height * scale;
+
+  let cx, cy;
+  if (lastPointerPos.x > 0 && lastPointerPos.y > 0) {
+    cx = lastPointerPos.x;
+    cy = lastPointerPos.y;
+  } else {
+    cx = window.innerWidth  / 2;
+    cy = window.innerHeight / 2;
+  }
+
+  const dx = cx - drawW / 2;
+  const dy = cy - drawH / 2;
+
+  bctx.save();
+  bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  bctx.globalCompositeOperation = 'source-over';
+  bctx.globalAlpha = 1;
+  bctx.drawImage(img, dx, dy, drawW, drawH);
+  bctx.restore();
+
+  renderView();
+  showToast('已粘贴图片');
+}
+
+/* =========================================================
+   撤销 / 清空 / 保存
+   ========================================================= */
+const history = [];
+let lastSnap = 0;
+
+function takeSnapshot() {
+  const now = performance.now();
+  if (now - lastSnap < 350 && history.length) return;
+  lastSnap = now;
+  try {
+    history.push(baseCvs.toDataURL('image/png'));
+    if (history.length > 16) history.shift();
+  } catch (err) {}
+}
+
+function undo() {
+  const url = history.pop();
+  if (!url) return;
+  const img = new Image();
+  img.onload = () => {
+    bctx.save();
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.globalAlpha = 1;
+    bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
+    bctx.drawImage(img, 0, 0);
+    bctx.restore();
+    renderView();
+  };
+  img.src = url;
+}
+
+function clearAll() {
+  takeSnapshot();
+  clearStrokeBuf();
+  strokeActive = false;
+  dragShape = null;
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = 'source-over';
+  bctx.globalAlpha = 1;
+  bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
+  bctx.restore();
+  renderView();
+}
+
+function savePNG() {
+  const a = document.createElement('a');
+  a.download = `geometry-${Date.now()}.png`;
+  a.href = baseCvs.toDataURL('image/png');
+  a.click();
+}
+
+/* =========================================================
+   UI 绑定
+   ========================================================= */
+function bindRange(id, apply) {
+  const el = document.getElementById(id);
+  const out = el.nextElementSibling;
+  const handler = () => apply(parseFloat(el.value), out);
+  el.addEventListener('input', handler);
+  handler();
+}
+
+bindRange('pSize',    (v, o) => { cfg.pSize = v;         o.textContent = v; });
+bindRange('pSizeVar', (v, o) => { cfg.pSizeVar = v/100;  o.textContent = v + '%'; });
+bindRange('pSpacing', (v, o) => { cfg.pSpacing = v;      o.textContent = v; });
+bindRange('pJitter',  (v, o) => { cfg.pJitter = v;       o.textContent = v; });
+bindRange('pAlpha',   (v, o) => { cfg.pAlpha = v/100;    o.textContent = v + '%'; });
+bindRange('pLw',      (v, o) => { cfg.pLw = v/10;        o.textContent = (v/10).toFixed(1); });
+
+bindRange('bWidth',  (v, o) => { cfg.bWidth = v;          o.textContent = v; });
+bindRange('bSmooth', (v, o) => { cfg.bSmooth = v/100;     o.textContent = v + '%'; });
+bindRange('bAlpha',  (v, o) => { cfg.bAlpha = v/100;      o.textContent = v + '%'; });
+
+bindRange('hue', (v, o) => {
+  cfg.hue = v;
+  o.textContent = v;
+  updateHueBar();
+});
+
+bindRange('hueGradient', (v, o) => {
+  cfg.hueGradient = v;
+  o.textContent = v + '%';
+  updateHueBar();
+});
+
+const hueRandomEl = document.getElementById('hueRandom');
+hueRandomEl.addEventListener('change', () => {
+  cfg.hueRandom = hueRandomEl.checked;
+});
+
+bindRange('sat',   (v, o) => { cfg.sat = v;   o.textContent = v + '%'; });
+bindRange('light', (v, o) => { cfg.light = v; o.textContent = v + '%'; });
+
+/* ---------- 工具切换 ---------- */
+const toolBox    = document.getElementById('tools');
+const placePanel = document.getElementById('placePanel');
+const paintPanel = document.getElementById('paintPanel');
+
+function applyTool(tool) {
+  cfg.tool = tool;
+  toolBox.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.v === tool));
+
+  const isPlace = tool === 'place';
+  placePanel.hidden = !isPlace;
+  paintPanel.hidden = isPlace;
+
+  updateCustomPanelVisibility();
+  updateUIState();
+}
+
+toolBox.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.dataset.v === cfg.tool) return;
+  abortActive();
+  exitSelectionMode();
+  applyTool(btn.dataset.v);
+});
+
+/* ---------- 形状 ---------- */
+const shapeBox = document.getElementById('shapes');
+shapeBox.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  shapeBox.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  cfg.shape = btn.dataset.v;
+  updateCustomPanelVisibility();
+  updateUIState();
+});
+
+/* ---------- 控制模式 ---------- */
+const ctrlBox  = document.getElementById('ctrlModes');
+const ctrlHint = document.getElementById('ctrlHint');
+const CTRL_TIPS = {
+  scatter: '拖动时按间距连续放置形状',
+  drag:    '按下拖动：距离决定大小，方向决定旋转，抬起确定'
+};
+
+function applyCtrlMode(mode) {
+  cfg.ctrlMode = mode;
+  ctrlBox.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.v === mode));
+  ctrlHint.textContent = CTRL_TIPS[mode] || '';
+}
+
+ctrlBox.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.dataset.v === cfg.ctrlMode) return;
+  abortActive();
+  applyCtrlMode(btn.dataset.v);
+});
+
+/* ---------- 绘制模式 ---------- */
+const pModeBox  = document.getElementById('pModes');
+const pModeHint = document.getElementById('pModeHint');
+const P_MODE_TIPS = {
+  stroke: '只有线，所有形状都是空心轮廓',
+  fill:   '纯剪影，能填充的形状全部实心',
+  mix:    '随机描边或填充，每次都不一样'
+};
+function applyPlaceMode(mode) {
+  cfg.pMode = mode;
+  pModeBox.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.v === mode));
+  pModeHint.textContent = P_MODE_TIPS[mode] || '';
+  updateUIState();
+}
+pModeBox.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  applyPlaceMode(btn.dataset.v);
+});
+
+/* ---------- 绘画模式 ---------- */
+const paintModeBox = document.getElementById('paintModes');
+const paintHint    = document.getElementById('paintHint');
+const PAINT_TIPS = {
+  line:  '自由画线，色相与渐变共同决定线的颜色',
+  fill:  '柳叶笔套索，以起点为圆心 72 扇区填色',
+  erase: '柳叶笔套索，圈住的区域擦除画面内容'
+};
+function applyPaintMode(mode) {
+  cfg.paintMode = mode;
+  paintModeBox.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.v === mode));
+  paintHint.textContent = PAINT_TIPS[mode] || '';
+  updateUIState();
+}
+paintModeBox.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.dataset.v === cfg.paintMode) return;
+  abortActive();
+  applyPaintMode(btn.dataset.v);
+});
+
+/* ---------- 混合 / 背景 ---------- */
+document.getElementById('blend').addEventListener('change', e => {
+  cfg.blend = e.target.value;
+});
+
+document.getElementById('bg').addEventListener('input', e => {
+  cfg.bg = e.target.value;
+  document.body.style.background = cfg.bg;
+  document.documentElement.style.background = cfg.bg;
+  renderView();
+});
+
+/* ---------- 操作按钮 ---------- */
+document.getElementById('undo').addEventListener('click', undo);
+document.getElementById('clear').addEventListener('click', clearAll);
+document.getElementById('save').addEventListener('click', savePNG);
+
+/* ---------- 折叠 ---------- */
+const ui = document.getElementById('ui');
+const collapseBtn = document.getElementById('collapse');
+collapseBtn.addEventListener('click', () => {
+  ui.classList.toggle('collapsed');
+  collapseBtn.textContent = ui.classList.contains('collapsed') ? '+' : '−';
+  requestAnimationFrame(() => {
+    updateHueBar();
+    for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) updateSlotPreview(i);
+  });
+});
+
+/* ---------- 快捷键 ---------- */
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && selecting) {
+    exitSelectionMode();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    undo();
+  }
+});
+
+/* =========================================================
+   启动
+   ========================================================= */
+document.body.style.background = cfg.bg;
+document.documentElement.style.background = cfg.bg;
+
+buildCustomSlotsUI();
+
+resize();
+applyTool(cfg.tool);
+applyCtrlMode(cfg.ctrlMode);
+applyPlaceMode(cfg.pMode);
+applyPaintMode(cfg.paintMode);
+renderView();
+
+requestAnimationFrame(() => {
+  updateHueBar();
+  for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) updateSlotPreview(i);
+});
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    resize();
+    updateHueBar();
+    for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) updateSlotPreview(i);
+  }, 120);
+});
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    resize();
+    updateHueBar();
+    for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) updateSlotPreview(i);
+  }, 250);
+});
+
+})();
+</script>
+</body>
+</html>
