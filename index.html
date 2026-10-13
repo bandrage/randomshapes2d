@@ -6,7 +6,7 @@
 <title>RandomShapes2D · Geometry Studio</title>
 <style>
   :root{
-    --bg:#0e0e12;
+    --bg:#ffffff;
     --panel:rgba(20,20,26,.80);
     --line:rgba(255,255,255,.09);
     --txt:#e9e9f0;
@@ -14,7 +14,7 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{
-    margin:0;height:100%;overflow:hidden;background:#0e0e12;color:var(--txt);
+    margin:0;height:100%;overflow:hidden;background:#ffffff;color:var(--txt);
     font-family:ui-sans-serif,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
     overscroll-behavior:none;
   }
@@ -64,6 +64,12 @@
   .sw span::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.2s;}
   .sw input:checked + span{background:linear-gradient(135deg,#6ee7ff,#a78bfa)}
   .sw input:checked + span::after{transform:translateX(15px)}
+
+  .sw.row-sw{flex:0 0 auto;margin-left:2px}
+  .sw.row-sw span{width:24px;height:14px;border-radius:7px}
+  .sw.row-sw span::after{width:10px;height:10px;top:2px;left:2px}
+  .sw.row-sw input:checked + span::after{transform:translateX(10px)}
+
   .modeHint{margin-top:7px;font-size:10.5px;line-height:1.5;color:#7a7a8c;min-height:15px;}
   .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .actions button{padding:8px 0;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);font-size:11.5px;cursor:pointer;font-family:inherit;transition:.15s;}
@@ -113,9 +119,111 @@
     transform:translate(-50%,-50%);
     display:none;
   }
+  #brushCursor {
+    position: fixed; pointer-events: none; z-index: 6;
+    border: 1.5px solid rgba(255,255,255,.9);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.3);
+    transform: translate(-50%,-50%);
+    display: none;
+  }
+  #blurBar {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    display: none; flex-direction: column; gap: 8px;
+    padding: 10px 16px; border-radius: 12px;
+    background: var(--panel);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border: 1px solid var(--line);
+    box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    z-index: 20; user-select: none; font-size: 12px;
+  }
+  #blurBar > span { color: #c9c9d9; white-space: nowrap; }
+  #blurBar input[type=range] {
+    width: 180px; -webkit-appearance: none; appearance: none;
+    height: 3px; border-radius: 3px; background: rgba(255,255,255,.14);
+    outline: none; cursor: pointer;
+  }
+  #blurBar input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: #e9e9f0; border: none; cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(167,139,250,.25);
+  }
+  #blurBar input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #e9e9f0; border: none; cursor: pointer;
+  }
+  #blurBar > i {
+    color: #b9b9c9; font-style: normal; font-variant-numeric: tabular-nums;
+    min-width: 28px; text-align: right;
+  }
+  #blurBar .bbRow {
+    display: flex; align-items: center; gap: 10px;
+  }
+  #hint{
+    position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    color:rgba(255,255,255,.75);
+    font-size:12px;letter-spacing:.1em;pointer-events:none;white-space:nowrap;z-index:5;
+    background:rgba(0,0,0,.55);
+    padding:6px 14px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.08);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+  }
+  #eraserBadge{
+    position:fixed;top:18px;left:50%;transform:translateX(-50%);
+    display:none;padding:6px 14px;border-radius:10px;
+    background:rgba(255,90,90,.18);
+    border:1px solid rgba(255,120,120,.55);
+    color:#ffb3b3;font-size:12px;letter-spacing:.08em;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    pointer-events:none;z-index:20;white-space:nowrap;
+  }
 
-  #hint{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.3);font-size:12px;letter-spacing:.1em;pointer-events:none;white-space:nowrap;animation:fade 8s forwards;z-index:5;}
-  @keyframes fade{0%,55%{opacity:1}100%{opacity:0}}
+  /* 曲线面板 */
+  #curvePanel{
+    position:fixed;top:0;left:0;
+    width:300px;padding:12px;border-radius:14px;
+    background:var(--panel);
+    backdrop-filter:blur(14px) saturate(1.4);
+    -webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border:1px solid var(--line);
+    box-shadow:0 12px 40px rgba(0,0,0,.6);
+    z-index:30;user-select:none;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  #curvePanel[hidden]{display:none !important;}
+  #curvePanel .cpHead{display:flex;align-items:center;gap:10px;cursor:move;touch-action:none;}
+  #curvePanel .cpTitle{font-size:12.5px;font-weight:600;flex:1;letter-spacing:.02em;}
+  #curvePanel .cpChannels{display:flex;gap:4px;}
+  #curvePanel .cpChannels button{
+    padding:4px 8px;border-radius:6px;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);
+    color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit;
+  }
+  #curvePanel .cpChannels button:hover{background:rgba(255,255,255,.1);color:#fff}
+  #curvePanel .cpChannels button.on{
+    background:linear-gradient(135deg,rgba(110,231,255,.22),rgba(167,139,250,.22));
+    border-color:rgba(110,231,255,.55);color:#fff;
+  }
+  #cpCanvas{
+    width:256px;height:256px;display:block;margin:0 auto;
+    background:#14141a;border:1px solid var(--line);border-radius:8px;
+    cursor:crosshair;touch-action:none;
+  }
+  #curvePanel .cpActions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  #curvePanel .cpActions button{
+    padding:7px 0;border-radius:9px;border:1px solid var(--line);
+    background:rgba(255,255,255,.05);color:var(--txt);
+    font-size:11.5px;cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  #curvePanel .cpActions button:hover{background:rgba(255,255,255,.12)}
+  #curvePanel .cpActions #cpApply{
+    background:linear-gradient(135deg,rgba(110,231,255,.25),rgba(167,139,250,.25));
+    border-color:rgba(110,231,255,.55);color:#fff;
+  }
+
   @media (max-width:520px){
     #ui{width:calc(100vw - 24px);left:12px;top:12px}
     #hint{font-size:11px}
@@ -127,8 +235,40 @@
 <body>
 
 <canvas id="c"></canvas>
+<div id="blurBar">
+  <div class="bbRow">
+    <span>大小</span>
+    <input id="blurSize" type="range" min="10" max="240" value="80">
+    <i>80</i>
+  </div>
+  <div class="bbRow">
+    <span>强度</span>
+    <input id="blurStrength" type="range" min="5" max="100" value="50">
+    <i>50%</i>
+  </div>
+</div>
 <div id="selOverlay"></div>
 <div id="lqCursor"></div>
+<div id="brushCursor"></div>
+<div id="eraserBadge">橡皮模式（按住 E）</div>
+
+<div id="curvePanel" hidden>
+  <div class="cpHead">
+    <span class="cpTitle">曲线</span>
+    <div class="cpChannels" id="cpChannels">
+      <button data-c="rgb" class="on">RGB</button>
+      <button data-c="r">R</button>
+      <button data-c="g">G</button>
+      <button data-c="b">B</button>
+    </div>
+  </div>
+  <canvas id="cpCanvas" width="256" height="256"></canvas>
+  <div class="cpActions">
+    <button id="cpReset">重置</button>
+    <button id="cpCancel">取消</button>
+    <button id="cpApply">确定</button>
+  </div>
+</div>
 
 <div id="ui">
   <div class="hd">
@@ -168,11 +308,11 @@
 
       <section>
         <div class="lbl">笔触</div>
-        <div class="row"><span>大小</span><input id="pSize" type="range" min="6" max="160" value="30"><i>30</i></div>
+        <div class="row"><span>大小</span><input id="pSize" type="range" min="6" max="160" value="30"><i>30</i><label class="sw row-sw" title="大小压感"><input id="pSizePen" type="checkbox"><span></span></label></div>
         <div class="row"><span>大小变化</span><input id="pSizeVar" type="range" min="0" max="100" value="55"><i>55%</i></div>
         <div class="row"><span>间距</span><input id="pSpacing" type="range" min="3" max="80" value="18"><i>18</i></div>
         <div class="row"><span>抖动</span><input id="pJitter" type="range" min="0" max="40" value="8"><i>8</i></div>
-        <div class="row"><span>透明度</span><input id="pAlpha" type="range" min="5" max="100" value="85"><i>85%</i></div>
+        <div class="row"><span>透明度</span><input id="pAlpha" type="range" min="5" max="100" value="85"><i>85%</i><label class="sw row-sw" title="透明度压感"><input id="pAlphaPen" type="checkbox"><span></span></label></div>
         <div class="row"><span>线宽</span><input id="pLw" type="range" min="1" max="120" value="20"><i>2.0</i></div>
       </section>
 
@@ -199,19 +339,30 @@
     <div id="paintPanel" hidden>
       <section>
         <div class="lbl">绘画模式</div>
-        <div class="chips" id="paintModes">
-          <button data-v="line" class="on">线</button>
+        <div class="chips two" id="paintModes">
+          <button data-v="line" class="on">画笔</button>
           <button data-v="fill">填充</button>
-          <button data-v="erase">擦除</button>
         </div>
         <div class="modeHint" id="paintHint">自由画线</div>
       </section>
 
       <section>
         <div class="lbl">笔刷</div>
-        <div class="row"><span>笔宽</span><input id="bWidth" type="range" min="1" max="120" value="8"><i>8</i></div>
+        <div class="row" id="bWidthRow"><span>笔宽</span><input id="bWidth" type="range" min="1" max="120" value="8"><i>8</i><label class="sw row-sw" title="大小压感"><input id="bSizePen" type="checkbox"><span></span></label></div>
+        <div class="row" id="bSpacingRow"><span>间隔</span><input id="bSpacing" type="range" min="1" max="100" value="15"><i>15%</i></div>
         <div class="row" id="bSmoothRow"><span>平滑</span><input id="bSmooth" type="range" min="0" max="90" value="35"><i>35%</i></div>
-        <div class="row" id="bAlphaRow"><span>透明度</span><input id="bAlpha" type="range" min="5" max="100" value="100"><i>100%</i></div>
+        <div class="row" id="bAlphaRow"><span>透明度</span><input id="bAlpha" type="range" min="5" max="100" value="100"><i>100%</i><label class="sw row-sw" title="透明度压感"><input id="bAlphaPen" type="checkbox"><span></span></label></div>
+      </section>
+
+            <section id="customBrushSection">
+        <div class="lbl">自定义画笔</div>
+        <div class="custom-preview" id="customBrushPreview">
+          <div class="custom-empty">点击载入</div>
+        </div>
+        <div class="row">
+          <span>启用自定义</span>
+          <label class="sw"><input id="useCustomBrush" type="checkbox"><span></span></label>
+        </div>
       </section>
     </div>
 
@@ -245,7 +396,7 @@
     <section id="colorSec">
       <div class="lbl">颜色</div>
       <div id="paintColorGroup">
-        <div class="row"><span>颜色</span><input id="baseColor" type="color" value="#1e9bff"></div>
+        <div class="row"><span>颜色</span><input id="baseColor" type="color" value="#000000"></div>
         <div class="row"><span>渐变</span><input id="hueGradient" type="range" min="0" max="100" value="0"><i>0%</i></div>
         <div class="row"><span>随机颜色</span><label class="sw"><input id="hueRandom" type="checkbox"><span></span></label></div>
       </div>
@@ -260,7 +411,7 @@
           <option value="darken">变暗</option>
         </select>
       </div>
-      <div class="row"><span>背景</span><input id="bg" type="color" value="#0e0e12"></div>
+      <div class="row"><span>背景</span><input id="bg" type="color" value="#ffffff"></div>
     </section>
 
     <section class="actions">
@@ -276,7 +427,7 @@
   <div id="customSlots"></div>
 </div>
 
-<div id="hint">中键套索 · Shift加选 · Alt减选 · Ctrl移动 · Ctrl+T 变换 · Ctrl+D取消 · Ctrl+I反选</div>
+<div id="hint">按住 s+ 左键套索 · Shift加选/模糊 · Alt减选/吸色 · Ctrl移动 · T 变换 · Ctrl+M 曲线 · 按住 E 橡皮</div>
 
 <script>
 (() => {
@@ -291,13 +442,19 @@ const cfg = {
   shape: 'random',
   pSize: 30, pSizeVar: 0.55, pSpacing: 18, pJitter: 8,
   pAlpha: 0.85, pLw: 2, pMode: 'mix',
+  placeSizePressure: false,
+  placeAlphaPressure: false,
+  paintSizePressure: false,
+  paintAlphaPressure: false,
   ctrlMode: 'scatter',
   paintMode: 'line',
-  bWidth: 8, bSmooth: 0.35, bAlpha: 1.0,
+  bWidth: 8, bSmooth: 0.35, bAlpha: 1.0, bSpacing: 0.15,
   lqMode: 'push', lqStyle: 'smooth', lqSize: 80, lqStrength: 0.5,
-  baseColor: '#1e9bff',
+  blurSize: 80,
+  blurStrength: 0.5,
+  baseColor: '#000000',
   hueGradient: 0, hueRandom: false,
-  blend: 'source-over', bg: '#0e0e12'
+  blend: 'source-over', bg: '#ffffff'
 };
 
 const cvs = document.getElementById('c');
@@ -308,12 +465,31 @@ const bctx      = baseCvs.getContext('2d');
 const strokeBuf = document.createElement('canvas');
 const sctx      = strokeBuf.getContext('2d');
 
+/* 擦除预览用临时画布：先把 baseCvs 拷进去做 destination-out，再整体贴到视图 */
+//const tmpCvs = document.createElement('canvas');
+//const tmpCtx = tmpCvs.getContext('2d');
+
 const conicCvs = document.createElement('canvas');
 const conicCtx = conicCvs.getContext('2d');
 
 const lqCursor = document.getElementById('lqCursor');
+const brushCursor = document.getElementById('brushCursor');
+const eraserBadge = document.getElementById('eraserBadge');
 
 let dpr = 1;
+
+/* =========================================================
+   橡皮模式状态（按住 E）
+   ========================================================= */
+let eraserHeld = false;
+
+function isEraserTool() {
+  return eraserHeld && (cfg.tool === 'place' || cfg.tool === 'paint');
+}
+
+function updateEraserBadge() {
+  eraserBadge.style.display = isEraserTool() ? 'block' : 'none';
+}
 
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -331,10 +507,11 @@ function resize() {
     old.getContext('2d').drawImage(baseCvs, 0, 0);
   }
 
-  for (const c of [cvs, baseCvs, strokeBuf]) {
-    c.width = nw;
-    c.height = nh;
-  }
+  // for (const c of [cvs, baseCvs, strokeBuf, tmpCvs]) {
+for (const c of [cvs, baseCvs, strokeBuf]) {
+  c.width = nw;
+  c.height = nh;
+}
   cvs.style.width = w + 'px';
   cvs.style.height = h + 'px';
 
@@ -361,6 +538,19 @@ let strokeBlend  = 'source-over';
 let strokeAlpha  = 1;
 let rafPending   = false;
 
+/* 擦除模式：笔画开始时 baseCvs 的快照（拖拽/套索每帧恢复用） */
+let strokeBaseSnapshot = null;
+
+function restoreBaseFromSnapshot() {
+  if (!strokeBaseSnapshot) return;
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = 'source-over';
+  bctx.globalAlpha = 1;
+  bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
+  bctx.drawImage(strokeBaseSnapshot, 0, 0);
+  bctx.restore();
+}
 /* =========================================================
    虚线动画
    ========================================================= */
@@ -395,15 +585,18 @@ function renderView() {
 
   vctx.drawImage(baseCvs, 0, 0);
 
-  if (strokeActive) {
-    vctx.globalCompositeOperation = strokeBlend;
-    vctx.globalAlpha = strokeAlpha;
-    vctx.drawImage(strokeBuf, 0, 0);
-    vctx.globalCompositeOperation = 'source-over';
-    vctx.globalAlpha = 1;
+    if (strokeActive) {
+    if (strokeBlend === 'destination-out') {
+      /* 擦除已实时写入 baseCvs，这里不再叠加 strokeBuf */
+    } else {
+      vctx.globalCompositeOperation = strokeBlend;
+      vctx.globalAlpha = strokeAlpha;
+      vctx.drawImage(strokeBuf, 0, 0);
+      vctx.globalCompositeOperation = 'source-over';
+      vctx.globalAlpha = 1;
+    }
   }
 
-  /* 套索预览 */
   if (lassoActive && lassoPoints.length > 1) {
     vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     vctx.save();
@@ -430,18 +623,13 @@ function renderView() {
     vctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
-  /* 选区（统一颜色，只有外轮廓） */
   if (!tfActive && hasSelection()) drawSelection();
 
-  /* ★ 自由变换框 */
   if (tfActive) drawTransformUI();
 
   if (!tfActive && (hasSelection() || lassoActive) && !dashAnimRunning) startDashAnim();
 }
 
-/* =========================================================
-   ★ 选区虚线绘制（从 mask 提取的外轮廓）
-   ========================================================= */
 function drawSelection() {
   vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   vctx.save();
@@ -456,10 +644,8 @@ function drawSelection() {
   const W = window.innerWidth;
   const H = window.innerHeight;
 
-  /* 统一颜色：反选时黄色，正常时白色 */
   const fgColor = selectionInverted ? '#ffb84d' : '#ffffff';
 
-  /* 反选：画布边框也画虚线 */
   if (selectionInverted) {
     vctx.strokeStyle = 'rgba(0,0,0,0.85)';
     vctx.lineDashOffset = dashOffset + 5;
@@ -470,7 +656,6 @@ function drawSelection() {
     vctx.strokeRect(0.5, 0.5, W - 1, H - 1);
   }
 
-  /* 从轮廓绘制 */
   for (const contour of selectionContours) {
     if (contour.length < 3) continue;
 
@@ -481,12 +666,10 @@ function drawSelection() {
     }
     path.closePath();
 
-    /* 黑底 */
     vctx.strokeStyle = 'rgba(0,0,0,0.85)';
     vctx.lineDashOffset = dashOffset + 5;
     vctx.stroke(path);
 
-    /* 前景色 */
     vctx.strokeStyle = fgColor;
     vctx.lineDashOffset = dashOffset;
     vctx.stroke(path);
@@ -834,12 +1017,15 @@ function buildUnitPath(type) {
   return p;
 }
 
-function makeShapeDecision(type) {
+function makeShapeDecision(type, pressure) {
   const color = nextColor();
 
   let a = cfg.pAlpha;
-  if (a >= 0.999) a = 1;
-  else a *= rnd(0.75, 1);
+  if (cfg.placeAlphaPressure && pressure != null && pressure > 0) {
+    a *= (0.05 + pressure * 0.95);
+  } else if (a < 0.999) {
+    a *= rnd(0.75, 1);
+  }
   a = Math.min(1, Math.max(0.02, a));
 
   const lw = Math.max(0.3, cfg.pLw * rnd(0.7, 1.3));
@@ -872,6 +1058,9 @@ function updateUIState() {
   const bSmoothRow      = document.getElementById('bSmoothRow');
   const bAlphaRow       = document.getElementById('bAlphaRow');
 
+  /* 橡皮模式：放置 / 绘画时，颜色相关全部置灰 */
+  const eraser = eraserHeld && (isPlace || isPaint);
+
   if (isLq) {
     setDisabled(pModeSection, true);
     setDisabled(paintColorGroup, true);
@@ -886,32 +1075,41 @@ function updateUIState() {
     const isStrokeOnly = STROKE_ONLY.has(cfg.shape);
 
     setDisabled(pModeSection, isCustom || isStrokeOnly);
-    setDisabled(paintColorGroup, isCustom);
-    setDisabled(blendRow, false);
+    setDisabled(paintColorGroup, isCustom || eraser);
+    setDisabled(blendRow, eraser);
 
     setDisabled(bSmoothRow, false);
     setDisabled(bAlphaRow, false);
 
   } else if (isPaint) {
-    const isLine  = cfg.paintMode === 'line';
-    const isErase = cfg.paintMode === 'erase';
+    const isLine    = cfg.paintMode === 'line';
+    const isFill    = cfg.paintMode === 'fill';
+    const isNonLine = isFill;
+
+    const bWidthRow     = document.getElementById('bWidthRow');
+    const bAlphaPenWrap = document.getElementById('bAlphaPen').parentElement;
 
     setDisabled(pModeSection, false);
     setDisabled(bSmoothRow, !isLine);
-    setDisabled(bAlphaRow, isErase);
-    setDisabled(paintColorGroup, isErase);
-    setDisabled(blendRow, isErase);
+    setDisabled(bAlphaRow, false);
+    setDisabled(paintColorGroup, eraser);
+    setDisabled(blendRow, eraser);
+
+    setDisabled(bWidthRow, isNonLine);
+    setDisabled(bAlphaPenWrap, isNonLine);
+    setDisabled(document.getElementById('bSpacingRow'), isNonLine);
+    setDisabled(document.getElementById('customBrushSection'), !isLine);
   }
 }
 
 /* =========================================================
-   ★ 选区系统
+   选区系统
    ========================================================= */
 let selectionOps = [];
 let selectionMaskCvs = null;
 let selectionInvMaskCvs = null;
 let selectionInverted = false;
-let selectionContours = [];    // [{x, y}, ...][] 每个轮廓一个数组，CSS 坐标
+let selectionContours = [];
 
 let lassoActive = false;
 let lassoPoints = [];
@@ -925,6 +1123,11 @@ let moveCurDxCss = 0, moveCurDyCss = 0;
 let moveSnapshot = null;
 let movePointerId = null;
 
+let blurActive = false;
+let blurPointerId = null;
+let blurPrevX = 0;
+let blurPrevY = 0;
+
 function pointsToPath(points, scale) {
   const p = new Path2D();
   p.moveTo(points[0].x * scale, points[0].y * scale);
@@ -933,7 +1136,6 @@ function pointsToPath(points, scale) {
   return p;
 }
 
-/* ★ 从 mask 提取闭合轮廓（边缘追踪算法） */
 function maskToContours(maskCvs) {
   const W = maskCvs.width;
   const H = maskCvs.height;
@@ -1182,21 +1384,610 @@ function endMove() {
 }
 
 /* =========================================================
-   ★★★ 自由变换（Ctrl+T）
+   模糊工具（Shift）
+   ========================================================= */
+function applyBlurAt(cssX, cssY) {
+  const W = baseCvs.width, H = baseCvs.height;
+  const KR = Math.max(2, Math.min(10, Math.round(cfg.lqSize * 0.1)));
+  const rP = Math.max(4, cfg.blurSize * dpr);
+  const cxP = cssX * dpr, cyP = cssY * dpr;
+  const r2P = rP * rP;
+
+  const bx0 = Math.max(0, Math.floor(cxP - rP));
+  const by0 = Math.max(0, Math.floor(cyP - rP));
+  const bx1 = Math.min(W, Math.ceil(cxP + rP));
+  const by1 = Math.min(H, Math.ceil(cyP + rP));
+  if (bx1 <= bx0 || by1 <= by0) return;
+
+  const pw = bx1 - bx0;
+  const ph = by1 - by0;
+
+  const srcImg = bctx.getImageData(bx0, by0, pw, ph);
+  const src = srcImg.data;
+  const out = new Uint8ClampedArray(pw * ph * 4);
+
+  for (let y = 0; y < ph; y++) {
+    for (let x = 0; x < pw; x++) {
+      const gx = bx0 + x;
+      const gy = by0 + y;
+      const ddx = gx - cxP;
+      const ddy = gy - cyP;
+      const d2 = ddx * ddx + ddy * ddy;
+      const si = (y * pw + x) * 4;
+
+      if (d2 > r2P) {
+        out[si]     = src[si];
+        out[si + 1] = src[si + 1];
+        out[si + 2] = src[si + 2];
+        out[si + 3] = src[si + 3];
+        continue;
+      }
+
+      const t = Math.sqrt(d2) / rP;
+      const falloff = 0.5 * (1 + Math.cos(Math.PI * t)) * cfg.blurStrength;
+
+      let rs = 0, gs = 0, bs = 0, as = 0, n = 0;
+      for (let ky = -KR; ky <= KR; ky++) {
+        const yy = y + ky;
+        if (yy < 0 || yy >= ph) continue;
+        const rowBase = yy * pw;
+        for (let kx = -KR; kx <= KR; kx++) {
+          const xx = x + kx;
+          if (xx < 0 || xx >= pw) continue;
+          const ki = (rowBase + xx) * 4;
+          rs += src[ki];
+          gs += src[ki + 1];
+          bs += src[ki + 2];
+          as += src[ki + 3];
+          n++;
+        }
+      }
+
+      const avgR = rs / n, avgG = gs / n, avgB = bs / n, avgA = as / n;
+      const oR = src[si], oG = src[si + 1], oB = src[si + 2], oA = src[si + 3];
+
+      out[si]     = oR + (avgR - oR) * falloff;
+      out[si + 1] = oG + (avgG - oG) * falloff;
+      out[si + 2] = oB + (avgB - oB) * falloff;
+      out[si + 3] = oA + (avgA - oA) * falloff;
+    }
+  }
+
+  /* 选区约束：选区外的像素保持原样，不参与模糊 */
+  if (hasSelection()) {
+    const mask = getActiveMaskCvs();
+    if (mask) {
+      try {
+        const mdata = mask.getContext('2d').getImageData(bx0, by0, pw, ph).data;
+        const total = pw * ph;
+        for (let i = 0; i < total; i++) {
+          if (mdata[i * 4 + 3] < 128) {
+            const si = i * 4;
+            out[si]     = src[si];
+            out[si + 1] = src[si + 1];
+            out[si + 2] = src[si + 2];
+            out[si + 3] = src[si + 3];
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
+  bctx.putImageData(new ImageData(out, pw, ph), bx0, by0);
+  renderView();
+}
+
+let blurTimer = null;
+
+function startBlur(cssX, cssY, pointerId) {
+  blurActive = true;
+  blurPointerId = pointerId;
+  try { cvs.setPointerCapture(pointerId); } catch (err) {}
+  blurPrevX = cssX;
+  blurPrevY = cssY;
+
+  takeSnapshot();
+  applyBlurAt(cssX, cssY);
+
+  if (blurTimer) clearInterval(blurTimer);
+  blurTimer = setInterval(() => {
+    if (!blurActive) {
+      clearInterval(blurTimer);
+      blurTimer = null;
+      return;
+    }
+    applyBlurAt(blurPrevX, blurPrevY);
+  }, 50);
+}
+
+function updateBlur(cssX, cssY) {
+  const dx = cssX - blurPrevX;
+  const dy = cssY - blurPrevY;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1) return;
+
+  const step = Math.max(2, cfg.blurSize * 0.25);
+  let steps = Math.ceil(dist / step);
+  if (steps > 12) steps = 12;
+
+  const sx = dx / steps, sy = dy / steps;
+
+  for (let i = 1; i <= steps; i++) {
+    applyBlurAt(blurPrevX + sx * i, blurPrevY + sy * i);
+  }
+
+  blurPrevX = cssX;
+  blurPrevY = cssY;
+}
+
+function endBlur() {
+  blurActive = false;
+  blurPointerId = null;
+  if (blurTimer) {
+    clearInterval(blurTimer);
+    blurTimer = null;
+  }
+}
+
+/* =========================================================
+   曲线（Ctrl+M）—— 单调三次 Hermite 样条 (Fritsch-Carlson)
+   算法参考 GIMP gimp_curve_calculate / darktable interpolate_monotone
+   ========================================================= */
+const cpPanel = document.getElementById('curvePanel');
+const cpCanvas = document.getElementById('cpCanvas');
+const cpCtx = cpCanvas.getContext('2d');
+const cpChannels = document.getElementById('cpChannels');
+
+let cpActive = false;
+let cpSnapshot = null;
+let cpChannel = 'rgb';
+let cpDrag = null;
+
+const cpCurves = {
+  rgb: [{ x: 0, y: 0 }, { x: 255, y: 255 }],
+  r:   [{ x: 0, y: 0 }, { x: 255, y: 255 }],
+  g:   [{ x: 0, y: 0 }, { x: 255, y: 255 }],
+  b:   [{ x: 0, y: 0 }, { x: 255, y: 255 }]
+};
+
+/* =========================================================
+   Fritsch-Carlson 单调三次 Hermite 样条 (PCHIP)
    -------------------------------------------------
-   四角锚点自由拖拽 → 扭曲 / 变形
-   Shift + 拖角点 → 以中心等比缩放
-   拖边中点      → 移动整条边
-   顶部圆点      → 围绕中心旋转（Shift 吸附 15°）
-   内部拖拽      → 整体移动
-   Enter 提交 / Esc 取消 / 再按 Ctrl+T 提交
+   参考实现：
+     - GIMP: app/operations/gimpoperationcurves.c → gimp_curve_calculate
+     - darktable: src/iop/tonecurve.c → interpolate_monotone
+   核心：
+     1. 相邻点的斜率 delta_k = (y_{k+1} - y_k) / h_k
+     2. 计算每个控制点切线 m_k
+        · 端点：单侧斜率 m_0 = delta_0, m_{n-1} = delta_{n-2}
+        · 中间点：若相邻斜率符号相反或有一个为 0 → m_k = 0
+          · 否则用加权调和平均：
+            m_k = (w1 + w2) / (w1/delta_{k-1} + w2/delta_k)
+            其中 w1 = 2h_k + h_{k-1}, w2 = h_k + 2h_{k-1}
+     3. 分段用三次 Hermite 基函数求值
+   ========================================================= */
+function cpBuildLUT(points) {
+  /* 复制并排序 */
+  const raw = points.slice().sort((a, b) => a.x - b.x);
+
+  /* 去除重复 x，保证严格单调递增 */
+  const cleaned = [raw[0]];
+  for (let i = 1; i < raw.length; i++) {
+    if (raw[i].x > cleaned[cleaned.length - 1].x) {
+      cleaned.push(raw[i]);
+    }
+  }
+  const N = cleaned.length;
+
+  const lut = new Uint8Array(256);
+
+  /* 单点：常数 */
+  if (N === 1) {
+    const v = Math.max(0, Math.min(255, Math.round(cleaned[0].y)));
+    for (let i = 0; i < 256; i++) lut[i] = v;
+    return lut;
+  }
+
+  /* 两点：线性插值（Hermite 退化） */
+  if (N === 2) {
+    const p0 = cleaned[0], p1 = cleaned[1];
+    const span = p1.x - p0.x || 1;
+    for (let i = 0; i < 256; i++) {
+      let t;
+      if (i <= p0.x) t = 0;
+      else if (i >= p1.x) t = 1;
+      else t = (i - p0.x) / span;
+      const v = p0.y + (p1.y - p0.y) * t;
+      lut[i] = Math.max(0, Math.min(255, Math.round(v)));
+    }
+    return lut;
+  }
+
+  /* 步骤 1：每段步长 h_k 与斜率 delta_k */
+  const h = new Array(N - 1);
+  const delta = new Array(N - 1);
+  for (let k = 0; k < N - 1; k++) {
+    h[k] = cleaned[k + 1].x - cleaned[k].x || 1;
+    delta[k] = (cleaned[k + 1].y - cleaned[k].y) / h[k];
+  }
+
+  /* 步骤 2：每个点的切线 m_k */
+  const m = new Array(N);
+
+  /* 端点用单侧斜率 */
+  m[0] = delta[0];
+  m[N - 1] = delta[N - 2];
+
+  /* 中间点 Fritsch-Carlson 单调约束 */
+  for (let k = 1; k < N - 1; k++) {
+    if (delta[k - 1] * delta[k] <= 0) {
+      /* 符号变化或某段水平 → 切线归零，避免过冲 */
+      m[k] = 0;
+    } else {
+      const w1 = 2 * h[k] + h[k - 1];
+      const w2 = h[k] + 2 * h[k - 1];
+      m[k] = (w1 + w2) / (w1 / delta[k - 1] + w2 / delta[k]);
+    }
+  }
+
+  /* 步骤 3：对 0~255 逐个采样 */
+  let seg = 0;
+  for (let i = 0; i < 256; i++) {
+    while (seg < N - 2 && i > cleaned[seg + 1].x) seg++;
+
+    const x0 = cleaned[seg].x;
+    const x1 = cleaned[seg + 1].x;
+    const y0 = cleaned[seg].y;
+    const y1 = cleaned[seg + 1].y;
+    const hk = h[seg];
+
+    let t;
+    if (i <= x0) t = 0;
+    else if (i >= x1) t = 1;
+    else t = (i - x0) / hk;
+
+    /* 三次 Hermite 基函数 */
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const h00 =  2 * t3 - 3 * t2 + 1;
+    const h10 =        t3 - 2 * t2 + t;
+    const h01 = -2 * t3 + 3 * t2;
+    const h11 =        t3 -     t2;
+
+    const v = h00 * y0 + h10 * hk * m[seg] + h01 * y1 + h11 * hk * m[seg + 1];
+    lut[i] = Math.max(0, Math.min(255, Math.round(v)));
+  }
+
+  return lut;
+}
+
+function cpRender() {
+  const W = cpCanvas.width, H = cpCanvas.height;
+  cpCtx.setTransform(1, 0, 0, 1, 0, 0);
+  cpCtx.fillStyle = '#14141a';
+  cpCtx.fillRect(0, 0, W, H);
+
+  cpCtx.strokeStyle = 'rgba(255,255,255,.08)';
+  cpCtx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const p = i * 64 + 0.5;
+    cpCtx.beginPath(); cpCtx.moveTo(p, 0); cpCtx.lineTo(p, H); cpCtx.stroke();
+    cpCtx.beginPath(); cpCtx.moveTo(0, p); cpCtx.lineTo(W, p); cpCtx.stroke();
+  }
+
+  cpCtx.strokeStyle = 'rgba(255,255,255,.15)';
+  cpCtx.beginPath();
+  cpCtx.moveTo(0, H);
+  cpCtx.lineTo(W, 0);
+  cpCtx.stroke();
+
+  const lut = cpBuildLUT(cpCurves[cpChannel]);
+  let strokeCol;
+  if (cpChannel === 'rgb') strokeCol = '#6ee7ff';
+  else if (cpChannel === 'r') strokeCol = '#ff6b6b';
+  else if (cpChannel === 'g') strokeCol = '#7dffb0';
+  else strokeCol = '#6b9bff';
+
+  cpCtx.strokeStyle = strokeCol;
+  cpCtx.lineWidth = 1.6;
+  cpCtx.beginPath();
+  for (let i = 0; i < 256; i++) {
+    const x = i;
+    const y = H - 1 - lut[i];
+    if (i === 0) cpCtx.moveTo(x, y);
+    else cpCtx.lineTo(x, y);
+  }
+  cpCtx.stroke();
+
+  const pts = cpCurves[cpChannel];
+  for (const p of pts) {
+    const px = p.x, py = H - 1 - p.y;
+    cpCtx.beginPath();
+    cpCtx.arc(px, py, 5, 0, TAU);
+    cpCtx.fillStyle = '#0e0e12';
+    cpCtx.fill();
+    cpCtx.lineWidth = 1.8;
+    cpCtx.strokeStyle = strokeCol;
+    cpCtx.stroke();
+  }
+}
+
+function cpApply() {
+  const W = baseCvs.width, H = baseCvs.height;
+
+  const srcCtx = cpSnapshot ? cpSnapshot.getContext('2d') : bctx;
+  const img = srcCtx.getImageData(0, 0, W, H);
+  const d = img.data;
+
+  const lutRgb = cpBuildLUT(cpCurves.rgb);
+  const lutR = cpBuildLUT(cpCurves.r);
+  const lutG = cpBuildLUT(cpCurves.g);
+  const lutB = cpBuildLUT(cpCurves.b);
+
+  for (let i = 0; i < d.length; i += 4) {
+    d[i]     = lutR[lutRgb[d[i]]];       // R 通道：主曲线 → R 曲线
+    d[i + 1] = lutG[lutRgb[d[i + 1]]];   // G 通道：主曲线 → G 曲线
+    d[i + 2] = lutB[lutRgb[d[i + 2]]];   // B 通道：主曲线 → B 曲线
+    // alpha 不动
+  }
+
+  bctx.putImageData(img, 0, 0);
+  renderView();
+}
+
+function cpSetActive(on) {
+  cpActive = on;
+  cpPanel.hidden = !on;
+  if (on) {
+    /* 首次打开时居中 */
+    if (!cpPanel.dataset.positioned) {
+      const w = cpPanel.offsetWidth  || 300;
+      const h = cpPanel.offsetHeight || 380;
+      cpPanel.style.left = Math.max(8, (window.innerWidth  - w) / 2) + 'px';
+      cpPanel.style.top  = Math.max(8, (window.innerHeight - h) / 2) + 'px';
+      cpPanel.dataset.positioned = '1';
+    }
+    cpRender();
+  }
+}
+
+function cpReset() {
+  cpCurves.rgb = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+  cpCurves.r = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+  cpCurves.g = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+  cpCurves.b = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+  cpRender();
+  cpApply();
+}
+
+function cpOpen() {
+  if (cpActive) return;
+  takeSnapshot();
+  cpSnapshot = document.createElement('canvas');
+  cpSnapshot.width = baseCvs.width;
+  cpSnapshot.height = baseCvs.height;
+  cpSnapshot.getContext('2d').drawImage(baseCvs, 0, 0);
+
+  cpChannel = 'rgb';
+  cpChannels.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.c === 'rgb'));
+
+  cpSetActive(true);
+}
+
+function cpCancel() {
+  if (!cpActive) return;
+  if (cpSnapshot) {
+    bctx.save();
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.globalAlpha = 1;
+    bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
+    bctx.drawImage(cpSnapshot, 0, 0);
+    bctx.restore();
+  }
+  cpSnapshot = null;
+  cpSetActive(false);
+  renderView();
+}
+
+function cpConfirm() {
+  if (!cpActive) return;
+  cpSnapshot = null;
+  cpSetActive(false);
+  renderView();
+}
+
+function cpCanvasPos(e) {
+  const r = cpCanvas.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (cpCanvas.width / r.width);
+  const y = (e.clientY - r.top)  * (cpCanvas.height / r.height);
+  return { x, y };
+}
+
+function cpPickPoint(x, y, pts) {
+  for (let i = 0; i < pts.length; i++) {
+    const px = pts[i].x, py = cpCanvas.height - 1 - pts[i].y;
+    if (Math.hypot(x - px, y - py) < 8) return i;
+  }
+  return -1;
+}
+
+cpCanvas.addEventListener('pointerdown', e => {
+  if (!cpActive) return;
+  e.preventDefault();
+  const { x, y } = cpCanvasPos(e);
+  const pts = cpCurves[cpChannel];
+  const idx = cpPickPoint(x, y, pts);
+
+  if (e.button === 2) {
+    if (idx > 0 && idx < pts.length - 1) {
+      pts.splice(idx, 1);
+      cpRender();
+      cpApply();
+    }
+    return;
+  }
+
+  if (idx >= 0) {
+    /* 命中已有锚点：进入"待定"状态，
+       pointerup 时若未移动 → 删除锚点；若移动 → 拖拽 */
+    cpDrag = {
+      idx,
+      startX: x,
+      startY: y,
+      moved: false,
+      existing: true
+    };
+    try { cpCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+  } else {
+    const nx = Math.max(0, Math.min(255, Math.round(x)));
+    const ny = Math.max(0, Math.min(255, Math.round(cpCanvas.height - 1 - y)));
+    const newP = { x: nx, y: ny };
+    pts.push(newP);
+    pts.sort((a, b) => a.x - b.x);
+    cpDrag = {
+      idx: pts.indexOf(newP),
+      startX: x,
+      startY: y,
+      moved: false,
+      existing: false
+    };
+    try { cpCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+    cpRender();
+    cpApply();
+  }
+});
+
+cpCanvas.addEventListener('pointermove', e => {
+  if (!cpDrag || !cpActive) return;
+  e.preventDefault();
+  const { x, y } = cpCanvasPos(e);
+  const pts = cpCurves[cpChannel];
+  const i = cpDrag.idx;
+  if (i < 0 || i >= pts.length) return;
+
+  /* 移动距离小于 3px 时仍视作"点击"，不触发拖拽 */
+  if (!cpDrag.moved) {
+    const dxp = x - cpDrag.startX;
+    const dyp = y - cpDrag.startY;
+    if (dxp * dxp + dyp * dyp < 9) return;
+    cpDrag.moved = true;
+  }
+
+  const isFirst = i === 0;
+  const isLast = i === pts.length - 1;
+
+  let nx = Math.max(0, Math.min(255, x));
+  let ny = Math.max(0, Math.min(255, cpCanvas.height - 1 - y));
+
+  if (isFirst) nx = 0;
+  if (isLast) nx = 255;
+
+  if (!isFirst && !isLast) {
+    const left = pts[i - 1].x + 1;
+    const right = pts[i + 1].x - 1;
+    nx = Math.max(left, Math.min(right, nx));
+  }
+
+  pts[i].x = nx;
+  pts[i].y = ny;
+
+  cpRender();
+  cpApply();
+});
+
+cpCanvas.addEventListener('pointerup', e => {
+  if (cpDrag) {
+    try { cpCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
+
+    /* 未移动 + 命中的是已有锚点 + 不是首尾 → 删除该锚点 */
+    if (!cpDrag.moved && cpDrag.existing) {
+      const pts = cpCurves[cpChannel];
+      const i = cpDrag.idx;
+      if (i > 0 && i < pts.length - 1) {
+        pts.splice(i, 1);
+        cpRender();
+        cpApply();
+      }
+    }
+  }
+  cpDrag = null;
+});
+
+cpCanvas.addEventListener('pointercancel', e => {
+  cpDrag = null;
+});
+
+cpCanvas.addEventListener('contextmenu', e => {
+  if (cpActive) e.preventDefault();
+});
+
+cpChannels.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  cpChannel = btn.dataset.c;
+  cpChannels.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b === btn));
+  cpRender();
+});
+
+/* 曲线面板拖拽 —— 拖动顶部标题栏 */
+let cpPanelDrag = null;
+
+cpPanel.querySelector('.cpHead').addEventListener('pointerdown', e => {
+  if (!cpActive) return;
+  if (e.target.closest('button')) return;   /* 点通道按钮不触发拖拽 */
+  e.preventDefault();
+  cpPanelDrag = {
+    pointerId: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    origLeft: parseFloat(cpPanel.style.left) || 0,
+    origTop:  parseFloat(cpPanel.style.top)  || 0
+  };
+  try { cpPanel.setPointerCapture(e.pointerId); } catch (err) {}
+});
+
+cpPanel.addEventListener('pointermove', e => {
+  if (!cpPanelDrag || e.pointerId !== cpPanelDrag.pointerId) return;
+  e.preventDefault();
+  const dx = e.clientX - cpPanelDrag.startX;
+  const dy = e.clientY - cpPanelDrag.startY;
+
+  /* 限制在视口内，防止拖出屏幕 */
+  const w = cpPanel.offsetWidth  || 300;
+  const h = cpPanel.offsetHeight || 380;
+  let nl = cpPanelDrag.origLeft + dx;
+  let nt = cpPanelDrag.origTop  + dy;
+  nl = Math.max(-w + 60, Math.min(window.innerWidth  - 60, nl));
+  nt = Math.max(0,       Math.min(window.innerHeight - 30, nt));
+
+  cpPanel.style.left = nl + 'px';
+  cpPanel.style.top  = nt + 'px';
+});
+
+function cpEndPanelDrag(e) {
+  if (!cpPanelDrag) return;
+  if (e && e.pointerId !== cpPanelDrag.pointerId) return;
+  cpPanelDrag = null;
+}
+cpPanel.addEventListener('pointerup', cpEndPanelDrag);
+cpPanel.addEventListener('pointercancel', cpEndPanelDrag);
+
+document.getElementById('cpReset').addEventListener('click', cpReset);
+document.getElementById('cpCancel').addEventListener('click', cpCancel);
+document.getElementById('cpApply').addEventListener('click', cpConfirm);
+
+/* =========================================================
+   自由变换（T）
    ========================================================= */
 let tfActive   = false;
-let tfSnapshot = null;   // 进入变换时的整幅快照
-let tfBase     = null;   // 快照 - 选区（内容被挖掉的底图）
-let tfContent  = null;   // 选区内的像素
+let tfSnapshot = null;
+let tfBase     = null;
+let tfContent  = null;
 let tfCSSW     = 0, tfCSSH = 0;
-let tfQuad     = null;   // [{x,y} x4] TL TR BR BL，CSS 坐标
+let tfQuad     = null;
 let tfDrag     = null;
 
 function getQuadCenter(q) {
@@ -1232,6 +2023,9 @@ function tfHitTest(x, y) {
   const rp = getRotHandlePos(q);
   if (Math.hypot(x - rp.x, y - rp.y) < R + 3) return { type: 'rotate' };
 
+  const center = getQuadCenter(q);
+  if (Math.hypot(x - center.x, y - center.y) < R - 2) return { type: 'move' };
+
   for (let i = 0; i < 4; i++) {
     if (Math.hypot(x - q[i].x, y - q[i].y) < R) return { type: 'corner', i };
   }
@@ -1254,13 +2048,12 @@ function updateTransformCursor(hit) {
 
 function enterTransform() {
   if (tfActive) return;
-  if (!hasSelection()) { showToast('请先建立选区，再按 Ctrl+T'); return; }
+  if (!hasSelection()) { showToast('请先建立选区，再按 T'); return; }
 
   const W = baseCvs.width, H = baseCvs.height;
   const mask = getActiveMaskCvs();
   if (!mask) return;
 
-  /* --- 计算选区包围盒 --- */
   let data;
   try {
     data = mask.getContext('2d').getImageData(0, 0, W, H).data;
@@ -1283,14 +2076,12 @@ function enterTransform() {
   const bw = maxX - minX + 1;
   const bh = maxY - minY + 1;
 
-  /* --- 快照 --- */
   takeSnapshot();
   tfSnapshot = document.createElement('canvas');
   tfSnapshot.width = W;
   tfSnapshot.height = H;
   tfSnapshot.getContext('2d').drawImage(baseCvs, 0, 0);
 
-  /* --- 抠出内容 --- */
   tfContent = document.createElement('canvas');
   tfContent.width = bw;
   tfContent.height = bh;
@@ -1300,7 +2091,6 @@ function enterTransform() {
   cc.drawImage(mask, minX, minY, bw, bh, 0, 0, bw, bh);
   cc.globalCompositeOperation = 'source-over';
 
-  /* --- 底图：快照挖掉选区 --- */
   tfBase = document.createElement('canvas');
   tfBase.width = W;
   tfBase.height = H;
@@ -1310,7 +2100,6 @@ function enterTransform() {
   bc.drawImage(mask, 0, 0);
   bc.globalCompositeOperation = 'source-over';
 
-  /* --- 四边形（CSS 坐标） --- */
   const cx0 = minX / dpr, cy0 = minY / dpr;
   const cx1 = (minX + bw) / dpr, cy1 = (minY + bh) / dpr;
   tfQuad = [
@@ -1327,7 +2116,7 @@ function enterTransform() {
   cvs.style.cursor = 'default';
 
   renderTransform();
-  showToast('自由变换：拖角点扭曲 · Shift拖角缩放 · 顶圆点旋转 · 内部拖动移动\nEnter 确定 / Esc 取消');
+  showToast('自由变换：拖角点缩放 · Ctrl拖角扭曲 · Shift拖角等比 · 顶圆点旋转 · 中心/内部拖动移动\nEnter 确定 / Esc 取消');
 }
 
 function cancelTransform() {
@@ -1364,14 +2153,12 @@ function commitTransform() {
   tfQuad = null;
   cvs.style.cursor = '';
 
-  /* 把变换后的四边形作为新的选区轮廓 */
   selectionOps = [{ points: quad, op: 'new' }];
   selectionInverted = false;
   rebuildSelection();
   renderView();
 }
 
-/* 三角形仿射映射：把 img 画到任意四边形上（支持透视近似） */
 function drawQuadImage(img, quad) {
   if (!img || !quad) return;
   const cw = tfCSSW, ch = tfCSSH;
@@ -1450,17 +2237,48 @@ function applyTransformDrag(e) {
     tfQuad = oq.map(p => ({ x: p.x + dx, y: p.y + dy }));
 
   } else if (d.type === 'corner') {
-    if (e.shiftKey) {
-      const od = Math.hypot(oq[d.i].x - c.x, oq[d.i].y - c.y) || 1;
+    const i = d.i;
+    const k = (i + 2) % 4;
+    const a = (i + 1) % 4;
+    const b = (i + 3) % 4;
+
+    if (e.ctrlKey || e.metaKey) {
+      tfQuad = oq.map(p => ({ x: p.x, y: p.y }));
+      tfQuad[i] = { x: e.clientX, y: e.clientY };
+
+    } else if (e.shiftKey) {
+      const od = Math.hypot(oq[i].x - c.x, oq[i].y - c.y) || 1;
       const nd = Math.hypot(e.clientX - c.x, e.clientY - c.y);
       const s  = Math.max(0.02, nd / od);
       tfQuad = oq.map(p => ({
         x: c.x + (p.x - c.x) * s,
         y: c.y + (p.y - c.y) * s
       }));
+
     } else {
-      tfQuad = oq.map(p => ({ x: p.x, y: p.y }));
-      tfQuad[d.i] = { x: e.clientX, y: e.clientY };
+      const fixed = oq[k];
+      const ux = oq[a].x - fixed.x;
+      const uy = oq[a].y - fixed.y;
+      const vx = oq[b].x - fixed.x;
+      const vy = oq[b].y - fixed.y;
+
+      const ddx = e.clientX - fixed.x;
+      const ddy = e.clientY - fixed.y;
+
+      const det = ux * vy - vx * uy;
+
+      if (Math.abs(det) < 1e-6) {
+        tfQuad = oq.map(p => ({ x: p.x, y: p.y }));
+        tfQuad[i] = { x: e.clientX, y: e.clientY };
+      } else {
+        const alpha = (ddx * vy - ddy * vx) / det;
+        const beta  = (ux * ddy - uy * ddx) / det;
+
+        tfQuad = oq.map(p => ({ x: p.x, y: p.y }));
+        tfQuad[i] = { x: e.clientX, y: e.clientY };
+        tfQuad[a] = { x: fixed.x + alpha * ux, y: fixed.y + alpha * uy };
+        tfQuad[b] = { x: fixed.x + beta  * vx, y: fixed.y + beta  * vy };
+      }
     }
 
   } else if (d.type === 'edge') {
@@ -1493,7 +2311,6 @@ function drawTransformUI() {
   vctx.save();
   vctx.setLineDash([]);
 
-  /* 外框 */
   vctx.beginPath();
   vctx.moveTo(q[0].x, q[0].y);
   vctx.lineTo(q[1].x, q[1].y);
@@ -1509,17 +2326,34 @@ function drawTransformUI() {
   vctx.strokeStyle = '#6ee7ff';
   vctx.stroke();
 
-  /* 对角线 */
+  const center = getQuadCenter(q);
+
   vctx.beginPath();
-  vctx.moveTo(q[0].x, q[0].y); vctx.lineTo(q[2].x, q[2].y);
-  vctx.moveTo(q[1].x, q[1].y); vctx.lineTo(q[3].x, q[3].y);
+  vctx.moveTo(q[0].x, q[0].y);
+  vctx.lineTo(center.x, center.y);
+  vctx.lineTo(q[2].x, q[2].y);
+  vctx.moveTo(q[1].x, q[1].y);
+  vctx.lineTo(center.x, center.y);
+  vctx.lineTo(q[3].x, q[3].y);
   vctx.lineWidth = 1;
   vctx.strokeStyle = 'rgba(110,231,255,.28)';
   vctx.stroke();
 
+  vctx.beginPath();
+  vctx.arc(center.x, center.y, 5.5, 0, TAU);
+  vctx.fillStyle = '#0e0e12';
+  vctx.fill();
+  vctx.lineWidth = 1.6;
+  vctx.strokeStyle = '#6ee7ff';
+  vctx.stroke();
+
+  vctx.beginPath();
+  vctx.arc(center.x, center.y, 2.2, 0, TAU);
+  vctx.fillStyle = '#6ee7ff';
+  vctx.fill();
+
   const hs = 4.5;
 
-  /* 角点锚点 */
   for (const p of q) {
     vctx.beginPath();
     vctx.rect(p.x - hs, p.y - hs, hs * 2, hs * 2);
@@ -1530,7 +2364,6 @@ function drawTransformUI() {
     vctx.stroke();
   }
 
-  /* 边中点锚点 */
   for (let i = 0; i < 4; i++) {
     const j = (i + 1) % 4;
     const mx = (q[i].x + q[j].x) / 2;
@@ -1544,7 +2377,6 @@ function drawTransformUI() {
     vctx.stroke();
   }
 
-  /* 旋转手柄 */
   const rp = getRotHandlePos(q);
   vctx.beginPath();
   vctx.moveTo(rp.ax, rp.ay);
@@ -1579,6 +2411,14 @@ let customShapes  = new Array(CUSTOM_SLOT_COUNT).fill(null);
 let customWeights = [2, 2, 2, 2, 2];
 let selectingSlot = -1;
 
+/* ---- 自定义画笔 ---- */
+let customBrushShape = null;   // { canvas, w, h }
+let useCustomBrush   = false;
+
+/* 自定义画笔着色用的临时画布：把白色笔头按当前颜色重新着色 */
+const brushTintCvs = document.createElement('canvas');
+const brushTintCtx = brushTintCvs.getContext('2d');
+
 let selecting   = false;
 let isSelDragging = false;
 let selStartX = 0, selStartY = 0, selEndX = 0, selEndY = 0;
@@ -1587,6 +2427,21 @@ let selPointerId = null;
 const customPanel   = document.getElementById('customPanel');
 const customSlots   = document.getElementById('customSlots');
 const selOverlay    = document.getElementById('selOverlay');
+
+const customBrushPreview = document.getElementById('customBrushPreview');
+const useCustomBrushEl   = document.getElementById('useCustomBrush');
+
+if (customBrushPreview) {
+  customBrushPreview.addEventListener('click', () => {
+    if (selecting && selectingTarget === 'brush') exitSelectionMode();
+    else { exitSelectionMode(); enterBrushSelectionMode(); }
+  });
+}
+if (useCustomBrushEl) {
+  useCustomBrushEl.addEventListener('change', () => {
+    useCustomBrush = useCustomBrushEl.checked;
+  });
+}
 
 const previewEls = new Array(CUSTOM_SLOT_COUNT);
 const weightEls  = new Array(CUSTOM_SLOT_COUNT);
@@ -1681,20 +2536,68 @@ function updateSlotPreview(idx) {
   preview.appendChild(hint);
 }
 
+function updateCustomBrushPreview() {
+  const preview = customBrushPreview;
+  if (!preview) return;
+  preview.innerHTML = '';
+
+  const cs = customBrushShape;
+  if (!cs) {
+    const empty = document.createElement('div');
+    empty.className = 'custom-empty';
+    empty.textContent = '点击载入';
+    preview.appendChild(empty);
+    return;
+  }
+
+  const boxW = preview.clientWidth  || 220;
+  const boxH = preview.clientHeight || 66;
+  const maxW = boxW - 8, maxH = boxH - 8;
+  const scale = Math.min(maxW / cs.w, maxH / cs.h, 1);
+
+  const c = document.createElement('canvas');
+  c.width  = Math.max(1, Math.round(cs.w * scale * dpr));
+  c.height = Math.max(1, Math.round(cs.h * scale * dpr));
+  c.style.width  = (cs.w * scale) + 'px';
+  c.style.height = (cs.h * scale) + 'px';
+  const cx = c.getContext('2d');
+  cx.drawImage(cs.canvas, 0, 0, c.width, c.height);
+  preview.appendChild(c);
+
+  const hint = document.createElement('div');
+  hint.className = 'custom-hint';
+  hint.textContent = '重选';
+  preview.appendChild(hint);
+}
+
+let selectingTarget = 'shape';   // 'shape' | 'brush'
+
 function enterSelectionMode(slotIdx) {
   selecting = true;
+  selectingTarget = 'shape';
   selectingSlot = slotIdx;
   previewEls[slotIdx].classList.add('selecting');
   cvs.style.cursor = 'crosshair';
   showToast('拖动框选要载入的形状区域');
 }
 
+function enterBrushSelectionMode() {
+  selecting = true;
+  selectingTarget = 'brush';
+  selectingSlot = -1;
+  if (customBrushPreview) customBrushPreview.classList.add('selecting');
+  cvs.style.cursor = 'crosshair';
+  showToast('拖动框选要作为画笔笔头的区域');
+}
+
 function exitSelectionMode() {
   if (selectingSlot >= 0 && previewEls[selectingSlot]) {
     previewEls[selectingSlot].classList.remove('selecting');
   }
+  if (customBrushPreview) customBrushPreview.classList.remove('selecting');
   selecting = false;
   selectingSlot = -1;
+  selectingTarget = 'shape';
   isSelDragging = false;
   selPointerId = null;
   cvs.style.cursor = '';
@@ -1734,7 +2637,8 @@ function updateSelOverlay() {
 }
 
 function cropShape(left, top, w, h) {
-  if (selectingSlot < 0) return;
+  const isBrush = (selectingTarget === 'brush');
+  if (!isBrush && selectingSlot < 0) return;
 
   const sx = Math.round(left * dpr);
   const sy = Math.round(top * dpr);
@@ -1755,8 +2659,32 @@ function cropShape(left, top, w, h) {
   const cx = c.getContext('2d');
   cx.drawImage(baseCvs, cx0, cy0, cw2, ch2, 0, 0, cw2, ch2);
 
-  customShapes[selectingSlot] = { canvas: c, w: cw2 / dpr, h: ch2 / dpr };
-  updateSlotPreview(selectingSlot);
+  if (isBrush) {
+    /* 自定义画笔只用形状，不沿用原始颜色：
+       把 RGB 全部刷成白色，只保留原始 alpha。
+       这样绘制时可以用当前 strokeColor 给笔头上色。 */
+    try {
+      const id = cx.getImageData(0, 0, cw2, ch2);
+      const dd = id.data;
+      for (let i = 0; i < dd.length; i += 4) {
+        dd[i]     = 255;
+        dd[i + 1] = 255;
+        dd[i + 2] = 255;
+        /* alpha 保留原值 */
+      }
+      cx.putImageData(id, 0, 0);
+    } catch (e) {}
+
+    customBrushShape = { canvas: c, w: cw2 / dpr, h: ch2 / dpr };
+    updateCustomBrushPreview();
+
+    /* 载入即启用 */
+    useCustomBrush = true;
+    if (useCustomBrushEl) useCustomBrushEl.checked = true;
+  } else {
+    customShapes[selectingSlot] = { canvas: c, w: cw2 / dpr, h: ch2 / dpr };
+    updateSlotPreview(selectingSlot);
+  }
 }
 
 function updateCustomPanelVisibility() {
@@ -1804,24 +2732,55 @@ function hasAnyCustomShape() {
 /* =========================================================
    放置
    ========================================================= */
+function sizeFactor(pressure) {
+  if (!cfg.placeSizePressure) return 1.0;
+  const p = (pressure > 0) ? pressure : 0.5;
+  return 0.10 + p * 1.10;
+}
+
+function alphaFactor(pressure) {
+  if (!cfg.placeAlphaPressure) return 1.0;
+  const p = (pressure > 0) ? pressure : 0.5;
+  return 0.05 + p * 0.95;
+}
+
+/* strokeBlend 在本次笔画开始时已确定；destination-out 即橡皮模式 */
+function isPlaceErasing() {
+  return strokeBlend === 'destination-out';
+}
+
 function stampCustomShape(x, y, pressure, cs) {
   if (!cs) return;
 
-  const p = (pressure && pressure > 0) ? pressure : 0.5;
-  const scale = 0.55 + p * 0.9;
+  const erase = isPlaceErasing();
+
+  const scale = sizeFactor(pressure);
   const targetSize = cfg.pSize * scale * rnd(1 - cfg.pSizeVar, 1 + cfg.pSizeVar);
 
   const maxDim = Math.max(cs.w, cs.h);
   const s = targetSize / maxDim;
 
-  let a = cfg.pAlpha;
-  if (a >= 0.999) a = 1;
-  else a *= rnd(0.75, 1);
+  let a = cfg.pAlpha * alphaFactor(pressure);
+  if (!cfg.placeAlphaPressure && cfg.pAlpha < 0.999) a *= rnd(0.75, 1);
   a = Math.min(1, Math.max(0.02, a));
 
   const rot = Math.random() * TAU;
   const ox = x + rnd(-cfg.pJitter, cfg.pJitter);
   const oy = y + rnd(-cfg.pJitter, cfg.pJitter);
+
+  if (erase) {
+    const g = bctx;
+    g.save();
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.globalCompositeOperation = 'destination-out';
+    g.globalAlpha = a;
+    g.translate(ox, oy);
+    g.rotate(rot);
+    g.drawImage(cs.canvas, -cs.w * s / 2, -cs.h * s / 2, cs.w * s, cs.h * s);
+    g.restore();
+    scheduleRender();
+    return;
+  }
 
   const g = sctx;
   g.save();
@@ -1838,6 +2797,7 @@ function stampCustomShape(x, y, pressure, cs) {
 
 function stampShape(x, y, pressure) {
   const type = cfg.shape === 'random' ? pick(SHAPE_KEYS) : cfg.shape;
+  const erase = isPlaceErasing();
 
   if (type === 'custom') {
     const cs = pickWeightedCustomShape();
@@ -1846,17 +2806,37 @@ function stampShape(x, y, pressure) {
     return;
   }
 
-  const p = (pressure && pressure > 0) ? pressure : 0.5;
-  const scale = 0.55 + p * 0.9;
+  const scale = sizeFactor(pressure);
 
   const base = cfg.pSize * scale * rnd(1 - cfg.pSizeVar, 1 + cfg.pSizeVar);
   const r = Math.max(0.8, base / 2);
 
-  const dec = makeShapeDecision(type);
+  const dec = makeShapeDecision(type, pressure);
 
   const rot = Math.random() * TAU;
   const ox  = x + rnd(-cfg.pJitter, cfg.pJitter);
   const oy  = y + rnd(-cfg.pJitter, cfg.pJitter);
+
+  if (erase) {
+    const g = bctx;
+    g.save();
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.globalCompositeOperation = 'destination-out';
+    g.globalAlpha = dec.alpha;
+    g.translate(ox, oy);
+    g.rotate(rot);
+    g.lineWidth = dec.lw;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.fillStyle = '#fff';
+    g.strokeStyle = '#fff';
+    buildPath(g, type, r);
+    if (dec.useFill) g.fill();
+    else             g.stroke();
+    g.restore();
+    scheduleRender();
+    return;
+  }
 
   const g = sctx;
   g.save();
@@ -1885,6 +2865,7 @@ let dragShape = null;
 
 function startDragShape(x, y) {
   const type = cfg.shape === 'random' ? pick(SHAPE_KEYS) : cfg.shape;
+  const erase = isPlaceErasing();
 
   if (type === 'custom') {
     const cs = pickWeightedCustomShape();
@@ -1901,7 +2882,7 @@ function startDragShape(x, y) {
       shapeW: cs.w, shapeH: cs.h,
       alpha: a
     };
-    strokeBlend = cfg.blend;
+    strokeBlend = erase ? 'destination-out' : cfg.blend;
     strokeAlpha = 1;
     clearStrokeBuf();
     strokeActive = true;
@@ -1913,12 +2894,12 @@ function startDragShape(x, y) {
   dragShape = {
     ox: x, oy: y,
     unitPath: buildUnitPath(type),
-    color: dec.color,
+    color: erase ? '#ffffff' : dec.color,
     alpha: dec.alpha,
     lw: dec.lw,
     useFill: dec.useFill
   };
-  strokeBlend = cfg.blend;
+  strokeBlend = erase ? 'destination-out' : cfg.blend;
   strokeAlpha = 1;
   clearStrokeBuf();
   strokeActive = true;
@@ -1933,6 +2914,41 @@ function renderDragShape(x, y) {
   const dist = Math.hypot(dx, dy);
   const radius = dist < 3 ? Math.max(6, cfg.pSize / 2) : dist;
   const rot = Math.atan2(dy, dx);
+
+  const erase = isPlaceErasing();
+
+  if (erase) {
+    restoreBaseFromSnapshot();
+
+    const g = bctx;
+    g.save();
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.globalCompositeOperation = 'destination-out';
+    g.globalAlpha = 1;
+    g.translate(ds.ox, ds.oy);
+    g.rotate(rot);
+
+    if (ds.isCustom) {
+      const maxDim = Math.max(ds.shapeW, ds.shapeH);
+      const s = (radius * 2) / maxDim;
+      g.drawImage(ds.shapeCanvas,
+                  -ds.shapeW * s / 2, -ds.shapeH * s / 2,
+                  ds.shapeW * s, ds.shapeH * s);
+    } else {
+      g.scale(radius, radius);
+      g.lineWidth = Math.max(0.0008, ds.lw / radius);
+      g.lineCap = 'round';
+      g.lineJoin = 'round';
+      g.fillStyle = '#fff';
+      g.strokeStyle = '#fff';
+      if (ds.useFill) g.fill(ds.unitPath);
+      else            g.stroke(ds.unitPath);
+    }
+
+    g.restore();
+    scheduleRender();
+    return;
+  }
 
   clearStrokeBuf();
 
@@ -1966,14 +2982,12 @@ function renderDragShape(x, y) {
 }
 
 /* =========================================================
-   绘画
+   绘画（dab 笔刷）
    ========================================================= */
 let strokeColor = '#fff';
 let strokePts   = [];
 let lastPt      = { x: 0, y: 0 };
 let smoothPt    = { x: 0, y: 0 };
-let linePrev    = { x: 0, y: 0 };
-let lineLastMid = { x: 0, y: 0 };
 
 let strokeOriginX = 0;
 let strokeOriginY = 0;
@@ -1981,7 +2995,24 @@ let strokeOriginY = 0;
 let lineProgress = 0;
 const LINE_GRADIENT_LENGTH = 320;
 
+/* 本次笔画的实际模式（橡皮模式会覆盖）
+   strokePaintMode: 'line' | 'fill' | 'erase'
+   strokeErasing  : 是否擦除（画笔擦除 / 填充转擦除 / 原擦除） */
+let strokePaintMode = 'line';
+let strokeErasing   = false;
+let strokeIsPaint   = false;
+
+/* dab 状态 */
+let dabPhase = 0;
+let prevSmoothX = 0, prevSmoothY = 0;   // 上一个平滑点
+let prevMidX = 0, prevMidY = 0;         // 上一段曲线的终点
+let hasFirstMove = false;
+let smoothPressure = 0.5;
+let dabFromX = 0;
+let dabFromY = 0;
+
 let lastPointerPos = { x: 0, y: 0 };
+let curPressure = 0.5;
 
 function clearStrokeBuf() {
   sctx.save();
@@ -1990,69 +3021,189 @@ function clearStrokeBuf() {
   sctx.restore();
 }
 
-function prepStrokeCtx() {
+function pressureMul(p) {
+  const sizeMul = cfg.paintSizePressure ? (0.10 + p * 1.10) : 1;
+  return { sizeMul };
+}
+
+function prepStrokeCtx(p) {
+  const { sizeMul } = pressureMul(p);
   sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   sctx.globalCompositeOperation = 'source-over';
-  sctx.globalAlpha = 1;
+  sctx.globalAlpha = 1;              /* 关键：笔画内部始终全不透明累积 */
   sctx.lineCap = 'round';
   sctx.lineJoin = 'round';
   sctx.strokeStyle = strokeColor;
   sctx.fillStyle = strokeColor;
-  sctx.lineWidth = cfg.bWidth;
+
+  /* 填充 / 擦除模式不使用笔宽：否则会在填充/擦除的形状外面
+     套上一圈跟笔宽相等的描边，看起来多了一条"厚边" */
+  const isFillOrErase = (strokePaintMode !== 'line');
+  sctx.lineWidth = isFillOrErase ? 0.5 : cfg.bWidth * sizeMul;
 }
 
-function updateLineSegmentColor(segLen) {
+function updateDabColor() {
   const r = hueRange();
 
   if (cfg.hueRandom) {
     let h = baseHsl.h + (Math.random() * 2 - 1) * r;
     h = ((h % 360) + 360) % 360;
-    sctx.strokeStyle = `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
+    strokeColor = `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
     return;
   }
-
   if (r <= 0) {
-    sctx.strokeStyle = `hsl(${baseHsl.h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
+    strokeColor = `hsl(${baseHsl.h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
     return;
   }
-
-  lineProgress += segLen;
   const t = (lineProgress / LINE_GRADIENT_LENGTH) % 1;
   let h = baseHsl.h - r + 2 * r * t;
   h = ((h % 360) + 360) % 360;
-  sctx.strokeStyle = `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
+  strokeColor = `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
+}
+
+function drawBrushDab(g, x, y, radius, tint) {
+  const cs = customBrushShape;
+  const maxDim = Math.max(cs.w, cs.h) || 1;
+  const scale = (radius * 2) / maxDim;
+  const dw = cs.w * scale;
+  const dh = cs.h * scale;
+  const dx = x - dw / 2;
+  const dy = y - dh / 2;
+
+  /* tint 为 null / 空：走擦除（destination-out），白色 + alpha 就够了 */
+  if (!tint) {
+    g.drawImage(cs.canvas, dx, dy, dw, dh);
+    return;
+  }
+
+  /* 用 source-in 把白色笔头重新着色成当前 strokeColor */
+  const tw = cs.canvas.width;
+  const th = cs.canvas.height;
+  if (brushTintCvs.width < tw || brushTintCvs.height < th) {
+    brushTintCvs.width  = Math.max(brushTintCvs.width,  tw);
+    brushTintCvs.height = Math.max(brushTintCvs.height, th);
+  }
+
+  brushTintCtx.setTransform(1, 0, 0, 1, 0, 0);
+  brushTintCtx.globalCompositeOperation = 'source-over';
+  brushTintCtx.clearRect(0, 0, brushTintCvs.width, brushTintCvs.height);
+  brushTintCtx.drawImage(cs.canvas, 0, 0);
+
+  brushTintCtx.globalCompositeOperation = 'source-in';
+  brushTintCtx.fillStyle = tint;
+  brushTintCtx.fillRect(0, 0, tw, th);
+  brushTintCtx.globalCompositeOperation = 'source-over';
+
+  g.drawImage(brushTintCvs, 0, 0, tw, th, dx, dy, dw, dh);
+}
+
+function paintDab(x, y, pressure) {
+  const { sizeMul } = pressureMul(pressure);
+  const radius = Math.max(0.4, cfg.bWidth * sizeMul / 2);
+
+  const step = Math.max(0.4, cfg.bWidth * cfg.bSpacing);
+  lineProgress += step;
+  if (!strokeErasing) updateDabColor();
+
+  let targetA = cfg.bAlpha;
+  if (cfg.paintAlphaPressure) {
+    const p = (pressure > 0) ? pressure : 0.5;
+    targetA *= 0.05 + p * 0.95;
+  }
+  targetA = Math.max(0.01, Math.min(1, targetA));
+
+  const sp = Math.max(0.005, cfg.bSpacing);
+  const dabA = 1 - Math.pow(1 - targetA, sp);
+
+  const useBrush = useCustomBrush && customBrushShape && customBrushShape.canvas;
+
+  if (strokeErasing) {
+    /* 画笔擦除：每个 dab 直接 destination-out 到 baseCvs，实时可见 */
+    const g = bctx;
+    g.save();
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.globalCompositeOperation = 'destination-out';
+    g.globalAlpha = dabA;
+
+    if (useBrush) {
+      /* 擦除：笔头只作为 alpha 遮罩使用，不需要着色 */
+      drawBrushDab(g, x, y, radius, null);
+    } else {
+      g.fillStyle = '#fff';
+      g.beginPath();
+      g.arc(x, y, radius, 0, TAU);
+      g.fill();
+    }
+    g.restore();
+    return;
+  }
+
+  sctx.globalAlpha = dabA;
+  sctx.globalCompositeOperation = 'source-over';
+
+  if (useBrush) {
+    /* 绘制：用当前 strokeColor 给笔头上色 */
+    drawBrushDab(sctx, x, y, radius, strokeColor);
+  } else {
+    sctx.fillStyle = strokeColor;
+    sctx.beginPath();
+    sctx.arc(x, y, radius, 0, TAU);
+    sctx.fill();
+  }
+}
+
+function emitDabsAlongPolyline(pts, pressure) {
+  const spacing = Math.max(0.4, cfg.bWidth * cfg.bSpacing);
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const x0 = pts[i].x, y0 = pts[i].y;
+    const x1 = pts[i+1].x, y1 = pts[i+1].y;
+    const segLen = Math.hypot(x1 - x0, y1 - y0);
+    if (segLen < 1e-9) continue;
+
+    const ux = (x1 - x0) / segLen;
+    const uy = (y1 - y0) / segLen;
+
+    let d = spacing - dabPhase;
+    while (d <= segLen) {
+      paintDab(x0 + ux * d, y0 + uy * d, pressure);
+      d += spacing;
+    }
+    dabPhase = segLen - (d - spacing);
+  }
 }
 
 function redrawLasso() {
   clearStrokeBuf();
-  prepStrokeCtx();
+  prepStrokeCtx(curPressure);
 
   const pts = strokePts;
   const n = pts.length;
-  const rad = Math.max(0.5, cfg.bWidth / 2);
-  const isErase = cfg.paintMode === 'erase';
-  const isFill  = cfg.paintMode === 'fill';
+  const rad = Math.max(0.5, sctx.lineWidth / 2);
+  const isErase = strokeErasing;
+  const isFill  = strokePaintMode === 'fill';
 
   if (n === 0) return;
 
   if (n === 1) {
-    const col = isErase ? '#000' : strokeColor;
+    const col = isErase ? '#ffffff' : strokeColor;
     sctx.beginPath();
     sctx.arc(pts[0].x, pts[0].y, rad, 0, TAU);
     sctx.fillStyle = col;
     sctx.fill();
+    if (isErase) applyLassoEraseToBase();
     return;
   }
 
   if (n === 2) {
-    const col = isErase ? '#000' : strokeColor;
+    const col = isErase ? '#ffffff' : strokeColor;
     sctx.beginPath();
     sctx.moveTo(pts[0].x, pts[0].y);
     sctx.lineTo(pts[1].x, pts[1].y);
     sctx.strokeStyle = col;
-    sctx.lineWidth = cfg.bWidth;
     sctx.lineCap = 'round';
     sctx.stroke();
+    if (isErase) applyLassoEraseToBase();
     return;
   }
 
@@ -2073,13 +3224,13 @@ function redrawLasso() {
   sctx.closePath();
 
   if (isErase) {
-    sctx.fillStyle = '#000';
-    sctx.strokeStyle = '#000';
-    sctx.lineWidth = cfg.bWidth;
+    sctx.fillStyle = '#ffffff';
+    sctx.strokeStyle = '#ffffff';
     sctx.lineJoin = 'round';
     sctx.lineCap = 'round';
     sctx.fill();
     sctx.stroke();
+    applyLassoEraseToBase();
     return;
   }
 
@@ -2092,7 +3243,7 @@ function redrawLasso() {
       const d = Math.hypot(pts[i].x - cx, pts[i].y - cy);
       if (d > maxR) maxR = d;
     }
-    maxR += cfg.bWidth;
+    maxR += sctx.lineWidth;
     if (maxR < 4) maxR = 4;
 
     const sectorCanvas = buildSectorCanvas(maxR);
@@ -2110,80 +3261,168 @@ function redrawLasso() {
   sctx.stroke();
 }
 
-function startPaintStroke(x, y) {
+/* 套索擦除：每帧先从快照恢复 baseCvs，再把当前笔迹一次性擦上去，
+   避免同一区域被重复擦除 */
+function applyLassoEraseToBase() {
+  restoreBaseFromSnapshot();
+
+  if (hasSelection()) {
+    const mask = getActiveMaskCvs();
+    if (mask) {
+      sctx.save();
+      sctx.setTransform(1, 0, 0, 1, 0, 0);
+      sctx.globalCompositeOperation = 'destination-in';
+      sctx.globalAlpha = 1;
+      sctx.drawImage(mask, 0, 0);
+      sctx.globalCompositeOperation = 'source-over';
+      sctx.restore();
+    }
+  }
+
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = 'destination-out';
+  bctx.globalAlpha = strokeAlpha;
+  bctx.drawImage(strokeBuf, 0, 0);
+  bctx.restore();
+  clearStrokeBuf();
+}
+
+function startPaintStroke(x, y, pressure) {
   strokeOriginX = x;
   strokeOriginY = y;
+  curPressure = pressure;
 
-  if (cfg.paintMode === 'fill') {
+  /* ---- 判定本次笔画实际模式（橡皮模式覆盖）---- */
+  strokePaintMode = cfg.paintMode;
+  strokeErasing   = false;
+
+  if (eraserHeld) {
+    strokeErasing = true;                      // 按住 E
+    if (cfg.paintMode === 'fill') {
+      strokePaintMode = 'erase';               // 填充 → 变成擦除套索
+    }
+    /* line → 保持 line，走"笔刷擦除"路径 */
+  }
+
+  if (strokePaintMode === 'fill') {
     initFillSectors();
     const rgb = fillSectorColors[0];
     strokeColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+  } else if (strokeErasing) {
+    strokeColor = '#ffffff';                   // 擦除用白色，颜色无实际意义
   } else {
     strokeColor = nextColor();
   }
 
-  if (cfg.paintMode === 'line') lineProgress = 0;
+  strokeBlend = strokeErasing ? 'destination-out' : cfg.blend;
+  /* 画笔模式下 alpha 已烘焙进每个 dab，合成时保持 1；
+     填充/擦除走套索路径，靠 strokeAlpha 统一控制 */
+  strokeAlpha = strokePaintMode === 'line' ? 1 : Math.max(0.02, cfg.bAlpha);
 
-  strokeBlend = cfg.paintMode === 'erase' ? 'destination-out' : cfg.blend;
-  strokeAlpha = cfg.paintMode === 'erase' ? 1 : Math.max(0.02, cfg.bAlpha);
+  strokeIsPaint = true;
 
   clearStrokeBuf();
-  prepStrokeCtx();
+  prepStrokeCtx(pressure);
 
   lastPt.x = smoothPt.x = x;
   lastPt.y = smoothPt.y = y;
   strokePts = [{ x, y }];
 
-  sctx.beginPath();
-  sctx.arc(x, y, Math.max(0.5, cfg.bWidth / 2), 0, TAU);
-  sctx.fill();
-
-  if (cfg.paintMode === 'line') {
-    linePrev.x = lineLastMid.x = x;
-    linePrev.y = lineLastMid.y = y;
+  if (strokePaintMode === 'line') {
+    lineProgress = 0;
+    dabPhase = 0;
+    prevSmoothX = x;
+    prevSmoothY = y;
+    prevMidX = x;
+    prevMidY = y;
+    hasFirstMove = false;
+    smoothPressure = pressure;
+    paintDab(x, y, pressure);
+  } else {
+    /* 填充 / 擦除的起始点：之前用 sctx.lineWidth/2 当半径，
+       笔宽一大就会在起点画一个跟笔宽一样大的圆盘，
+       看上去就像是"点下去时闪现了一个圆环光标"。
+       这里固定一个小点，不再随笔宽变化。 */
+    sctx.beginPath();
+    sctx.arc(x, y, 0.5, 0, TAU);
+    sctx.fill();
   }
 
+    /* 套索擦除需要记录快照，用于每帧恢复 */
+  if (strokeErasing && strokePaintMode !== 'line') {
+    strokeBaseSnapshot = document.createElement('canvas');
+    strokeBaseSnapshot.width = baseCvs.width;
+    strokeBaseSnapshot.height = baseCvs.height;
+    strokeBaseSnapshot.getContext('2d').drawImage(baseCvs, 0, 0);
+  }
   strokeActive = true;
   scheduleRender();
 }
 
-function continuePaintStroke(x, y) {
+function continuePaintStroke(x, y, pressure) {
   if (!strokeActive) return;
+  curPressure = pressure;
 
-  if (cfg.paintMode === 'line') {
-    const k = 1 - cfg.bSmooth;
-    smoothPt.x += (x - smoothPt.x) * k;
-    smoothPt.y += (y - smoothPt.y) * k;
+  if (strokePaintMode === 'line') {
+    /* 指数平滑位置 */
+    const dxS = x - smoothPt.x;
+    const dyS = y - smoothPt.y;
+    const dS  = Math.hypot(dxS, dyS);
 
-    const dx = smoothPt.x - linePrev.x;
-    const dy = smoothPt.y - linePrev.y;
-    const segLen = Math.hypot(dx, dy);
-    if (segLen < 0.6) return;
+    const baseK  = 1 - cfg.bSmooth;
+    const speedT = Math.min(1, dS / 35);
+    const k = baseK + (1 - baseK) * speedT * 0.75;
 
-    const mx = (linePrev.x + smoothPt.x) / 2;
-    const my = (linePrev.y + smoothPt.y) / 2;
+    smoothPt.x += dxS * k;
+    smoothPt.y += dyS * k;
 
-    updateLineSegmentColor(segLen);
+    /* 压力平滑：避免某些笔/驱动上报的阶梯式压感 */
+    smoothPressure += (pressure - smoothPressure) * 0.5;
 
-    sctx.beginPath();
-    sctx.moveTo(lineLastMid.x, lineLastMid.y);
-    sctx.quadraticCurveTo(linePrev.x, linePrev.y, mx, my);
-    sctx.stroke();
+    if (!hasFirstMove) {
+      /* 第一段：从起点到 mid(start, smoothPt) 画直线 */
+      const m1x = (prevSmoothX + smoothPt.x) / 2;
+      const m1y = (prevSmoothY + smoothPt.y) / 2;
+      emitDabsAlongPolyline(
+        [{ x: prevSmoothX, y: prevSmoothY }, { x: m1x, y: m1y }],
+        smoothPressure
+      );
+      prevMidX = m1x; prevMidY = m1y;
+      hasFirstMove = true;
 
-    lineLastMid.x = mx;
-    lineLastMid.y = my;
-    linePrev.x = smoothPt.x;
-    linePrev.y = smoothPt.y;
+    } else {
+      /* 后续：从 prevMid 到新中点做二次贝塞尔，控制点 = prevSmoothPt
+         等价于对平滑点序列做"中点平滑"，方向变化处不再有折角 */
+      const m2x = (prevSmoothX + smoothPt.x) / 2;
+      const m2y = (prevSmoothY + smoothPt.y) / 2;
+
+      const STEPS = 24;
+      const poly = [];
+      for (let i = 0; i <= STEPS; i++) {
+        const t  = i / STEPS;
+        const mt = 1 - t;
+        poly.push({
+          x: mt*mt*prevMidX + 2*mt*t*prevSmoothX + t*t*m2x,
+          y: mt*mt*prevMidY + 2*mt*t*prevSmoothY + t*t*m2y
+        });
+      }
+      emitDabsAlongPolyline(poly, smoothPressure);
+
+      prevMidX = m2x; prevMidY = m2y;
+    }
+
+    prevSmoothX = smoothPt.x;
+    prevSmoothY = smoothPt.y;
 
   } else {
+    /* 填充 / 擦除走原来的路径，不动 */
     const dx = x - lastPt.x, dy = y - lastPt.y;
     if (dx * dx + dy * dy < 1.44) return;
-
     strokePts.push({ x, y });
     if (strokePts.length > 4000) strokePts.shift();
     lastPt.x = x;
     lastPt.y = y;
-
     redrawLasso();
   }
 
@@ -2193,11 +3432,18 @@ function continuePaintStroke(x, y) {
 function commitStroke() {
   if (!strokeActive) return;
 
-  if (cfg.tool === 'paint' && cfg.paintMode === 'line') {
-    sctx.beginPath();
-    sctx.moveTo(lineLastMid.x, lineLastMid.y);
-    sctx.quadraticCurveTo(linePrev.x, linePrev.y, linePrev.x, linePrev.y);
-    sctx.stroke();
+  if (strokeBlend === 'destination-out') {
+    /* 擦除已在 baseCvs 上实时完成，这里只清理状态 */
+    clearStrokeBuf();
+    strokeActive = false;
+    strokeIsPaint = false;
+    strokeBaseSnapshot = null;
+    renderView();
+    return;
+  }
+
+  if (strokeIsPaint && strokePaintMode !== 'line') {
+    strokeAlpha = Math.max(0.02, cfg.bAlpha);
   }
 
   const activeMask = getActiveMaskCvs();
@@ -2205,6 +3451,7 @@ function commitStroke() {
     sctx.save();
     sctx.setTransform(1, 0, 0, 1, 0, 0);
     sctx.globalCompositeOperation = 'destination-in';
+    sctx.globalAlpha = 1;
     sctx.drawImage(activeMask, 0, 0);
     sctx.globalCompositeOperation = 'source-over';
     sctx.restore();
@@ -2219,6 +3466,8 @@ function commitStroke() {
 
   clearStrokeBuf();
   strokeActive = false;
+  strokeIsPaint = false;
+  strokeBaseSnapshot = null;
   renderView();
 }
 
@@ -2452,30 +3701,90 @@ let lqPrevX   = 0;
 let lqPrevY   = 0;
 let lqPointerId = null;
 
-/* ★ 更新液化光标：修饰键/中键按下时隐藏 */
 function updateLqCursor(x, y, e) {
-  if (cfg.tool !== 'liquify' || tfActive) {
+  if (tfActive) {
     lqCursor.style.display = 'none';
     return;
   }
-  if (e && (e.altKey || e.ctrlKey || e.metaKey || (e.buttons & 4))) {
+
+  const isLq   = cfg.tool === 'liquify';
+  const isBlur = !!(e && e.shiftKey && !isSHeld());
+
+  if (!isLq && !isBlur) {
     lqCursor.style.display = 'none';
     return;
   }
-  const size = cfg.lqSize;
+
+  if (isLq && e && (e.altKey || e.ctrlKey || e.metaKey || (e.buttons & 4))) {
+    lqCursor.style.display = 'none';
+    return;
+  }
+  if (isBlur && e && (e.altKey || e.ctrlKey || e.metaKey)) {
+    lqCursor.style.display = 'none';
+    return;
+  }
+
+  const size = isBlur ? cfg.blurSize : cfg.lqSize;
   lqCursor.style.display = 'block';
   lqCursor.style.left = x + 'px';
   lqCursor.style.top  = y + 'px';
   lqCursor.style.width  = (size * 2) + 'px';
   lqCursor.style.height = (size * 2) + 'px';
+
+  if (isBlur) {
+    lqCursor.style.borderColor = 'rgba(167,139,250,.95)';
+    lqCursor.style.boxShadow = '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(167,139,250,.3)';
+  } else {
+    lqCursor.style.borderColor = 'rgba(110,231,255,.9)';
+    lqCursor.style.boxShadow = '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(110,231,255,.3)';
+  }
+}
+
+function updateBrushCursor(x, y, e) {
+  if (tfActive) { brushCursor.style.display = 'none'; return; }
+  if (selecting) { brushCursor.style.display = 'none'; return; }
+
+  const isPlace = cfg.tool === 'place';
+  const isPaint = cfg.tool === 'paint' && cfg.paintMode === 'line';
+  if (!isPlace && !isPaint) { brushCursor.style.display = 'none'; return; }
+
+  if (e && (e.altKey || e.ctrlKey || e.metaKey || (e.buttons & 4))) {
+    brushCursor.style.display = 'none'; return;
+  }
+  if (isSHeld()) { brushCursor.style.display = 'none'; return; }
+  if (e && e.shiftKey) { brushCursor.style.display = 'none'; return; }
+
+  const size = isPlace ? cfg.pSize : cfg.bWidth;
+
+  brushCursor.style.display = 'block';
+  brushCursor.style.left = x + 'px';
+  brushCursor.style.top  = y + 'px';
+  brushCursor.style.width  = size + 'px';
+  brushCursor.style.height = size + 'px';
+
+  /* 橡皮模式下给光标换个颜色，便于辨认 */
+  if (isEraserTool()) {
+    brushCursor.style.borderColor = 'rgba(255,120,120,.95)';
+    brushCursor.style.boxShadow = '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,120,120,.35)';
+  } else {
+    brushCursor.style.borderColor = 'rgba(255,255,255,.9)';
+    brushCursor.style.boxShadow = '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.3)';
+  }
 }
 
 /* =========================================================
-   Alt 吸色
+   Alt 吸色 / S 键套索状态
    ========================================================= */
 const colorInputEl = document.getElementById('baseColor');
 let altPressed = false;
 let ctrlPressed = false;
+let backtickHeld = false;
+let lastSKeydownTime = -1e9;
+
+function isSHeld() {
+  if (!backtickHeld) return false;
+  return performance.now() - lastSKeydownTime < 3000;
+}
 
 function updateModifierCursor() {
   if (tfActive) return;
@@ -2527,10 +3836,17 @@ function abortActive() {
   if (dragShape) {
     dragShape = null;
     strokeActive = false;
+    strokeIsPaint = false;
     clearStrokeBuf();
     renderView();
   }
   if (drawing) { drawing = false; ptrId = null; }
+  if (strokeActive) {
+    strokeActive = false;
+    strokeIsPaint = false;
+    clearStrokeBuf();
+  }
+    strokeBaseSnapshot = null;
   if (lqActive) {
     lqActive = false;
     lqPointerId = null;
@@ -2541,12 +3857,15 @@ function abortActive() {
     lassoPoints = [];
     lassoPointerId = null;
   }
+  if (blurActive) {
+    blurActive = false;
+    blurPointerId = null;
+  }
   if (moveActive) endMove();
   lqCursor.style.display = 'none';
 }
 
 cvs.addEventListener('pointerdown', e => {
-  /* ★ 自由变换优先拦截 */
   if (tfActive) {
     e.preventDefault();
     const hit = tfHitTest(e.clientX, e.clientY);
@@ -2568,17 +3887,21 @@ cvs.addEventListener('pointerdown', e => {
     return;
   }
 
-  if (e.altKey && e.button !== 1) {
+  const sHeld = isSHeld();
+
+  if (sHeld) lastSKeydownTime = performance.now();
+
+  if (e.altKey && e.button !== 1 && !sHeld && !e.shiftKey) {
     e.preventDefault();
     pickColorAt(e.clientX, e.clientY);
     return;
   }
 
-  if (e.button === 1) {
+  if (sHeld && e.button === 0) {
     e.preventDefault();
     lassoActive = true;
     lassoPointerId = e.pointerId;
-    cvs.setPointerCapture(e.pointerId);
+    try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
     lassoPoints = [{ x: e.clientX, y: e.clientY }];
 
     if (e.shiftKey) {
@@ -2596,6 +3919,13 @@ cvs.addEventListener('pointerdown', e => {
 
     startDashAnim();
     renderView();
+    return;
+  }
+
+  if (e.shiftKey && e.button === 0 && !sHeld) {
+    e.preventDefault();
+    lqCursor.style.display = 'none';
+    startBlur(e.clientX, e.clientY, e.pointerId);
     return;
   }
 
@@ -2646,10 +3976,19 @@ cvs.addEventListener('pointerdown', e => {
   takeSnapshot();
 
   if (cfg.tool === 'place') {
-    strokeBlend = cfg.blend;
+    strokeBlend = eraserHeld ? 'destination-out' : cfg.blend;
     strokeAlpha = 1;
+    strokeIsPaint = false;
     clearStrokeBuf();
     strokeActive = true;
+
+    /* 拖拽擦除需要 snapshot；散点擦除直接落 baseCvs，不需要 */
+    if (strokeBlend === 'destination-out' && cfg.ctrlMode === 'drag') {
+      strokeBaseSnapshot = document.createElement('canvas');
+      strokeBaseSnapshot.width = baseCvs.width;
+      strokeBaseSnapshot.height = baseCvs.height;
+      strokeBaseSnapshot.getContext('2d').drawImage(baseCvs, 0, 0);
+    }
 
     if (cfg.ctrlMode === 'scatter') {
       placePrev.x = x;
@@ -2660,7 +3999,7 @@ cvs.addEventListener('pointerdown', e => {
       startDragShape(x, y);
     }
   } else {
-    startPaintStroke(x, y);
+    startPaintStroke(x, y, pressure);
   }
 }, { passive: false });
 
@@ -2668,7 +4007,6 @@ cvs.addEventListener('pointermove', e => {
   lastPointerPos.x = e.clientX;
   lastPointerPos.y = e.clientY;
 
-  /* ★ 自由变换交互 */
   if (tfActive) {
     if (tfDrag && e.pointerId === tfDrag.pointerId) {
       e.preventDefault();
@@ -2679,7 +4017,7 @@ cvs.addEventListener('pointermove', e => {
     return;
   }
 
-  if (e.altKey && (e.buttons & 1) && !(e.buttons & 4)) {
+  if (e.altKey && (e.buttons & 1) && !(e.buttons & 4) && !isSHeld() && !e.shiftKey) {
     e.preventDefault();
     pickColorAt(e.clientX, e.clientY);
     return;
@@ -2695,13 +4033,20 @@ cvs.addEventListener('pointermove', e => {
     return;
   }
 
+  if (blurActive && e.pointerId === blurPointerId) {
+    e.preventDefault();
+    updateBlur(e.clientX, e.clientY);
+    return;
+  }
+
   if (moveActive && e.pointerId === movePointerId) {
     e.preventDefault();
     updateMove(e.clientX, e.clientY);
     return;
   }
 
-  if (cfg.tool === 'liquify') updateLqCursor(e.clientX, e.clientY, e);
+  updateLqCursor(e.clientX, e.clientY, e);
+  updateBrushCursor(e.clientX, e.clientY, e);
 
   if (isSelDragging && e.pointerId === selPointerId) {
     e.preventDefault();
@@ -2779,19 +4124,24 @@ cvs.addEventListener('pointermove', e => {
     }
 
   } else {
-    continuePaintStroke(x, y);
+    continuePaintStroke(x, y, pressure);
   }
 }, { passive: false });
 
 cvs.addEventListener('pointerleave', () => {
-  if (!lqActive) lqCursor.style.display = 'none';
+  if (!lqActive && !blurActive) lqCursor.style.display = 'none';
+  brushCursor.style.display = 'none';
 });
 cvs.addEventListener('pointerenter', e => {
-  if (cfg.tool === 'liquify') updateLqCursor(e.clientX, e.clientY, e);
+  updateLqCursor(e.clientX, e.clientY, e);
+  updateBrushCursor(e.clientX, e.clientY, e);
 });
 
 function endStroke(e) {
-  /* ★ 变换拖拽结束 */
+  if (isSHeld()) {
+    lastSKeydownTime = performance.now();
+  }
+
   if (tfActive) {
     if (tfDrag && (!e || e.pointerId === tfDrag.pointerId)) {
       tfDrag = null;
@@ -2817,6 +4167,11 @@ function endStroke(e) {
 
     lassoPoints = [];
     renderView();
+    return;
+  }
+
+  if (blurActive && (!e || e.pointerId === blurPointerId)) {
+    endBlur();
     return;
   }
 
@@ -2856,12 +4211,13 @@ function endStroke(e) {
   drawing = false;
   ptrId = null;
 
-  if (cfg.tool === 'place') {
+    if (cfg.tool === 'place') {
     if (strokeActive) commitStroke();
     dragShape = null;
   } else {
     commitStroke();
   }
+  strokeBaseSnapshot = null;
 }
 cvs.addEventListener('pointerup', endStroke);
 cvs.addEventListener('pointercancel', endStroke);
@@ -3000,6 +4356,7 @@ function clearAll() {
   takeSnapshot();
   clearStrokeBuf();
   strokeActive = false;
+  strokeIsPaint = false;
   dragShape = null;
   bctx.save();
   bctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -3038,8 +4395,26 @@ bindRange('pLw',      (v, o) => { cfg.pLw = v/10;        o.textContent = (v/10).
 bindRange('bWidth',  (v, o) => { cfg.bWidth = v;          o.textContent = v; });
 bindRange('bSmooth', (v, o) => { cfg.bSmooth = v/100;     o.textContent = v + '%'; });
 bindRange('bAlpha',  (v, o) => { cfg.bAlpha = v/100;      o.textContent = v + '%'; });
+bindRange('bSpacing', (v, o) => { cfg.bSpacing = v/100; o.textContent = v + '%'; });
 
 bindRange('lqSize',     (v, o) => { cfg.lqSize = v;              o.textContent = v; });
+const blurSizeEl = document.getElementById('blurSize');
+const blurSizeOut = blurSizeEl.nextElementSibling;
+const blurBar = document.getElementById('blurBar');
+const blurStrengthEl = document.getElementById('blurStrength');
+const blurStrengthOut = blurStrengthEl.nextElementSibling;
+
+blurSizeEl.addEventListener('input', () => {
+  const v = parseFloat(blurSizeEl.value);
+  cfg.blurSize = v;
+  blurSizeOut.textContent = v;
+});
+
+blurStrengthEl.addEventListener('input', () => {
+  const v = parseFloat(blurStrengthEl.value);
+  cfg.blurStrength = v / 100;
+  blurStrengthOut.textContent = v + '%';
+});
 bindRange('lqStrength', (v, o) => { cfg.lqStrength = v/100;      o.textContent = v + '%'; });
 
 bindRange('hueGradient', (v, o) => {
@@ -3054,6 +4429,24 @@ colorInputEl.addEventListener('input', () => {
 const hueRandomEl = document.getElementById('hueRandom');
 hueRandomEl.addEventListener('change', () => {
   cfg.hueRandom = hueRandomEl.checked;
+});
+
+const pSizePenEl  = document.getElementById('pSizePen');
+const pAlphaPenEl = document.getElementById('pAlphaPen');
+const bSizePenEl  = document.getElementById('bSizePen');
+const bAlphaPenEl = document.getElementById('bAlphaPen');
+
+pSizePenEl.addEventListener('change', () => {
+  cfg.placeSizePressure = pSizePenEl.checked;
+});
+pAlphaPenEl.addEventListener('change', () => {
+  cfg.placeAlphaPressure = pAlphaPenEl.checked;
+});
+bSizePenEl.addEventListener('change', () => {
+  cfg.paintSizePressure = bSizePenEl.checked;
+});
+bAlphaPenEl.addEventListener('change', () => {
+  cfg.paintAlphaPressure = bAlphaPenEl.checked;
 });
 
 const toolBox    = document.getElementById('tools');
@@ -3078,6 +4471,7 @@ function applyTool(tool) {
 
   updateCustomPanelVisibility();
   updateUIState();
+  updateEraserBadge();
 }
 
 toolBox.addEventListener('click', e => {
@@ -3143,9 +4537,8 @@ pModeBox.addEventListener('click', e => {
 const paintModeBox = document.getElementById('paintModes');
 const paintHint    = document.getElementById('paintHint');
 const PAINT_TIPS = {
-  line:  '自由画线，颜色由拾色器和渐变共同决定',
-  fill:  '柳叶笔套索，以起点为圆心 72 扇区填色',
-  erase: '柳叶笔套索，圈住的区域擦除画面内容'
+  line:  '自由画笔，颜色由拾色器和渐变共同决定',
+  fill:  '柳叶笔套索，以起点为圆心 72 扇区填色'
 };
 function applyPaintMode(mode) {
   cfg.paintMode = mode;
@@ -3228,7 +4621,42 @@ collapseBtn.addEventListener('click', () => {
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
 
-  /* ★ 自由变换激活时独占快捷键 */
+  /* ---- 橡皮模式：按住 E ---- */
+  if (e.code === 'KeyE' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (!eraserHeld) {
+      eraserHeld = true;
+      updateUIState();
+      updateEraserBadge();
+    }
+  }
+
+  if (cpActive) {
+    if (e.key === 'Escape') { e.preventDefault(); cpCancel(); return; }
+    if (e.key === 'Enter')  { e.preventDefault(); cpConfirm(); return; }
+    if ((e.ctrlKey || e.metaKey) && k === 'm') { e.preventDefault(); cpConfirm(); return; }
+    return;
+  }
+
+  if (e.code === 'KeyS') {
+    backtickHeld = true;
+    lastSKeydownTime = performance.now();
+    if (!tfActive) cvs.style.cursor = 'crosshair';
+  }
+
+  if (backtickHeld) {
+    if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
+      e.preventDefault();
+      lastSKeydownTime = performance.now();
+    } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      lastSKeydownTime = performance.now();
+    }
+  }
+
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight')
+      && !tfActive && !backtickHeld) {
+    blurBar.style.display = 'flex';
+  }
+
   if (tfActive) {
     if (e.key === 'Escape') { e.preventDefault(); cancelTransform(); return; }
     if (e.key === 'Enter')  { e.preventDefault(); commitTransform(); return; }
@@ -3246,8 +4674,13 @@ window.addEventListener('keydown', e => {
     updateModifierCursor();
   }
 
-  /* ★ Ctrl/Cmd + T → 自由变换 */
-  if (k === 't') {
+  if ((e.ctrlKey || e.metaKey) && k === 'm') {
+    e.preventDefault();
+    cpOpen();
+    return;
+  }
+
+  if (k === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     enterTransform();
     return;
@@ -3273,6 +4706,7 @@ window.addEventListener('keydown', e => {
 
   if (e.key === 'Escape') {
     if (lassoActive) { lassoActive = false; lassoPoints = []; renderView(); return; }
+    if (blurActive) { endBlur(); return; }
     if (moveActive) { endMove(); return; }
     if (hasSelection()) { clearSelection(); return; }
     if (selecting) { exitSelectionMode(); return; }
@@ -3280,6 +4714,23 @@ window.addEventListener('keydown', e => {
 });
 
 window.addEventListener('keyup', e => {
+  /* ---- 松开 E：退出橡皮模式 ---- */
+  if (e.code === 'KeyE') {
+    if (eraserHeld) {
+      eraserHeld = false;
+      updateUIState();
+      updateEraserBadge();
+    }
+  }
+
+  if (e.code === 'KeyS') {
+    backtickHeld = false;
+    lastSKeydownTime = -1e9;
+    if (!tfActive && !altPressed && !ctrlPressed) cvs.style.cursor = '';
+  }
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    blurBar.style.display = 'none';
+  }
   if (!e.altKey && altPressed) {
     altPressed = false;
     updateModifierCursor();
@@ -3293,6 +4744,13 @@ window.addEventListener('keyup', e => {
 window.addEventListener('blur', () => {
   if (altPressed) { altPressed = false; updateModifierCursor(); }
   if (ctrlPressed) { ctrlPressed = false; updateModifierCursor(); }
+  blurBar.style.display = 'none';
+
+  if (eraserHeld) {
+    eraserHeld = false;
+    updateUIState();
+    updateEraserBadge();
+  }
 });
 
 /* =========================================================
@@ -3302,6 +4760,7 @@ document.body.style.background = cfg.bg;
 document.documentElement.style.background = cfg.bg;
 
 buildCustomSlotsUI();
+updateCustomBrushPreview();
 updateBaseHsl();
 colorInputEl.value = cfg.baseColor;
 
@@ -3309,6 +4768,7 @@ resize();
 applyTool(cfg.tool);
 applyCtrlMode(cfg.ctrlMode);
 applyPlaceMode(cfg.pMode);
+if (cfg.paintMode === 'erase') cfg.paintMode = 'line';
 applyPaintMode(cfg.paintMode);
 applyLqMode(cfg.lqMode);
 applyLqStyle(cfg.lqStyle);
@@ -3324,6 +4784,7 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(() => {
     resize();
     for (let i = 0; i < CUSTOM_SLOT_COUNT; i++) updateSlotPreview(i);
+    updateCustomBrushPreview();
   }, 120);
 });
 window.addEventListener('orientationchange', () => {
