@@ -1935,6 +1935,14 @@ function cpOpen() {
   cpSnapshot.height = baseCvs.height;
   cpSnapshot.getContext('2d').drawImage(baseCvs, 0, 0);
 
+  /* 每次打开都复位曲线工具本身（控制点恢复默认对角线），
+     只重置曲线数据，不动画面 —— 画面由 cpSnapshot 保护，
+     用户取消会回滚，用户确定则保留。 */
+  cpCurves.rgb = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+  cpCurves.r   = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+  cpCurves.g   = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+  cpCurves.b   = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
+
   cpChannel = 'rgb';
   cpChannels.querySelectorAll('button').forEach(b =>
     b.classList.toggle('on', b.dataset.c === 'rgb'));
@@ -4035,13 +4043,13 @@ function setPSizeValue(v) {
   if (out) out.textContent = String(v);
   cfg.pSize = v;
 }
-function setBWidthValue(v) {
-  const el = document.getElementById('bWidth');
+function setLqSizeValue(v) {
+  const el = document.getElementById('lqSize');
   if (!el) return;
   el.value = String(v);
   const out = el.nextElementSibling;
   if (out) out.textContent = String(v);
-  cfg.bWidth = v;
+  cfg.lqSize = v;
 }
 
 /* =========================================================
@@ -4124,13 +4132,23 @@ cvs.addEventListener('pointerdown', e => {
 
   /* ---- X 键 + 左键：调笔刷大小 ---- */
   if (sizeHeld && e.button === 0 && !spaceMode.startsWith('z') &&
-      (cfg.tool === 'place' || (cfg.tool === 'paint' && cfg.paintMode === 'line'))) {
+      (cfg.tool === 'place' ||
+       (cfg.tool === 'paint' && cfg.paintMode === 'line') ||
+       cfg.tool === 'liquify')) {
     e.preventDefault();
     sizeAdjustActive = true;
     sizeAdjustPointerId = e.pointerId;
     sizeAdjustStartX = e.clientX;
-    sizeAdjustStartValue = cfg.tool === 'place' ? cfg.pSize : cfg.bWidth;
-    sizeAdjustTarget = cfg.tool === 'place' ? 'pSize' : 'bWidth';
+    if (cfg.tool === 'place') {
+      sizeAdjustStartValue = cfg.pSize;
+      sizeAdjustTarget = 'pSize';
+    } else if (cfg.tool === 'liquify') {
+      sizeAdjustStartValue = cfg.lqSize;
+      sizeAdjustTarget = 'lqSize';
+    } else {
+      sizeAdjustStartValue = cfg.bWidth;
+      sizeAdjustTarget = 'bWidth';
+    }
     try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
     cvs.style.cursor = 'ew-resize';
     return;
@@ -4313,6 +4331,14 @@ cvs.addEventListener('pointermove', e => {
       let v = sizeAdjustStartValue + dx * rate;
       v = Math.max(minV, Math.min(maxV, v));
       setPSizeValue(Math.round(v));
+    } else if (sizeAdjustTarget === 'lqSize') {
+      const minV = 10, maxV = 240;
+      const rate = (maxV - minV) / 400;
+      let v = sizeAdjustStartValue + dx * rate;
+      v = Math.max(minV, Math.min(maxV, v));
+      setLqSizeValue(Math.round(v));
+      /* 让液化的圆形光标跟随新尺寸 */
+      updateLqCursor(e.clientX, e.clientY, e);
     } else {
       const minV = 1, maxV = 120;
       const rate = (maxV - minV) / 400;
@@ -4963,6 +4989,12 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Space' && !e.repeat) {
     if (spaceMode !== 'none') return;
 
+    /* 防止空格激活上一次点击过的按钮（清空/撤销/保存等） */
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && typeof ae.blur === 'function') {
+      ae.blur();
+    }
+
     if (e.ctrlKey) {
       e.preventDefault();
       spaceMode = 'zoom';
@@ -4989,7 +5021,9 @@ window.addEventListener('keydown', e => {
 
   /* ---- X 键：按住调笔刷大小 ---- */
   if (e.code === 'KeyX' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (cfg.tool === 'place' || (cfg.tool === 'paint' && cfg.paintMode === 'line')) {
+    if (cfg.tool === 'place' ||
+        (cfg.tool === 'paint' && cfg.paintMode === 'line') ||
+        cfg.tool === 'liquify') {
       sizeHeld = true;
       if (!tfActive && !altPressed && !ctrlPressed && spaceMode === 'none') {
         cvs.style.cursor = 'ew-resize';
@@ -5084,13 +5118,19 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => {
   /* ---- 松开空格 ---- */
   if (e.code === 'Space') {
+    e.preventDefault();
     if (spaceMode === 'zoom') {
       if (zoomActive) {
         zoomActive = false;
         zoomPointerId = null;
       }
       spaceMode = 'none';
-      if (!tfActive && !altPressed && !ctrlPressed && !sizeHeld) cvs.style.cursor = '';
+      /* 无条件复位内联光标；再由修饰键 / X 键决定最终光标 */
+      if (!tfActive) {
+        cvs.style.cursor = '';
+        if (sizeHeld) cvs.style.cursor = 'ew-resize';
+        else updateModifierCursor();
+      }
       updateZoomBadge();
       return;
     }
@@ -5102,7 +5142,12 @@ window.addEventListener('keyup', e => {
         resetView();
       }
       spaceMode = 'none';
-      if (!tfActive && !altPressed && !ctrlPressed && !sizeHeld) cvs.style.cursor = '';
+      /* 无条件复位内联光标；再由修饰键 / X 键决定最终光标 */
+      if (!tfActive) {
+        cvs.style.cursor = '';
+        if (sizeHeld) cvs.style.cursor = 'ew-resize';
+        else updateModifierCursor();
+      }
       updateZoomBadge();
       return;
     }
