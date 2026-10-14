@@ -368,11 +368,56 @@
   }
   #layersList::-webkit-scrollbar{width:5px}
   #layersList::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
+  /* 图层条目：外层容器负责 active/selected 高亮，内层 row 只放按钮 */
+  .layer-item{
+    display:flex;flex-direction:column;
+    border-radius:9px;border:1px solid transparent;
+    margin-bottom:2px;transition:background .12s,border-color .12s;
+  }
+  .layer-item:hover{background:rgba(255,255,255,.05)}
+  .layer-item.active{
+    background:linear-gradient(135deg,rgba(110,231,255,.15),rgba(167,139,250,.15));
+    border-color:rgba(110,231,255,.45);
+  }
+  .layer-item.selected{
+    background:rgba(255,180,80,.10);
+    border-color:rgba(255,180,80,.45);
+    border-style:dashed;
+  }
+  .layer-item.selected.active{
+    background:linear-gradient(135deg,rgba(110,231,255,.18),rgba(167,139,250,.18));
+    border-color:rgba(110,231,255,.55);
+    border-style:solid;
+  }
   .layer-row{
     display:flex;align-items:center;gap:2px;
-    padding:4px 4px;border-radius:9px;cursor:pointer;
-    transition:.12s;border:1px solid transparent;
+    padding:4px 4px 1px;cursor:pointer;
   }
+  .layer-opacity{
+    display:flex;align-items:center;gap:6px;
+    padding:0 8px 5px;
+  }
+  .layer-opacity input[type=range]{
+    flex:1;min-width:0;-webkit-appearance:none;appearance:none;
+    height:3px;border-radius:3px;background:rgba(255,255,255,.13);
+    outline:none;cursor:pointer;
+  }
+  .layer-opacity input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:10px;height:10px;border-radius:50%;
+    background:#dcdce8;border:none;cursor:pointer;
+    box-shadow:0 0 0 2px rgba(110,231,255,.18);
+  }
+  .layer-opacity input[type=range]::-moz-range-thumb{
+    width:10px;height:10px;border-radius:50%;
+    background:#dcdce8;border:none;cursor:pointer;
+  }
+  .layer-opacity i{
+    flex:0 0 28px;text-align:right;font-style:normal;
+    font-size:9.5px;color:#70707f;font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em;transition:color .12s;
+  }
+  .layer-item.active .layer-opacity i,
+  .layer-item:hover  .layer-opacity i{color:#b9b9c9}
   .layer-blend{
     flex:0 0 auto;
     width:62px;
@@ -416,23 +461,6 @@
   }
   .layer-add-row .layer-add-label{
     flex:1;letter-spacing:.02em;
-  }
-  .layer-row:hover{background:rgba(255,255,255,.05)}
-  .layer-row.active{
-    background:linear-gradient(135deg,rgba(110,231,255,.15),rgba(167,139,250,.15));
-    border-color:rgba(110,231,255,.45);
-  }
-  /* 多选中但非活动的图层 —— 橙色虚线框 */
-  .layer-row.selected{
-    background:rgba(255,180,80,.10);
-    border-color:rgba(255,180,80,.45);
-    border-style:dashed;
-  }
-  /* 既是 active 又是 selected —— 保持青色主色，加个橙点提示 */
-  .layer-row.selected.active{
-    background:linear-gradient(135deg,rgba(110,231,255,.18),rgba(167,139,250,.18));
-    border-color:rgba(110,231,255,.55);
-    border-style:solid;
   }
   .layer-btn{
     width:18px;height:18px;border-radius:6px;
@@ -3578,7 +3606,8 @@ function newLayerData() {
     clip: false,
     lockPixels: false,   // 锁定像素：只能在现有像素内绘制
     lockMask: null,      // 锁定像素时抓取的 alpha 快照
-    blendMode: 'source-over'   // 图层混合模式（Canvas globalCompositeOperation）
+    blendMode: 'source-over',  // 图层混合模式（Canvas globalCompositeOperation）
+    opacity: 1                 // 图层不透明度 0~1
   };
 }
 
@@ -3727,6 +3756,7 @@ function selectLayer(id, mode) {
 
 function addLayer() {
   if (layers.length >= MAX_LAYERS) { showToast('图层数已达上限（' + MAX_LAYERS + '）'); return; }
+  takeLayerSnapshot({ needPixels: false });
   const cur = getActiveLayer();
   if (cur) saveBaseToLayer(cur);
   const newL = newLayerData();
@@ -3743,6 +3773,7 @@ function deleteLayer(id) {
   if (layers.length <= 1) { showToast('至少保留一个图层'); return; }
   const idx = layers.findIndex(l => l.id === id);
   if (idx < 0) return;
+  takeLayerSnapshot({ needPixels: true });
   layers.splice(idx, 1);
   selectedLayerIds.delete(id);
 
@@ -3774,17 +3805,25 @@ function flushActiveLayer() {
 }
 
 /* 把「一组图层画布」从下到上叠加成一个新画布 */
-function compositeCanvases(canvasList, width, height) {
+/* 传入的是「图层对象」数组（含 canvas / opacity / blendMode）。
+   合成时把每层的 opacity 应用上去，保证合并结果所见即所得。 */
+function compositeCanvases(layerList, width, height) {
   const tmp = document.createElement('canvas');
   tmp.width = width;
   tmp.height = height;
   const tctx = tmp.getContext('2d');
   tctx.setTransform(1, 0, 0, 1, 0, 0);
+
+  for (const l of layerList) {
+    /* 只读一层 alpha；不处理 blendMode 的复杂语义，
+       因为混合模式在合并场景下一般被 reset 为 normal。
+       若需要更精确，可改成 (i === 0 ? 'source-over' : l.blendMode)。 */
+    tctx.globalCompositeOperation = 'source-over';
+    tctx.globalAlpha = l.opacity ?? 1;
+    tctx.drawImage(l.canvas, 0, 0);
+  }
   tctx.globalCompositeOperation = 'source-over';
   tctx.globalAlpha = 1;
-  for (const cv of canvasList) {
-    tctx.drawImage(cv, 0, 0);
-  }
   return tmp;
 }
 
@@ -3809,6 +3848,9 @@ function mergeLayers(ids) {
 
   if (indices.length < 2) return false;
 
+  /* 合并前先记录图层级快照（带像素），撤销时能完整还原 */
+  takeLayerSnapshot({ needPixels: true });
+
   flushActiveLayer();
 
   /* 栈里最靠上的选中图层，合并结果放这里 */
@@ -3818,19 +3860,20 @@ function mergeLayers(ids) {
   const W = topLayer.canvas.width;
   const H = topLayer.canvas.height;
 
-  /* 只合并「可见」图层的像素；不可见图层的内容主动抛弃 */
-  const visibleCanvases = indices
+  /* 只合并「可见」图层的像素；不可见图层的内容主动抛弃。
+     注意传的是图层对象数组，不是画布数组，这样不透明度才能被应用。 */
+  const visibleLayers = indices
     .filter(i => layers[i].visible)
-    .map(i => layers[i].canvas);
+    .map(i => layers[i]);
 
-  if (visibleCanvases.length === 0) {
+  if (visibleLayers.length === 0) {
     /* 全部不可见 → 结果为空画布 */
     const empty = document.createElement('canvas');
     empty.width = W;
     empty.height = H;
     replaceLayerCanvas(topLayer, empty);
   } else {
-    const merged = compositeCanvases(visibleCanvases, W, H);
+    const merged = compositeCanvases(visibleLayers, W, H);
     replaceLayerCanvas(topLayer, merged);
   }
 
@@ -3839,6 +3882,9 @@ function mergeLayers(ids) {
   /* 混合模式重置为正常 —— 因为像素已经"烤"在一起了，
      再保留原来的混合模式会让结果显得莫名其妙 */
   topLayer.blendMode = 'source-over';
+  /* 不透明度重置为 100% —— 每层的不透明度已经烘焙进像素，
+     整体再乘一次会双重衰减。 */
+  topLayer.opacity = 1;
 
   /* 删除其余选中图层（用 id 查找，避免索引错位） */
   for (let i = 0; i < indices.length - 1; i++) {
@@ -3853,9 +3899,9 @@ function mergeLayers(ids) {
   updateLayersUI();
   renderView();
 
-  const skipped = indices.length - visibleCanvases.length;
+  const skipped = indices.length - visibleLayers.length;
   const msg = skipped > 0
-    ? '已合并 ' + visibleCanvases.length + ' 个可见图层（忽略 ' + skipped + ' 个不可见图层）'
+    ? '已合并 ' + visibleLayers.length + ' 个可见图层（忽略 ' + skipped + ' 个不可见图层）'
     : '已合并 ' + indices.length + ' 个图层';
   showToast(msg);
   return true;
@@ -3874,24 +3920,28 @@ function mergeDown() {
   const above = layers[activeIdx];
   const below = layers[activeIdx - 1];
 
+  /* 合并前快照（带像素），撤销时还原两层 */
+  takeLayerSnapshot({ needPixels: true });
+
   flushActiveLayer();
 
   const W = below.canvas.width;
   const H = below.canvas.height;
 
-  /* 只收集「可见」图层的画布，按从下到上顺序；不可见的抛弃 */
-  const visibleCanvases = [];
-  if (below.visible) visibleCanvases.push(below.canvas);
-  if (above.visible) visibleCanvases.push(above.canvas);
+  /* 只收集「可见」图层的对象，按从下到上顺序；不可见的抛弃。
+     传图层对象而不是 canvas，才能把 opacity 一并烘焙进像素。 */
+  const visibleLayers = [];
+  if (below.visible) visibleLayers.push(below);
+  if (above.visible) visibleLayers.push(above);
 
-  if (visibleCanvases.length === 0) {
+  if (visibleLayers.length === 0) {
     /* 两边都不可见 → 结果为空画布 */
     const empty = document.createElement('canvas');
     empty.width = W;
     empty.height = H;
     replaceLayerCanvas(below, empty);
   } else {
-    const merged = compositeCanvases(visibleCanvases, W, H);
+    const merged = compositeCanvases(visibleLayers, W, H);
     replaceLayerCanvas(below, merged);
   }
 
@@ -3899,6 +3949,10 @@ function mergeDown() {
   below.visible = true;
   /* 混合模式重置为正常 */
   below.blendMode = 'source-over';
+  /* 不透明度重置为 100%（像素里已经含了，避免双重衰减） */
+  below.opacity = 1;
+  /* 不透明度重置为 100% */
+  below.opacity = 1;
 
   /* 删除上面的图层 */
   const delIdx = layers.findIndex(l => l.id === above.id);
@@ -3911,7 +3965,7 @@ function mergeDown() {
   renderView();
 
   const skipped = (below.visible ? 1 : 0) + (above.visible ? 1 : 0);
-  if (visibleCanvases.length < 2) {
+  if (visibleLayers.length < 2) {
     showToast('已向下合并（忽略不可见图层内容）');
   } else {
     showToast('已向下合并');
@@ -3938,6 +3992,7 @@ function ctrlEMerge() {
 function toggleVisible(id) {
   const l = layers.find(ll => ll.id === id);
   if (!l) return;
+  takeLayerSnapshot({ needPixels: false });
   l.visible = !l.visible;
   updateLayersUI();
   renderView();
@@ -3946,6 +4001,7 @@ function toggleVisible(id) {
 function toggleLocked(id) {
   const l = layers.find(ll => ll.id === id);
   if (!l) return;
+  takeLayerSnapshot({ needPixels: false });
   l.locked = !l.locked;
   updateLayersUI();
   showToast(l.locked ? '图层已锁定' : '图层已解锁');
@@ -3955,6 +4011,7 @@ function toggleClip(id) {
   const idx = layers.findIndex(ll => ll.id === id);
   if (idx < 0) return;
   if (idx === 0) { showToast('最底层图层不能设置剪贴蒙版'); return; }
+  takeLayerSnapshot({ needPixels: false });
   layers[idx].clip = !layers[idx].clip;
   updateLayersUI();
   renderView();
@@ -3978,6 +4035,7 @@ function captureLockMask(layer) {
 function toggleLockPixels(id) {
   const l = layers.find(ll => ll.id === id);
   if (!l) return;
+  takeLayerSnapshot({ needPixels: false });
   l.lockPixels = !l.lockPixels;
   if (l.lockPixels) {
     captureLockMask(l);
@@ -4105,8 +4163,6 @@ function updateLayersUI() {
     const layer = layers[i];
     const row = document.createElement('div');
     row.className = 'layer-row';
-    if (layer.id === activeLayerId) row.classList.add('active');
-    if (selectedLayerIds.has(layer.id)) row.classList.add('selected');
 
     /* 可见性 */
     const visBtn = document.createElement('button');
@@ -4194,7 +4250,47 @@ function updateLayersUI() {
     row.appendChild(blendSelect);
     row.appendChild(delBtn);
 
-    row.addEventListener('click', e => {
+    /* ---- 不透明度滑条 ---- */
+    const opacityRow = document.createElement('div');
+    opacityRow.className = 'layer-opacity';
+
+    const opRange = document.createElement('input');
+    opRange.type  = 'range';
+    opRange.min   = '0';
+    opRange.max   = '100';
+    opRange.step  = '1';
+    opRange.value = String(Math.round((layer.opacity ?? 1) * 100));
+
+    const opVal = document.createElement('i');
+    opVal.textContent = Math.round((layer.opacity ?? 1) * 100) + '%';
+
+    /* 拖动开始前记录一次快照 —— 整段拖动过程撤销能回到拖动前的状态 */
+    opRange.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      takeLayerSnapshot({ needPixels: false });
+    });
+    opRange.addEventListener('input', e => {
+      e.stopPropagation();
+      layer.opacity = parseInt(opRange.value, 10) / 100;
+      opVal.textContent = opRange.value + '%';
+      renderView();
+    });
+    /* 阻止拖动滑条时冒泡成图层选中/切换 */
+    opRange.addEventListener('click', e => e.stopPropagation());
+
+    opacityRow.appendChild(opRange);
+    opacityRow.appendChild(opVal);
+
+    /* ---- 外层容器 ---- */
+    const item = document.createElement('div');
+    item.className = 'layer-item';
+    if (layer.id === activeLayerId) item.classList.add('active');
+    if (selectedLayerIds.has(layer.id)) item.classList.add('selected');
+
+    item.appendChild(row);
+    item.appendChild(opacityRow);
+
+    item.addEventListener('click', e => {
       if (e.shiftKey) {
         selectLayer(layer.id, 'range');
       } else if (e.ctrlKey || e.metaKey) {
@@ -4204,7 +4300,7 @@ function updateLayersUI() {
       }
     });
 
-    layersListEl.appendChild(row);
+    layersListEl.appendChild(item);
   }
 }
 
@@ -4243,8 +4339,10 @@ function composeLayersTo(ctx, targetW, targetH, opts) {
       }
       if (!belowCanvas) {
         ctx.globalCompositeOperation = blend;
+        ctx.globalAlpha = layer.opacity ?? 1;
         ctx.drawImage(src, 0, 0);
         ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
         continue;
       }
 
@@ -4262,12 +4360,16 @@ function composeLayersTo(ctx, targetW, targetH, opts) {
       layerTmpCtx.globalCompositeOperation = 'source-over';
 
       ctx.globalCompositeOperation = blend;
+      ctx.globalAlpha = layer.opacity ?? 1;
       ctx.drawImage(layerTmpCvs, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
     } else {
       ctx.globalCompositeOperation = blend;
+      ctx.globalAlpha = layer.opacity ?? 1;
       ctx.drawImage(src, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
     }
   }
 }
@@ -6630,14 +6732,89 @@ function takeSnapshot() {
   if (now - lastSnap < 350 && history.length) return;
   lastSnap = now;
   try {
-    history.push(baseCvs.toDataURL('image/png'));
+    history.push({
+      kind: 'pixel',
+      data: baseCvs.toDataURL('image/png')
+    });
     if (history.length > 16) history.shift();
   } catch (err) {}
 }
 
+/* 图层级快照：记录完整图层结构（含每层像素、不透明度、混合模式等）。
+   needPixels=true 时给每层像素编码 PNG，撤销删除/合并时靠它恢复。 */
+function takeLayerSnapshot(options) {
+  const needPixels = !options || options.needPixels !== false;
+
+  /* 先把活动图层内容实时写回，保证快照和屏幕一致 */
+  const active = getActiveLayer();
+  if (active) saveBaseToLayer(active);
+
+  try {
+    const snapLayers = layers.map(l => {
+      const s = {
+        id: l.id,
+        name: l.name,
+        visible: l.visible,
+        locked: l.locked,
+        clip: l.clip,
+        lockPixels: l.lockPixels,
+        blendMode: l.blendMode,
+        opacity: l.opacity ?? 1,
+        data: null,
+        lockMaskData: null
+      };
+      if (needPixels) {
+        s.data = l.canvas.toDataURL('image/png');
+        if (l.lockMask) s.lockMaskData = l.lockMask.toDataURL('image/png');
+      }
+      return s;
+    });
+
+    history.push({
+      kind: 'layers',
+      layers: snapLayers,
+      activeLayerId,
+      selectedLayerIds: Array.from(selectedLayerIds),
+      nextLayerId,
+      layerNameCounter
+    });
+    if (history.length > 16) history.shift();
+  } catch (err) {}
+}
+
+let undoing = false;
+
 function undo() {
-  const url = history.pop();
-  if (!url) return;
+  if (undoing) return;
+  const snap = history.pop();
+  if (!snap) return;
+
+  /* 兼容旧格式（直接是字符串 dataURL） */
+  if (typeof snap === 'string') {
+    const img = new Image();
+    img.onload = () => {
+      bctx.save();
+      bctx.setTransform(1, 0, 0, 1, 0, 0);
+      bctx.globalCompositeOperation = 'source-over';
+      bctx.globalAlpha = 1;
+      bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
+      bctx.drawImage(img, 0, 0);
+      bctx.restore();
+      const active = getActiveLayer();
+      if (active) saveBaseToLayer(active);
+      renderView();
+    };
+    img.src = snap;
+    return;
+  }
+
+  if (snap.kind === 'layers') {
+    undoing = true;
+    undoLayerSnapshot(snap).then(() => { undoing = false; });
+    return;
+  }
+
+  /* 像素级快照：只恢复活动图层像素 */
   const img = new Image();
   img.onload = () => {
     bctx.save();
@@ -6647,12 +6824,102 @@ function undo() {
     bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
     bctx.drawImage(img, 0, 0);
     bctx.restore();
-    /* 把撤销结果同步到活动图层画布 */
     const active = getActiveLayer();
     if (active) saveBaseToLayer(active);
     renderView();
   };
-  img.src = url;
+  img.src = snap.data;
+}
+
+/* 还原图层级快照：重建图层数组、活动图层、选中集合 */
+function undoLayerSnapshot(snap) {
+  const W = baseCvs.width, H = baseCvs.height;
+
+  const jobs = snap.layers.map(s => new Promise(resolve => {
+    if (s.data) {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.drawImage(img, 0, 0);
+
+        const finishLock = (lockMask) => resolve({
+          id: s.id, name: s.name,
+          canvas: c, ctx,
+          visible: s.visible, locked: s.locked, clip: s.clip,
+          lockPixels: s.lockPixels, blendMode: s.blendMode,
+          opacity: s.opacity ?? 1,
+          lockMask
+        });
+
+        if (s.lockMaskData) {
+          const m = new Image();
+          m.onload = () => {
+            const lm = document.createElement('canvas');
+            lm.width = W; lm.height = H;
+            lm.getContext('2d').drawImage(m, 0, 0);
+            finishLock(lm);
+          };
+          m.onerror = () => finishLock(null);
+          m.src = s.lockMaskData;
+        } else {
+          finishLock(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = s.data;
+    } else {
+      /* 无像素数据：复用现有图层画布，只同步属性 */
+      const existing = layers.find(l => l.id === s.id);
+      if (existing) {
+        existing.name = s.name;
+        existing.visible = s.visible;
+        existing.locked = s.locked;
+        existing.clip = s.clip;
+        existing.lockPixels = s.lockPixels;
+        existing.blendMode = s.blendMode;
+        existing.opacity = s.opacity ?? 1;
+        resolve(existing);
+      } else {
+        resolve(null);
+      }
+    }
+  }));
+
+  return Promise.all(jobs).then(newLayers => {
+    layers = newLayers.filter(l => l);
+
+    if (!layers.length) {
+      /* 兜底：至少留一个空图层 */
+      layers = [newLayerData()];
+      activeLayerId = layers[0].id;
+      selectedLayerIds = new Set([activeLayerId]);
+    } else {
+      const wantId = snap.activeLayerId;
+      activeLayerId = layers.find(l => l.id === wantId)
+        ? wantId
+        : layers[layers.length - 1].id;
+
+      selectedLayerIds = new Set(snap.selectedLayerIds || []);
+      /* 过滤掉不存在的 id，并保证 active 一定在集合里 */
+      for (const id of Array.from(selectedLayerIds)) {
+        if (!layers.find(l => l.id === id)) selectedLayerIds.delete(id);
+      }
+      if (!selectedLayerIds.has(activeLayerId)) {
+        selectedLayerIds.add(activeLayerId);
+      }
+    }
+
+    if (snap.nextLayerId) nextLayerId = snap.nextLayerId;
+    if (snap.layerNameCounter) layerNameCounter = snap.layerNameCounter;
+
+    loadLayerToBase(getActiveLayer());
+    updateLayersUI();
+    renderView();
+  });
 }
 
 function clearAll() {
@@ -6759,7 +7026,7 @@ function exportPSD() {
       name: layer.name,
       canvas: c,
       blendMode: psdBlend,
-      opacity: 1,
+      opacity: Math.round((layer.opacity ?? 1) * 255),
       hidden: !layer.visible,
       /* 剪贴蒙版：贴到下方图层 */
       clipping: !!layer.clip
