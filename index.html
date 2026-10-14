@@ -255,11 +255,150 @@
     border-color:rgba(110,231,255,.55);color:#fff;
   }
 
+  /* 环形菜单（长按数字键 1/2/3 弹出） */
+  #radialMenu{
+    position: fixed;
+    display: block;
+    z-index: 60;
+    pointer-events: auto;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,.55));
+  }
+  #radialMenu[hidden]{ display: none !important; }
+  #radialSvg{ display: block; width: 100%; height: 100%; }
+  .rm-seg{
+    fill: rgba(20,20,26,.86);
+    stroke: rgba(255,255,255,.14);
+    stroke-width: 1;
+  }
+  .rm-seg.hover{
+    fill: rgba(110,231,255,.35);
+    stroke: rgba(110,231,255,.85);
+  }
+  .rm-txt{
+    fill: #e9e9f0;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    pointer-events: none;
+    user-select: none;
+  }
+  .rm-txt.hover{
+    fill: #ffffff;
+    font-weight: 700;
+  }
+  #radialLabel{
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,-50%);
+    font-size: 11px;
+    color: #c9c9d9;
+    letter-spacing: .05em;
+    text-align: center;
+    pointer-events: none;
+    max-width: 46px;
+    line-height: 1.2;
+    user-select: none;
+  }
+
+  /* ===== 图层面板 ===== */
+  #layersPanel{
+    position:fixed;right:14px;bottom:14px;width:250px;
+    max-height:50dvh;display:flex;flex-direction:column;
+    background:var(--panel);
+    backdrop-filter:blur(14px) saturate(1.4);
+    -webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+    font-size:12px;user-select:none;z-index:10;overflow:hidden;
+  }
+  #layersPanel .layersHead{
+    display:flex;align-items:center;gap:6px;padding:10px 12px;
+    border-bottom:1px solid var(--line);flex:0 0 auto;
+  }
+  #layersPanel.collapsed .layersHead{
+    border-bottom:none;
+  }
+  #layersPanel.collapsed #layersList{
+    display:none;
+  }
+  #layersPanel #collapseLayers{
+    width:24px;height:24px;border-radius:8px;
+    border:1px solid var(--line);background:rgba(255,255,255,.05);
+    color:var(--txt);cursor:pointer;font-size:14px;line-height:1;
+    font-family:inherit;transition:.15s;flex:0 0 auto;
+  }
+  #layersPanel #collapseLayers:hover{background:rgba(255,255,255,.12)}
+  #layersPanel .layersTitle{
+    flex:1;font-size:12px;font-weight:600;letter-spacing:.02em;
+  }
+  #layersPanel #addLayer{
+    width:24px;height:24px;border-radius:8px;
+    border:1px solid var(--line);background:rgba(255,255,255,.05);
+    color:var(--txt);cursor:pointer;font-size:15px;line-height:1;
+    font-family:inherit;transition:.15s;
+  }
+  #layersPanel #addLayer:hover{background:rgba(255,255,255,.12)}
+  #layersList{
+    flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:6px;
+  }
+  #layersList::-webkit-scrollbar{width:5px}
+  #layersList::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
+  .layer-row{
+    display:flex;align-items:center;gap:3px;
+    padding:4px 5px;border-radius:9px;cursor:pointer;
+    transition:.12s;border:1px solid transparent;
+  }
+  /* 顶部「新建图层」行 */
+  .layer-add-row{
+    display:flex;align-items:center;gap:6px;
+    padding:5px 6px;margin-bottom:4px;border-radius:9px;
+    cursor:pointer;transition:.12s;
+    border:1px dashed rgba(110,231,255,.35);
+    background:rgba(110,231,255,.05);
+    color:#c9f4ff;font-size:11.5px;
+  }
+  .layer-add-row:hover{
+    background:rgba(110,231,255,.14);
+    border-color:rgba(110,231,255,.7);
+    color:#fff;
+  }
+  .layer-add-row .layer-add-plus{
+    width:20px;height:20px;border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,rgba(110,231,255,.28),rgba(167,139,250,.28));
+    border:1px solid rgba(110,231,255,.5);
+    font-size:14px;line-height:1;flex:0 0 auto;
+  }
+  .layer-add-row .layer-add-label{
+    flex:1;letter-spacing:.02em;
+  }
+  .layer-row:hover{background:rgba(255,255,255,.05)}
+  .layer-row.active{
+    background:linear-gradient(135deg,rgba(110,231,255,.15),rgba(167,139,250,.15));
+    border-color:rgba(110,231,255,.45);
+  }
+  .layer-btn{
+    width:20px;height:20px;border-radius:6px;
+    border:1px solid transparent;background:transparent;
+    color:#c9c9d9;font-size:11px;cursor:pointer;padding:0;
+    line-height:1;display:flex;align-items:center;justify-content:center;
+    font-family:inherit;transition:.12s;flex:0 0 auto;
+  }
+  .layer-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+  .layer-btn.off{opacity:.32}
+  .layer-btn.on{color:#6ee7ff;background:rgba(110,231,255,.12)}
+  .layer-name{
+    flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;font-size:11.5px;color:#e9e9f0;padding:0 3px;
+  }
+
   @media (max-width:520px){
     #ui{width:calc(100vw - 24px);left:12px;top:12px}
     #hint{font-size:11px}
     #customPanel{top:auto;bottom:14px;right:12px;width:140px;max-height:60dvh;}
     .custom-preview{height:56px}
+    #layersPanel{width:200px;max-height:42dvh;bottom:12px;right:12px}
   }
 </style>
 </head>
@@ -474,6 +613,19 @@
   <div id="customSlots"></div>
 </div>
 
+<div id="layersPanel">
+  <div class="layersHead">
+    <span class="layersTitle">图层</span>
+    <button id="collapseLayers" title="折叠">−</button>
+  </div>
+  <div id="layersList"></div>
+</div>
+
+<div id="radialMenu" hidden>
+  <svg id="radialSvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+  <div id="radialLabel"></div>
+</div>
+
 <div id="hint">s+套索 · Shift加选/模糊 · Alt吸色 · Ctrl移动 · T变换 · Ctrl+M曲线 · E橡皮 · Ctrl+空格缩放 · 空格平移/轻按复位 · X调笔刷大小</div>
 
 <script>
@@ -605,6 +757,10 @@ function resize() {
 
   if (tfActive) cancelTransform();
 
+  /* 先把活动图层的内容实时写回图层画布，避免 resize 后不同步 */
+  const activeBeforeResize = getActiveLayer();
+  if (activeBeforeResize) saveBaseToLayer(activeBeforeResize);
+
   let old = null;
   if (baseCvs.width && baseCvs.height) {
     old = document.createElement('canvas');
@@ -634,6 +790,41 @@ function resize() {
     bctx.globalAlpha = 1;
     bctx.drawImage(old, 0, 0);
     bctx.restore();
+  }
+
+  /* 同步缩放所有图层画布 */
+  for (const layer of layers) {
+    const oldL = document.createElement('canvas');
+    oldL.width  = layer.canvas.width;
+    oldL.height = layer.canvas.height;
+    if (oldL.width && oldL.height) {
+      oldL.getContext('2d').drawImage(layer.canvas, 0, 0);
+    }
+    layer.canvas.width  = bw;
+    layer.canvas.height = bh;
+    /* canvas 尺寸变化会重置 ctx 状态 */
+    layer.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (oldL.width && oldL.height) {
+      layer.ctx.save();
+      layer.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      layer.ctx.drawImage(oldL, 0, 0);
+      layer.ctx.restore();
+    }
+
+    /* 同步缩放锁定像素遮罩 */
+    if (layer.lockMask && layer.lockMask.width && layer.lockMask.height) {
+      const oldM = document.createElement('canvas');
+      oldM.width  = layer.lockMask.width;
+      oldM.height = layer.lockMask.height;
+      oldM.getContext('2d').drawImage(layer.lockMask, 0, 0);
+
+      layer.lockMask.width  = bw;
+      layer.lockMask.height = bh;
+      const mc = layer.lockMask.getContext('2d');
+      mc.setTransform(1, 0, 0, 1, 0, 0);
+      mc.clearRect(0, 0, bw, bh);
+      mc.drawImage(oldM, 0, 0, bw, bh);
+    }
   }
 
   const cw = bw / dpr;
@@ -706,7 +897,8 @@ function renderView() {
   vctx.fillStyle = cfg.bg;
   vctx.fillRect(0, 0, baseCvs.width, baseCvs.height);
 
-  vctx.drawImage(baseCvs, 0, 0);
+  /* 合成所有可见图层（含剪贴蒙版） */
+  composeLayersTo(vctx, baseCvs.width, baseCvs.height);
 
   vctx.setTransform(1, 0, 0, 1, 0, 0);
 
@@ -1505,6 +1697,17 @@ function updateMove(cssX, cssY) {
 function endMove() {
   if (hasSelection() && (moveCurDxCss !== 0 || moveCurDyCss !== 0)) {
     const dx = moveCurDxCss, dy = moveCurDyCss;
+
+    /* 关键：如果活动图层开启了锁定像素，遮罩也要跟着平移，
+       否则原位置残留 alpha 会继续允许绘制，新位置反而画不出来。 */
+    const active = getActiveLayer();
+    if (active && active.lockPixels && active.lockMask && !selectionInverted) {
+      const oldMask = getActiveMaskCvs();
+      if (oldMask) {
+        moveLockMaskRegion(active.lockMask, oldMask, dx, dy);
+      }
+    }
+
     selectionOps = selectionOps.map(opt => ({
       op: opt.op,
       points: opt.points.map(p => ({ x: p.x + dx, y: p.y + dy }))
@@ -1516,6 +1719,43 @@ function endMove() {
   moveSnapshot = null;
   moveCurDxCss = 0;
   moveCurDyCss = 0;
+}
+
+/* 把 lockMask 中位于 selMask 区域内的部分按 (dx, dy) 平移 */
+function moveLockMaskRegion(lockMask, selMask, dxCss, dyCss) {
+  const W = lockMask.width, H = lockMask.height;
+  const dxPx = dxCss * dpr;
+  const dyPx = dyCss * dpr;
+
+  /* 1. 从 lockMask 里抠出「选区内」部分，作为要搬走的碎片 */
+  const piece = document.createElement('canvas');
+  piece.width  = W;
+  piece.height = H;
+  const pc = piece.getContext('2d');
+  pc.setTransform(1, 0, 0, 1, 0, 0);
+  pc.globalCompositeOperation = 'source-over';
+  pc.globalAlpha = 1;
+  pc.drawImage(lockMask, 0, 0);
+  pc.globalCompositeOperation = 'destination-in';
+  pc.drawImage(selMask, 0, 0);
+  pc.globalCompositeOperation = 'source-over';
+
+  /* 2. 从 lockMask 中删除原位置的这块 alpha */
+  const lctx = lockMask.getContext('2d');
+  lctx.save();
+  lctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.globalCompositeOperation = 'destination-out';
+  lctx.globalAlpha = 1;
+  lctx.drawImage(selMask, 0, 0);
+  lctx.restore();
+
+  /* 3. 把抠出的碎片平移到新位置，叠加回 lockMask */
+  lctx.save();
+  lctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.globalCompositeOperation = 'source-over';
+  lctx.globalAlpha = 1;
+  lctx.drawImage(piece, dxPx, dyPx);
+  lctx.restore();
 }
 
 /* =========================================================
@@ -1676,6 +1916,7 @@ function applyBlurAt(cssX, cssY) {
 }
 
 let blurTimer = null;
+let blurLockSnap = null;
 
 function startBlur(cssX, cssY, pointerId) {
   blurActive = true;
@@ -1683,6 +1924,8 @@ function startBlur(cssX, cssY, pointerId) {
   try { cvs.setPointerCapture(pointerId); } catch (err) {}
   blurPrevX = cssX;
   blurPrevY = cssY;
+
+  blurLockSnap = captureLockMaskSnapshot();
 
   takeSnapshot();
   applyBlurAt(cssX, cssY);
@@ -1725,6 +1968,9 @@ function endBlur() {
     clearInterval(blurTimer);
     blurTimer = null;
   }
+  restoreOutsideLockMask(blurLockSnap);
+  blurLockSnap = null;
+  renderView();
 }
 
 /* =========================================================
@@ -1899,7 +2145,12 @@ function cpApply() {
     d[i + 2] = lutB[lutRgb[d[i + 2]]];
   }
 
+  /* 每次应用曲线前抓快照，应用后用遮罩还原锁区外的像素 */
+  const lockSnap = captureLockMaskSnapshot();
+
   bctx.putImageData(img, 0, 0);
+
+  restoreOutsideLockMask(lockSnap);
   renderView();
 }
 
@@ -2156,68 +2407,169 @@ let tfSnapshot = null;
 let tfBase     = null;
 let tfContent  = null;
 let tfCSSW     = 0, tfCSSH = 0;
-let tfQuad     = null;
+let tfVertices = null;      // 网格顶点 [行][列] = {x, y}（CSS 世界坐标）
+let tfGridRows = 4;         // 网格行数（单元数），越大越平滑
+let tfGridCols = 4;         // 网格列数（单元数）
 let tfDrag     = null;
+const TF_SCALE_PAD = 16;    // 缩放框相对包围盒向外偏移（CSS 像素）
 
-function getQuadCenter(q) {
-  let x = 0, y = 0;
-  for (const p of q) { x += p.x; y += p.y; }
-  return { x: x / 4, y: y / 4 };
+/* =========================================================
+   自由变换 · 网格变形（Mesh Warp）
+   参考 Krita 网格变形 / Photoshop Warp：将图像细分为网格，
+   每个单元拆成两个三角形做仿射映射，网格越密越平滑。
+   ========================================================= */
+
+function tfGetCenter() {
+  let x = 0, y = 0, n = 0;
+  for (let r = 0; r <= tfGridRows; r++) {
+    for (let c = 0; c <= tfGridCols; c++) {
+      x += tfVertices[r][c].x;
+      y += tfVertices[r][c].y;
+      n++;
+    }
+  }
+  return { x: x / n, y: y / n };
 }
 
-function getRotHandlePos(q) {
-  const topMid = { x: (q[0].x + q[1].x) / 2, y: (q[0].y + q[1].y) / 2 };
-  const c = getQuadCenter(q);
+function tfGetRotHandle() {
+  const rows = tfGridRows, cols = tfGridCols;
+  const topMid = {
+    x: (tfVertices[0][0].x + tfVertices[0][cols].x) / 2,
+    y: (tfVertices[0][0].y + tfVertices[0][cols].y) / 2
+  };
+  const c = tfGetCenter();
   let dx = topMid.x - c.x, dy = topMid.y - c.y;
   const len = Math.hypot(dx, dy);
   if (len < 1e-6) { dx = 0; dy = -1; }
   else { dx /= len; dy /= len; }
-  return { x: topMid.x + dx * 34, y: topMid.y + dy * 34, ax: topMid.x, ay: topMid.y };
+  // 偏移 50px，避免与顶部缩放中点手柄重叠
+  return { x: topMid.x + dx * 50, y: topMid.y + dy * 50, ax: topMid.x, ay: topMid.y };
 }
 
-function pointInQuad(x, y, pts) {
+/* 网格所有顶点的轴对齐包围盒 */
+function tfGetBBox() {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let r = 0; r <= tfGridRows; r++) {
+    for (let c = 0; c <= tfGridCols; c++) {
+      const p = tfVertices[r][c];
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+/* 外扩后的缩放框 + 8 个手柄（4 角 + 4 边中点） */
+function tfGetScaleHandles() {
+  const bbox = tfGetBBox();
+  const pad = TF_SCALE_PAD / viewScale;
+  const x0 = bbox.minX - pad, y0 = bbox.minY - pad;
+  const x1 = bbox.maxX + pad, y1 = bbox.maxY + pad;
+  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+  return {
+    bb: { x0, y0, x1, y1 },
+    handles: [
+      { corner: 'nw', x: x0, y: y0 },
+      { corner: 'n',  x: mx, y: y0 },
+      { corner: 'ne', x: x1, y: y0 },
+      { corner: 'e',  x: x1, y: my },
+      { corner: 'se', x: x1, y: y1 },
+      { corner: 's',  x: mx, y: y1 },
+      { corner: 'sw', x: x0, y: y1 },
+      { corner: 'w',  x: x0, y: my }
+    ]
+  };
+}
+
+function tfOutlinePoints() {
+  const rows = tfGridRows, cols = tfGridCols;
+  const pts = [];
+  for (let c = 0; c <= cols; c++) pts.push(tfVertices[0][c]);
+  for (let r = 1; r <= rows; r++) pts.push(tfVertices[r][cols]);
+  for (let c = cols - 1; c >= 0; c--) pts.push(tfVertices[rows][c]);
+  for (let r = rows - 1; r >= 1; r--) pts.push(tfVertices[r][0]);
+  return pts;
+}
+
+function tfPointInGrid(x, y) {
+  const pts = tfOutlinePoints();
   let inside = false;
   for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
-    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+    const xi = pts[i].x, yi = pts[i].y;
+    const xj = pts[j].x, yj = pts[j].y;
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
   }
   return inside;
 }
 
 function tfHitTest(x, y) {
-  if (!tfQuad) return null;
-  const q = tfQuad;
-  const R = 11 / viewScale;
+  if (!tfVertices) return null;
+  const R = 12 / viewScale;
 
-  const rp = getRotHandlePos(q);
+  // 旋转手柄（最优先）
+  const rp = tfGetRotHandle();
   if (Math.hypot(x - rp.x, y - rp.y) < R + 3 / viewScale) return { type: 'rotate' };
 
-  const center = getQuadCenter(q);
-  if (Math.hypot(x - center.x, y - center.y) < Math.max(R - 2, 6 / viewScale)) return { type: 'move' };
+  // 缩放手柄（第二优先，位于网格外围）
+  const sh = tfGetScaleHandles();
+  for (const h of sh.handles) {
+    if (Math.hypot(x - h.x, y - h.y) < R) {
+      return { type: 'scale', corner: h.corner, x: h.x, y: h.y };
+    }
+  }
 
-  for (let i = 0; i < 4; i++) {
-    if (Math.hypot(x - q[i].x, y - q[i].y) < R) return { type: 'corner', i };
+  // 网格顶点
+  for (let r = 0; r <= tfGridRows; r++) {
+    for (let c = 0; c <= tfGridCols; c++) {
+      const p = tfVertices[r][c];
+      if (Math.hypot(x - p.x, y - p.y) < R) return { type: 'vertex', r, c };
+    }
   }
-  for (let i = 0; i < 4; i++) {
-    const j = (i + 1) % 4;
-    const mx = (q[i].x + q[j].x) / 2, my = (q[i].y + q[j].y) / 2;
-    if (Math.hypot(x - mx, y - my) < R) return { type: 'edge', i };
-  }
-  if (pointInQuad(x, y, q)) return { type: 'move' };
+
+  // 中心：整体移动
+  const c = tfGetCenter();
+  if (Math.hypot(x - c.x, y - c.y) < Math.max(R - 2, 6 / viewScale)) return { type: 'move' };
+
+  // 网格内部：整体移动
+  if (tfPointInGrid(x, y)) return { type: 'move' };
+
   return null;
 }
 
 function updateTransformCursor(hit) {
   if (!hit) { cvs.style.cursor = 'default'; return; }
-  if (hit.type === 'rotate')      cvs.style.cursor = 'grab';
-  else if (hit.type === 'corner') cvs.style.cursor = 'nwse-resize';
-  else if (hit.type === 'edge')   cvs.style.cursor = 'move';
-  else                            cvs.style.cursor = 'move';
+  if (hit.type === 'rotate') {
+    cvs.style.cursor = 'grab';
+  } else if (hit.type === 'vertex') {
+    cvs.style.cursor = 'crosshair';
+  } else if (hit.type === 'scale') {
+    const map = {
+      'nw': 'nwse-resize', 'se': 'nwse-resize',
+      'ne': 'nesw-resize', 'sw': 'nesw-resize',
+      'n':  'ns-resize',   's':  'ns-resize',
+      'e':  'ew-resize',   'w':  'ew-resize'
+    };
+    cvs.style.cursor = map[hit.corner] || 'pointer';
+  } else {
+    cvs.style.cursor = 'move';
+  }
 }
 
 function enterTransform() {
   if (tfActive) return;
   if (!hasSelection()) { showToast('请先建立选区，再按 T'); return; }
+
+  {
+    const activeL = getActiveLayer();
+    if (activeL && activeL.locked) { showToast('图层已锁定'); return; }
+  }
+
+  /* 记录进入变换时的锁定像素快照，供 commitTransform 使用 */
+  commitTransform.lockSnap = captureLockMaskSnapshot();
 
   const W = baseCvs.width, H = baseCvs.height;
   const mask = getActiveMaskCvs();
@@ -2270,22 +2622,30 @@ function enterTransform() {
   bc.globalCompositeOperation = 'source-over';
 
   const cx0 = minX / dpr, cy0 = minY / dpr;
-  const cx1 = (minX + bw) / dpr, cy1 = (minY + bh) / dpr;
-  tfQuad = [
-    { x: cx0, y: cy0 },
-    { x: cx1, y: cy0 },
-    { x: cx1, y: cy1 },
-    { x: cx0, y: cy1 }
-  ];
   tfCSSW = bw / dpr;
   tfCSSH = bh / dpr;
+
+  // 初始化规则网格
+  tfVertices = [];
+  for (let r = 0; r <= tfGridRows; r++) {
+    const row = [];
+    for (let c = 0; c <= tfGridCols; c++) {
+      const u = c / tfGridCols;
+      const v = r / tfGridRows;
+      row.push({
+        x: cx0 + u * tfCSSW,
+        y: cy0 + v * tfCSSH
+      });
+    }
+    tfVertices.push(row);
+  }
 
   tfActive = true;
   tfDrag = null;
   cvs.style.cursor = 'default';
 
   renderTransform();
-  showToast('自由变换：拖角点缩放 · Ctrl拖角扭曲 · Shift拖角等比 · 顶圆点旋转 · 中心/内部拖动移动\nEnter 确定 / Esc 取消');
+  showToast('网格变形：拖顶点扭曲 · 拖内部/中心移动 · 顶部圆点旋转\nEnter 确定 / Esc 取消 · Ctrl+Z 撤销');
 }
 
 function cancelTransform() {
@@ -2305,31 +2665,60 @@ function cancelTransform() {
   tfSnapshot = null;
   tfBase = null;
   tfContent = null;
-  tfQuad = null;
+  tfVertices = null;
   cvs.style.cursor = '';
   renderView();
 }
 
 function commitTransform() {
   if (!tfActive) return;
-  const quad = tfQuad.map(p => ({ x: p.x, y: p.y }));
+
+  const pts = tfOutlinePoints().map(p => ({ x: p.x, y: p.y }));
 
   tfActive = false;
   tfDrag = null;
   tfSnapshot = null;
   tfBase = null;
   tfContent = null;
-  tfQuad = null;
+  tfVertices = null;
   cvs.style.cursor = '';
 
-  selectionOps = [{ points: quad, op: 'new' }];
+  restoreOutsideLockMask(commitTransform.lockSnap || null);
+
+  selectionOps = [{ points: pts, op: 'new' }];
   selectionInverted = false;
   rebuildSelection();
   renderView();
 }
 
-function drawQuadImage(img, quad) {
-  if (!img || !quad) return;
+/* --- 网格渲染：每个单元拆 2 个三角形 --- */
+function drawWarpTri(g, img, cw, ch,
+                     sx0, sy0, sx1, sy1, sx2, sy2,
+                     dx0, dy0, dx1, dy1, dx2, dy2) {
+  const det = (sx1 - sx0) * (sy2 - sy0) - (sx2 - sx0) * (sy1 - sy0);
+  if (Math.abs(det) < 1e-9) return;
+
+  const a = ((dx1 - dx0) * (sy2 - sy0) - (dx2 - dx0) * (sy1 - sy0)) / det;
+  const b = ((dy1 - dy0) * (sy2 - sy0) - (dy2 - dy0) * (sy1 - sy0)) / det;
+  const c = ((dx2 - dx0) * (sx1 - sx0) - (dx1 - dx0) * (sx2 - sx0)) / det;
+  const d = ((dy2 - dy0) * (sx1 - sx0) - (dy1 - dy0) * (sx2 - sx0)) / det;
+  const e = dx0 - a * sx0 - c * sy0;
+  const f = dy0 - b * sx0 - d * sy0;
+
+  g.save();
+  g.beginPath();
+  g.moveTo(dx0, dy0);
+  g.lineTo(dx1, dy1);
+  g.lineTo(dx2, dy2);
+  g.closePath();
+  g.clip();
+  g.transform(a, b, c, d, e, f);
+  g.drawImage(img, 0, 0, cw, ch);
+  g.restore();
+}
+
+function drawGridImage(img, verts) {
+  if (!img || !verts) return;
   const cw = tfCSSW, ch = tfCSSH;
   if (cw <= 0 || ch <= 0) return;
 
@@ -2341,37 +2730,32 @@ function drawQuadImage(img, quad) {
   g.imageSmoothingEnabled = true;
   g.imageSmoothingQuality = 'high';
 
-  const tris = [
-    { s: [0, 0, cw, 0, cw, ch], d: [0, 1, 2] },
-    { s: [0, 0, cw, ch, 0, ch], d: [0, 2, 3] }
-  ];
+  const rows = tfGridRows, cols = tfGridCols;
+  const cellW = cw / cols;
+  const cellH = ch / rows;
 
-  for (const t of tris) {
-    const sx0 = t.s[0], sy0 = t.s[1];
-    const sx1 = t.s[2], sy1 = t.s[3];
-    const sx2 = t.s[4], sy2 = t.s[5];
-    const p0 = quad[t.d[0]], p1 = quad[t.d[1]], p2 = quad[t.d[2]];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const s00x = c * cellW,        s00y = r * cellH;
+      const s10x = (c + 1) * cellW,  s10y = r * cellH;
+      const s11x = (c + 1) * cellW,  s11y = (r + 1) * cellH;
+      const s01x = c * cellW,        s01y = (r + 1) * cellH;
 
-    const det = (sx1 - sx0) * (sy2 - sy0) - (sx2 - sx0) * (sy1 - sy0);
-    if (Math.abs(det) < 1e-9) continue;
+      const p00 = verts[r][c];
+      const p10 = verts[r][c + 1];
+      const p11 = verts[r + 1][c + 1];
+      const p01 = verts[r + 1][c];
 
-    const a = ((p1.x - p0.x) * (sy2 - sy0) - (p2.x - p0.x) * (sy1 - sy0)) / det;
-    const b = ((p1.y - p0.y) * (sy2 - sy0) - (p2.y - p0.y) * (sy1 - sy0)) / det;
-    const c = ((p2.x - p0.x) * (sx1 - sx0) - (p1.x - p0.x) * (sx2 - sx0)) / det;
-    const d = ((p2.y - p0.y) * (sx1 - sx0) - (p1.y - p0.y) * (sx2 - sx0)) / det;
-    const e = p0.x - a * sx0 - c * sy0;
-    const f = p0.y - b * sx0 - d * sy0;
+      // 三角形 A：左上、右上、右下
+      drawWarpTri(g, img, cw, ch,
+        s00x, s00y, s10x, s10y, s11x, s11y,
+        p00.x, p00.y, p10.x, p10.y, p11.x, p11.y);
 
-    g.save();
-    g.beginPath();
-    g.moveTo(p0.x, p0.y);
-    g.lineTo(p1.x, p1.y);
-    g.lineTo(p2.x, p2.y);
-    g.closePath();
-    g.clip();
-    g.transform(a, b, c, d, e, f);
-    g.drawImage(img, 0, 0, cw, ch);
-    g.restore();
+      // 三角形 B：左上、右下、左下
+      drawWarpTri(g, img, cw, ch,
+        s00x, s00y, s11x, s11y, s01x, s01y,
+        p00.x, p00.y, p11.x, p11.y, p01.x, p01.y);
+    }
   }
 
   g.restore();
@@ -2389,73 +2773,88 @@ function renderTransform() {
   bctx.drawImage(tfBase, 0, 0);
   bctx.restore();
 
-  drawQuadImage(tfContent, tfQuad);
+  drawGridImage(tfContent, tfVertices);
 
   renderView();
 }
 
 function applyTransformDrag(e) {
-  if (!tfDrag || !tfQuad) return;
+  if (!tfDrag || !tfVertices) return;
   const d = tfDrag;
-  const oq = d.origQuad;
+  const oq = d.origVertices;
   const c = d.center;
   const ex = evtX(e), ey = evtY(e);
   const dx = ex - d.startX;
   const dy = ey - d.startY;
 
   if (d.type === 'move') {
-    tfQuad = oq.map(p => ({ x: p.x + dx, y: p.y + dy }));
+    tfVertices = oq.map(row => row.map(p => ({ x: p.x + dx, y: p.y + dy })));
 
-  } else if (d.type === 'corner') {
-    const i = d.i;
-    const k = (i + 2) % 4;
-    const a = (i + 1) % 4;
-    const b = (i + 3) % 4;
+  } else if (d.type === 'vertex') {
+    tfVertices = oq.map(row => row.map(p => ({ x: p.x, y: p.y })));
+    tfVertices[d.r][d.c] = { x: ex, y: ey };
 
-    if (e.ctrlKey || e.metaKey) {
-      tfQuad = oq.map(p => ({ x: p.x, y: p.y }));
-      tfQuad[i] = { x: ex, y: ey };
+  } else if (d.type === 'scale') {
+    /* --- 默认：对角（或对面）缩放；按住 Alt：中心缩放 --- */
+    const ohx = d.origHandle.x;
+    const ohy = d.origHandle.y;
+    const obb = d.origBB;
+    /* 注意：tfGetBBox() 返回 {minX, minY, maxX, maxY}，
+       不是 {x0, y0, x1, y1}。之前用错字段名导致 NaN。 */
+    const bbLeft   = obb.minX;
+    const bbTop    = obb.minY;
+    const bbRight  = obb.maxX;
+    const bbBottom = obb.maxY;
+    const centerX = (bbLeft + bbRight)  / 2;
+    const centerY = (bbTop  + bbBottom) / 2;
 
-    } else if (e.shiftKey) {
-      const od = Math.hypot(oq[i].x - c.x, oq[i].y - c.y) || 1;
-      const nd = Math.hypot(ex - c.x, ey - c.y);
-      const s  = Math.max(0.02, nd / od);
-      tfQuad = oq.map(p => ({
-        x: c.x + (p.x - c.x) * s,
-        y: c.y + (p.y - c.y) * s
-      }));
+    const dirMap = {
+      'nw': { x: -1, y: -1 }, 'n': { x: 0, y: -1 }, 'ne': { x: 1, y: -1 },
+      'e':  { x:  1, y:  0 }, 'se':{ x: 1, y:  1 }, 's':  { x: 0, y: 1 },
+      'sw': { x: -1, y:  1 }, 'w': { x: -1, y: 0 }
+    };
+    const dir = dirMap[d.corner] || { x: 1, y: 1 };
 
+    // 计算缩放锚点
+    let ax, ay;
+    if (e.altKey) {
+      /* 中心缩放 */
+      ax = centerX;
+      ay = centerY;
     } else {
-      const fixed = oq[k];
-      const ux = oq[a].x - fixed.x;
-      const uy = oq[a].y - fixed.y;
-      const vx = oq[b].x - fixed.x;
-      const vy = oq[b].y - fixed.y;
+      /* 对角 / 对面缩放：
+         拖右 → 左固定；拖左 → 右固定；拖下 → 上固定；拖上 → 下固定 */
+      if (dir.x === 0)       ax = centerX;
+      else if (dir.x > 0)    ax = bbLeft;
+      else                   ax = bbRight;
 
-      const ddx = ex - fixed.x;
-      const ddy = ey - fixed.y;
-
-      const det = ux * vy - vx * uy;
-
-      if (Math.abs(det) < 1e-6) {
-        tfQuad = oq.map(p => ({ x: p.x, y: p.y }));
-        tfQuad[i] = { x: ex, y: ey };
-      } else {
-        const alpha = (ddx * vy - ddy * vx) / det;
-        const beta  = (ux * ddy - uy * ddx) / det;
-
-        tfQuad = oq.map(p => ({ x: p.x, y: p.y }));
-        tfQuad[i] = { x: ex, y: ey };
-        tfQuad[a] = { x: fixed.x + alpha * ux, y: fixed.y + alpha * uy };
-        tfQuad[b] = { x: fixed.x + beta  * vx, y: fixed.y + beta  * vy };
-      }
+      if (dir.y === 0)       ay = centerY;
+      else if (dir.y > 0)    ay = bbTop;
+      else                   ay = bbBottom;
     }
 
-  } else if (d.type === 'edge') {
-    const j = (d.i + 1) % 4;
-    tfQuad = oq.map(p => ({ x: p.x, y: p.y }));
-    tfQuad[d.i] = { x: oq[d.i].x + dx, y: oq[d.i].y + dy };
-    tfQuad[j]   = { x: oq[j].x + dx,   y: oq[j].y + dy };
+    let sx = 1, sy = 1;
+    const rx = ohx - ax;
+    const ry = ohy - ay;
+    if (dir.x !== 0 && Math.abs(rx) > 1e-6) sx = (ex - ax) / rx;
+    if (dir.y !== 0 && Math.abs(ry) > 1e-6) sy = (ey - ay) / ry;
+
+    /* Shift → 等比（取两轴绝对值平均，保持符号） */
+    if (e.shiftKey && dir.x !== 0 && dir.y !== 0) {
+      const avg = (Math.abs(sx) + Math.abs(sy)) / 2;
+      sx = sx < 0 ? -avg : avg;
+      sy = sy < 0 ? -avg : avg;
+    }
+
+    /* 防止缩成 0 或翻转到贴线 */
+    const MIN = 0.02;
+    if (Math.abs(sx) < MIN) sx = sx < 0 ? -MIN : MIN;
+    if (Math.abs(sy) < MIN) sy = sy < 0 ? -MIN : MIN;
+
+    tfVertices = oq.map(row => row.map(p => ({
+      x: ax + (p.x - ax) * sx,
+      y: ay + (p.y - ay) * sy
+    })));
 
   } else if (d.type === 'rotate') {
     let ang = Math.atan2(ey - c.y, ex - c.x) - d.startAngle;
@@ -2464,18 +2863,18 @@ function applyTransformDrag(e) {
       ang = Math.round(ang / step) * step;
     }
     const cs = Math.cos(ang), sn = Math.sin(ang);
-    tfQuad = oq.map(p => {
+    tfVertices = oq.map(row => row.map(p => {
       const px = p.x - c.x, py = p.y - c.y;
       return { x: c.x + px * cs - py * sn, y: c.y + px * sn + py * cs };
-    });
+    }));
   }
 
   renderTransform();
 }
 
 function drawTransformUI() {
-  const q = tfQuad;
-  if (!q) return;
+  const verts = tfVertices;
+  if (!verts) return;
 
   vctx.setTransform(
     viewScale * dpr, 0, 0, viewScale * dpr,
@@ -2485,35 +2884,49 @@ function drawTransformUI() {
   vctx.setLineDash([]);
 
   const s = 1 / viewScale;
+  const rows = tfGridRows, cols = tfGridCols;
 
+  /* --- 网格线 --- */
   vctx.beginPath();
-  vctx.moveTo(q[0].x, q[0].y);
-  vctx.lineTo(q[1].x, q[1].y);
-  vctx.lineTo(q[2].x, q[2].y);
-  vctx.lineTo(q[3].x, q[3].y);
-  vctx.closePath();
-
+  for (let r = 0; r <= rows; r++) {
+    vctx.moveTo(verts[r][0].x, verts[r][0].y);
+    for (let c = 1; c <= cols; c++) vctx.lineTo(verts[r][c].x, verts[r][c].y);
+  }
+  for (let c = 0; c <= cols; c++) {
+    vctx.moveTo(verts[0][c].x, verts[0][c].y);
+    for (let r = 1; r <= rows; r++) vctx.lineTo(verts[r][c].x, verts[r][c].y);
+  }
   vctx.lineWidth = 3 * s;
   vctx.strokeStyle = 'rgba(0,0,0,.55)';
   vctx.stroke();
-
-  vctx.lineWidth = 1.5 * s;
-  vctx.strokeStyle = '#6ee7ff';
+  vctx.lineWidth = 1.2 * s;
+  vctx.strokeStyle = 'rgba(110,231,255,.7)';
   vctx.stroke();
 
-  const center = getQuadCenter(q);
-
+  /* --- 缩放框（实线紫色）--- */
+  const sh = tfGetScaleHandles();
   vctx.beginPath();
-  vctx.moveTo(q[0].x, q[0].y);
-  vctx.lineTo(center.x, center.y);
-  vctx.lineTo(q[2].x, q[2].y);
-  vctx.moveTo(q[1].x, q[1].y);
-  vctx.lineTo(center.x, center.y);
-  vctx.lineTo(q[3].x, q[3].y);
-  vctx.lineWidth = 1 * s;
-  vctx.strokeStyle = 'rgba(110,231,255,.28)';
+  vctx.rect(sh.bb.x0, sh.bb.y0, sh.bb.x1 - sh.bb.x0, sh.bb.y1 - sh.bb.y0);
+  vctx.lineWidth = 1.5 * s;
+  vctx.strokeStyle = 'rgba(167,139,250,.9)';
   vctx.stroke();
 
+  /* --- 网格顶点（青色圆点）--- */
+  for (let r = 0; r <= rows; r++) {
+    for (let c = 0; c <= cols; c++) {
+      const p = verts[r][c];
+      vctx.beginPath();
+      vctx.arc(p.x, p.y, 3.5 * s, 0, TAU);
+      vctx.fillStyle = '#0e0e12';
+      vctx.fill();
+      vctx.lineWidth = 1.6 * s;
+      vctx.strokeStyle = '#6ee7ff';
+      vctx.stroke();
+    }
+  }
+
+  /* --- 中心点（青色双环）--- */
+  const center = tfGetCenter();
   vctx.beginPath();
   vctx.arc(center.x, center.y, 5.5 * s, 0, TAU);
   vctx.fillStyle = '#0e0e12';
@@ -2527,32 +2940,8 @@ function drawTransformUI() {
   vctx.fillStyle = '#6ee7ff';
   vctx.fill();
 
-  const hs = 4.5 * s;
-
-  for (const p of q) {
-    vctx.beginPath();
-    vctx.rect(p.x - hs, p.y - hs, hs * 2, hs * 2);
-    vctx.fillStyle = '#0e0e12';
-    vctx.fill();
-    vctx.lineWidth = 1.6 * s;
-    vctx.strokeStyle = '#6ee7ff';
-    vctx.stroke();
-  }
-
-  for (let i = 0; i < 4; i++) {
-    const j = (i + 1) % 4;
-    const mx = (q[i].x + q[j].x) / 2;
-    const my = (q[i].y + q[j].y) / 2;
-    vctx.beginPath();
-    vctx.arc(mx, my, 4 * s, 0, TAU);
-    vctx.fillStyle = '#0e0e12';
-    vctx.fill();
-    vctx.lineWidth = 1.6 * s;
-    vctx.strokeStyle = '#6ee7ff';
-    vctx.stroke();
-  }
-
-  const rp = getRotHandlePos(q);
+  /* --- 旋转手柄（青色圆形）--- */
+  const rp = tfGetRotHandle();
   vctx.beginPath();
   vctx.moveTo(rp.ax, rp.ay);
   vctx.lineTo(rp.x, rp.y);
@@ -2574,8 +2963,395 @@ function drawTransformUI() {
   vctx.strokeStyle = '#6ee7ff';
   vctx.stroke();
 
+  /* --- 8 个缩放手柄（紫色）--- */
+  /*  角柄：实心方块（紫色填充 + 白描边）
+      边柄：空心菱形（紫描边 + 深色填充） */
+  const hs = 4.5 * s;
+  for (const h of sh.handles) {
+    const isCorner = (h.corner.length === 2);   // 'nw' / 'ne' / 'sw' / 'se'
+
+    if (isCorner) {
+      /* --- 角：实心方块 --- */
+      vctx.beginPath();
+      vctx.rect(h.x - hs, h.y - hs, hs * 2, hs * 2);
+      vctx.fillStyle = '#a78bfa';
+      vctx.fill();
+      vctx.lineWidth = 1.5 * s;
+      vctx.strokeStyle = 'rgba(255,255,255,.95)';
+      vctx.stroke();
+    } else {
+      /* --- 边中点：空心菱形 --- */
+      const d = hs * 1.25;
+      vctx.beginPath();
+      vctx.moveTo(h.x,     h.y - d);
+      vctx.lineTo(h.x + d, h.y);
+      vctx.lineTo(h.x,     h.y + d);
+      vctx.lineTo(h.x - d, h.y);
+      vctx.closePath();
+      vctx.fillStyle = '#0e0e12';
+      vctx.fill();
+      vctx.lineWidth = 1.8 * s;
+      vctx.strokeStyle = '#a78bfa';
+      vctx.stroke();
+    }
+  }
+
   vctx.restore();
   vctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+/* =========================================================
+   图层系统
+   ========================================================= */
+const MAX_LAYERS = 16;
+let layers = [];
+let activeLayerId = 0;
+let nextLayerId = 1;
+let layerNameCounter = 1;
+
+const layerTmpCvs = document.createElement('canvas');
+const layerTmpCtx = layerTmpCvs.getContext('2d');
+
+let layersListEl = null;
+
+function createLayerCanvas() {
+  const c = document.createElement('canvas');
+  c.width  = baseCvs.width  || 1;
+  c.height = baseCvs.height || 1;
+  const ctx = c.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { canvas: c, ctx };
+}
+
+function newLayerData() {
+  const { canvas, ctx } = createLayerCanvas();
+  return {
+    id: nextLayerId++,
+    name: '图层 ' + (layerNameCounter++),
+    canvas, ctx,
+    visible: true,
+    locked: false,
+    clip: false,
+    lockPixels: false,   // 锁定像素：只能在现有像素内绘制
+    lockMask: null       // 锁定像素时抓取的 alpha 快照
+  };
+}
+
+function getActiveLayer() {
+  return layers.find(l => l.id === activeLayerId) || layers[0] || null;
+}
+
+/* 活动图层的内容实时存在 baseCvs 上；其余图层读自己的画布 */
+function getLayerCanvas(layer) {
+  if (!layer) return null;
+  return (layer.id === activeLayerId) ? baseCvs : layer.canvas;
+}
+
+function saveBaseToLayer(layer) {
+  if (!layer) return;
+  layer.ctx.save();
+  layer.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  layer.ctx.globalCompositeOperation = 'source-over';
+  layer.ctx.globalAlpha = 1;
+  layer.ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+  layer.ctx.drawImage(baseCvs, 0, 0);
+  layer.ctx.restore();
+}
+
+function loadLayerToBase(layer) {
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = 'source-over';
+  bctx.globalAlpha = 1;
+  bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
+  if (layer) bctx.drawImage(layer.canvas, 0, 0);
+  bctx.restore();
+}
+
+function setActiveLayer(id) {
+  if (id === activeLayerId) return;
+  const oldLayer = getActiveLayer();
+  if (oldLayer) saveBaseToLayer(oldLayer);
+  activeLayerId = id;
+  loadLayerToBase(getActiveLayer());
+  updateLayersUI();
+  renderView();
+}
+
+function addLayer() {
+  if (layers.length >= MAX_LAYERS) { showToast('图层数已达上限（' + MAX_LAYERS + '）'); return; }
+  const cur = getActiveLayer();
+  if (cur) saveBaseToLayer(cur);
+  const newL = newLayerData();
+  const idx = layers.findIndex(l => l.id === activeLayerId);
+  layers.splice(idx + 1, 0, newL);
+  activeLayerId = newL.id;
+  loadLayerToBase(newL);
+  updateLayersUI();
+  renderView();
+}
+
+function deleteLayer(id) {
+  if (layers.length <= 1) { showToast('至少保留一个图层'); return; }
+  const idx = layers.findIndex(l => l.id === id);
+  if (idx < 0) return;
+  layers.splice(idx, 1);
+  if (activeLayerId === id) {
+    const newIdx = Math.min(idx, layers.length - 1);
+    activeLayerId = layers[newIdx].id;
+    loadLayerToBase(layers[newIdx]);
+  }
+  updateLayersUI();
+  renderView();
+}
+
+function toggleVisible(id) {
+  const l = layers.find(ll => ll.id === id);
+  if (!l) return;
+  l.visible = !l.visible;
+  updateLayersUI();
+  renderView();
+}
+
+function toggleLocked(id) {
+  const l = layers.find(ll => ll.id === id);
+  if (!l) return;
+  l.locked = !l.locked;
+  updateLayersUI();
+  showToast(l.locked ? '图层已锁定' : '图层已解锁');
+}
+
+function toggleClip(id) {
+  const idx = layers.findIndex(ll => ll.id === id);
+  if (idx < 0) return;
+  if (idx === 0) { showToast('最底层图层不能设置剪贴蒙版'); return; }
+  layers[idx].clip = !layers[idx].clip;
+  updateLayersUI();
+  renderView();
+}
+
+/* ---- 锁定像素 ---- */
+function captureLockMask(layer) {
+  if (!layer) return;
+  if (!layer.lockMask) layer.lockMask = document.createElement('canvas');
+  const m = layer.lockMask;
+  m.width  = baseCvs.width;
+  m.height = baseCvs.height;
+  const mc = m.getContext('2d');
+  mc.setTransform(1, 0, 0, 1, 0, 0);
+  mc.globalCompositeOperation = 'source-over';
+  mc.clearRect(0, 0, m.width, m.height);
+  const src = getLayerCanvas(layer);
+  if (src) mc.drawImage(src, 0, 0);
+}
+
+function toggleLockPixels(id) {
+  const l = layers.find(ll => ll.id === id);
+  if (!l) return;
+  l.lockPixels = !l.lockPixels;
+  if (l.lockPixels) {
+    captureLockMask(l);
+    showToast('已锁定像素：只能在现有像素内绘制');
+  } else {
+    l.lockMask = null;
+    showToast('已解锁像素');
+  }
+  updateLayersUI();
+}
+
+/* ---- 锁定像素：只裁剪「新绘制」的像素，绝不动已有像素 ---- */
+
+/* A. 对描边缓冲区应用遮罩：把 strokeBuf 裁到 lockMask 内。
+     之后合成到 baseCvs 时，锁区外的像素完全不会被触碰。 */
+function clipStrokeBufByLockMask() {
+  const active = getActiveLayer();
+  if (!active || !active.lockPixels || !active.lockMask) return;
+  sctx.save();
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.globalCompositeOperation = 'destination-in';
+  sctx.globalAlpha = 1;
+  sctx.drawImage(active.lockMask, 0, 0);
+  sctx.restore();
+}
+
+/* B. 对直接修改 baseCvs 的操作（模糊 / 液化 / 曲线 / 变换 / 粘贴）
+      用「快照 + 回贴」的方式，让遮罩只作用于本次编辑带来的差异，
+      不会重新裁剪已有像素。 */
+function captureLockMaskSnapshot() {
+  const active = getActiveLayer();
+  if (!active || !active.lockPixels || !active.lockMask) return null;
+  const snap = document.createElement('canvas');
+  snap.width  = baseCvs.width;
+  snap.height = baseCvs.height;
+  snap.getContext('2d').drawImage(baseCvs, 0, 0);
+  return snap;
+}
+
+function restoreOutsideLockMask(snap) {
+  if (!snap) return;
+  const active = getActiveLayer();
+  if (!active || !active.lockPixels || !active.lockMask) return;
+
+  const W = baseCvs.width, H = baseCvs.height;
+
+  /* tmp = 编辑后的 baseCvs ∩ 遮罩
+     表示「本次编辑在锁区内真正产生的像素」 */
+  const tmp = document.createElement('canvas');
+  tmp.width = W; tmp.height = H;
+  const tctx = tmp.getContext('2d');
+  tctx.drawImage(baseCvs, 0, 0);
+  tctx.globalCompositeOperation = 'destination-in';
+  tctx.drawImage(active.lockMask, 0, 0);
+
+  /* baseCvs = 原始（锁区外全部还原） + tmp（锁区内采用新像素） */
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = 'source-over';
+  bctx.globalAlpha = 1;
+  bctx.clearRect(0, 0, W, H);
+  bctx.drawImage(snap, 0, 0);
+  bctx.drawImage(tmp, 0, 0);
+  bctx.restore();
+}
+
+function updateLayersUI() {
+  if (!layersListEl) return;
+  layersListEl.innerHTML = '';
+
+  /* ---- 顶部「新建图层」行 ---- */
+  const addRow = document.createElement('div');
+  addRow.className = 'layer-add-row';
+  addRow.title = '新建图层';
+
+  const plusIcon = document.createElement('div');
+  plusIcon.className = 'layer-add-plus';
+  plusIcon.textContent = '+';
+
+  const addLabel = document.createElement('div');
+  addLabel.className = 'layer-add-label';
+  addLabel.textContent = '新建图层';
+
+  addRow.appendChild(plusIcon);
+  addRow.appendChild(addLabel);
+  addRow.addEventListener('click', () => addLayer());
+  layersListEl.appendChild(addRow);
+
+  /* 从上往下（最上层优先） */
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i];
+    const row = document.createElement('div');
+    row.className = 'layer-row';
+    if (layer.id === activeLayerId) row.classList.add('active');
+
+    /* 可见性 */
+    const visBtn = document.createElement('button');
+    visBtn.className = 'layer-btn' + (layer.visible ? '' : ' off');
+    visBtn.title = layer.visible ? '隐藏图层' : '显示图层';
+    visBtn.textContent = layer.visible ? '◉' : '○';
+    visBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleVisible(layer.id);
+    });
+
+    /* 锁定 */
+    const lockBtn = document.createElement('button');
+    lockBtn.className = 'layer-btn' + (layer.locked ? ' on' : ' off');
+    lockBtn.title = layer.locked ? '解锁图层' : '锁定图层';
+    lockBtn.textContent = layer.locked ? '▣' : '□';
+    lockBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleLocked(layer.id);
+    });
+
+    /* 剪贴蒙版 */
+    const clipBtn = document.createElement('button');
+    clipBtn.className = 'layer-btn' + (layer.clip ? ' on' : ' off');
+    clipBtn.title = '剪贴蒙版（剪贴到下方图层）';
+    clipBtn.textContent = '⤴';
+    clipBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleClip(layer.id);
+    });
+
+    /* 锁定像素 */
+    const lockPixBtn = document.createElement('button');
+    lockPixBtn.className = 'layer-btn' + (layer.lockPixels ? ' on' : ' off');
+    lockPixBtn.title = layer.lockPixels ? '解锁像素' : '锁定像素（只能在现有像素内绘制）';
+    lockPixBtn.textContent = '⊡';
+    lockPixBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleLockPixels(layer.id);
+    });
+
+    /* 名称 */
+    const nameEl = document.createElement('span');
+    nameEl.className = 'layer-name';
+    nameEl.textContent = layer.name;
+
+    /* 删除 */
+    const delBtn = document.createElement('button');
+    delBtn.className = 'layer-btn';
+    delBtn.title = '删除图层';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      deleteLayer(layer.id);
+    });
+
+    row.appendChild(visBtn);
+    row.appendChild(lockBtn);
+    row.appendChild(clipBtn);
+    row.appendChild(lockPixBtn);
+    row.appendChild(nameEl);
+    row.appendChild(delBtn);
+
+    row.addEventListener('click', () => {
+      if (layer.id !== activeLayerId) setActiveLayer(layer.id);
+    });
+
+    layersListEl.appendChild(row);
+  }
+}
+
+/* ---- 把全部可见图层按剪贴规则合成到 ctx ---- */
+function composeLayersTo(ctx, targetW, targetH) {
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i];
+    if (!layer.visible) continue;
+    const src = getLayerCanvas(layer);
+    if (!src) continue;
+
+    if (layer.clip && i > 0) {
+      /* 找下方第一个可见图层作为底 */
+      let belowCanvas = null;
+      for (let j = i - 1; j >= 0; j--) {
+        if (layers[j].visible) {
+          belowCanvas = getLayerCanvas(layers[j]);
+          break;
+        }
+      }
+      if (!belowCanvas) {
+        ctx.drawImage(src, 0, 0);
+        continue;
+      }
+
+      if (layerTmpCvs.width !== targetW || layerTmpCvs.height !== targetH) {
+        layerTmpCvs.width  = targetW;
+        layerTmpCvs.height = targetH;
+      }
+      layerTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
+      layerTmpCtx.globalCompositeOperation = 'source-over';
+      layerTmpCtx.globalAlpha = 1;
+      layerTmpCtx.clearRect(0, 0, targetW, targetH);
+      layerTmpCtx.drawImage(src, 0, 0);
+      layerTmpCtx.globalCompositeOperation = 'destination-in';
+      layerTmpCtx.drawImage(belowCanvas, 0, 0);
+      layerTmpCtx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(layerTmpCvs, 0, 0);
+    } else {
+      ctx.drawImage(src, 0, 0);
+    }
+  }
 }
 
 /* =========================================================
@@ -3665,6 +4441,9 @@ function commitStroke() {
     sctx.restore();
   }
 
+  /* 关键：合成之前，把描边缓冲区裁到锁定像素遮罩内 */
+  clipStrokeBufByLockMask();
+
   bctx.save();
   bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.globalCompositeOperation = strokeBlend;
@@ -3704,9 +4483,14 @@ function computeLiquifyMask() {
   lqMask = mask;
 }
 
+let lqLockSnap = null;
+
 function startLiquifySession() {
   const W = baseCvs.width, H = baseCvs.height;
   lqOrigData = bctx.getImageData(0, 0, W, H);
+
+  /* 记录锁定像素会话前的原始内容 */
+  lqLockSnap = captureLockMaskSnapshot();
 
   const size = W * H;
   if (lqDispSize !== size) {
@@ -4051,6 +4835,14 @@ function setLqSizeValue(v) {
   if (out) out.textContent = String(v);
   cfg.lqSize = v;
 }
+function setBWidthValue(v) {
+  const el = document.getElementById('bWidth');
+  if (!el) return;
+  el.value = String(v);
+  const out = el.nextElementSibling;
+  if (out) out.textContent = String(v);
+  cfg.bWidth = v;
+}
 
 /* =========================================================
    指针输入
@@ -4062,6 +4854,10 @@ let placeAcc  = 0;
 
 function abortActive() {
   if (tfActive) { cancelTransform(); return; }
+
+  /* 清掉可能残留的锁定像素快照 */
+  if (typeof blurLockSnap !== 'undefined') blurLockSnap = null;
+  if (typeof lqLockSnap !== 'undefined') lqLockSnap = null;
 
   if (dragShape) {
     dragShape = null;
@@ -4100,6 +4896,30 @@ function abortActive() {
 }
 
 cvs.addEventListener('pointerdown', e => {
+  /* ---- X 键 + 左键：调笔刷大小（优先处理）---- */
+  if (sizeHeld && e.button === 0 && spaceMode !== 'zoom' &&
+      (cfg.tool === 'place' ||
+       cfg.tool === 'paint' ||
+       cfg.tool === 'liquify')) {
+    e.preventDefault();
+    sizeAdjustActive = true;
+    sizeAdjustPointerId = e.pointerId;
+    sizeAdjustStartX = e.clientX;
+    if (cfg.tool === 'place') {
+      sizeAdjustStartValue = cfg.pSize;
+      sizeAdjustTarget = 'pSize';
+    } else if (cfg.tool === 'liquify') {
+      sizeAdjustStartValue = cfg.lqSize;
+      sizeAdjustTarget = 'lqSize';
+    } else {
+      sizeAdjustStartValue = cfg.bWidth;
+      sizeAdjustTarget = 'bWidth';
+    }
+    try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
+    cvs.style.cursor = 'ew-resize';
+    return;
+  }
+
   /* ---- 空格 + 左键：平移画布 ---- */
   if (spaceMode === 'pan' && e.button === 0) {
     e.preventDefault();
@@ -4130,44 +4950,24 @@ cvs.addEventListener('pointerdown', e => {
     return;
   }
 
-  /* ---- X 键 + 左键：调笔刷大小 ---- */
-  if (sizeHeld && e.button === 0 && !spaceMode.startsWith('z') &&
-      (cfg.tool === 'place' ||
-       (cfg.tool === 'paint' && cfg.paintMode === 'line') ||
-       cfg.tool === 'liquify')) {
-    e.preventDefault();
-    sizeAdjustActive = true;
-    sizeAdjustPointerId = e.pointerId;
-    sizeAdjustStartX = e.clientX;
-    if (cfg.tool === 'place') {
-      sizeAdjustStartValue = cfg.pSize;
-      sizeAdjustTarget = 'pSize';
-    } else if (cfg.tool === 'liquify') {
-      sizeAdjustStartValue = cfg.lqSize;
-      sizeAdjustTarget = 'lqSize';
-    } else {
-      sizeAdjustStartValue = cfg.bWidth;
-      sizeAdjustTarget = 'bWidth';
-    }
-    try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
-    cvs.style.cursor = 'ew-resize';
-    return;
-  }
-
   if (tfActive) {
     e.preventDefault();
     const hx = evtX(e), hy = evtY(e);
     const hit = tfHitTest(hx, hy);
     if (!hit) { commitTransform(); return; }
 
-    const c = getQuadCenter(tfQuad);
+    const c = tfGetCenter();
     tfDrag = {
       pointerId: e.pointerId,
       type: hit.type,
-      i: hit.i,
+      corner: hit.corner,
+      r: hit.r,
+      c: hit.c,
       startX: hx,
       startY: hy,
-      origQuad: tfQuad.map(p => ({ x: p.x, y: p.y })),
+      origVertices: tfVertices.map(row => row.map(p => ({ x: p.x, y: p.y }))),
+      origHandle: (hit.type === 'scale') ? { x: hit.x, y: hit.y } : null,
+      origBB: (hit.type === 'scale') ? tfGetBBox() : null,
       center: c,
       startAngle: Math.atan2(hy - c.y, hx - c.x)
     };
@@ -4209,6 +5009,15 @@ cvs.addEventListener('pointerdown', e => {
     startDashAnim();
     renderView();
     return;
+  }
+
+  /* ---- 图层锁定检查：进入任何会修改内容的操作前拦截 ---- */
+  {
+    const activeL = getActiveLayer();
+    if (activeL && activeL.locked) {
+      showToast('图层「' + activeL.name + '」已锁定');
+      return;
+    }
   }
 
   if (e.shiftKey && e.button === 0 && !sHeld) {
@@ -4549,6 +5358,9 @@ function endStroke(e) {
     lqActive = false;
     lqPointerId = null;
     endLiquifySession();
+    restoreOutsideLockMask(lqLockSnap);
+    lqLockSnap = null;
+    renderView();
     return;
   }
 
@@ -4592,6 +5404,30 @@ cvs.addEventListener('mousedown', e => {
 cvs.addEventListener('auxclick', e => {
   if (e.button === 1) e.preventDefault();
 });
+cvs.addEventListener('contextmenu', e => {
+  e.preventDefault();
+});
+
+/* =========================================================
+   禁用浏览器快捷键（Ctrl + 加号 / 减号 缩放）
+   ========================================================= */
+window.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const k = e.key;
+  if (k === '+' || k === '=' || k === '-' || k === '_') {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}, { capture: true });
+
+/* =========================================================
+   全局指针追踪（环形菜单用）
+   ========================================================= */
+window.addEventListener('pointermove', e => {
+  lastClientX = e.clientX;
+  lastClientY = e.clientY;
+  if (radialActive) updateRadialHover(e.clientX, e.clientY);
+}, { passive: true });
 
 /* =========================================================
    粘贴图片
@@ -4676,9 +5512,12 @@ function pasteImageToCanvas(img) {
   bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.globalCompositeOperation = 'source-over';
   bctx.globalAlpha = 1;
+  const lockSnap = captureLockMaskSnapshot();
+
   bctx.drawImage(tmp, 0, 0);
   bctx.restore();
 
+  restoreOutsideLockMask(lockSnap);
   renderView();
   showToast('已粘贴图片');
 }
@@ -4711,6 +5550,9 @@ function undo() {
     bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
     bctx.drawImage(img, 0, 0);
     bctx.restore();
+    /* 把撤销结果同步到活动图层画布 */
+    const active = getActiveLayer();
+    if (active) saveBaseToLayer(active);
     renderView();
   };
   img.src = url;
@@ -4732,9 +5574,19 @@ function clearAll() {
 }
 
 function savePNG() {
+  /* 先把活动图层内容落地，再全图层合成导出 */
+  const active = getActiveLayer();
+  if (active) saveBaseToLayer(active);
+
+  const tmp = document.createElement('canvas');
+  tmp.width  = baseCvs.width;
+  tmp.height = baseCvs.height;
+  const tctx = tmp.getContext('2d');
+  composeLayersTo(tctx, tmp.width, tmp.height);
+
   const a = document.createElement('a');
   a.download = `geometry-${Date.now()}.png`;
-  a.href = baseCvs.toDataURL('image/png');
+  a.href = tmp.toDataURL('image/png');
   a.click();
 }
 
@@ -4985,6 +5837,16 @@ collapseBtn.addEventListener('click', () => {
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
 
+    /* ---- 数字键 1/2/3：短按切工具，长按弹子工具环形菜单 ---- */
+  if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
+    if (cpActive || tfActive) return;
+    const n = e.code === 'Digit1' ? '1' :
+              e.code === 'Digit2' ? '2' : '3';
+    if (!e.repeat) onNumberKeyDown(n);
+    e.preventDefault();
+    return;
+  }
+
   /* ---- 空格：Ctrl+空格 → 缩放；单独空格 → 平移/复位 ---- */
   if (e.code === 'Space' && !e.repeat) {
     if (spaceMode !== 'none') return;
@@ -5010,24 +5872,28 @@ window.addEventListener('keydown', e => {
     return;
   }
 
+  /* ---- X 键：按住调笔刷大小 ---- */
+  if (e.code === 'KeyX' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    /* 支持所有能调尺寸的工具：
+       - 放置
+       - 绘画（画笔线 / 填充 / 按住 E 擦除）
+       - 液化 */
+    if (cfg.tool === 'place' ||
+        cfg.tool === 'paint' ||
+        cfg.tool === 'liquify') {
+      sizeHeld = true;
+      if (!tfActive && !altPressed && !ctrlPressed) {
+        cvs.style.cursor = 'ew-resize';
+      }
+    }
+  }
+
   /* ---- 橡皮模式：按住 E ---- */
   if (e.code === 'KeyE' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (!eraserHeld) {
       eraserHeld = true;
       updateUIState();
       updateEraserBadge();
-    }
-  }
-
-  /* ---- X 键：按住调笔刷大小 ---- */
-  if (e.code === 'KeyX' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (cfg.tool === 'place' ||
-        (cfg.tool === 'paint' && cfg.paintMode === 'line') ||
-        cfg.tool === 'liquify') {
-      sizeHeld = true;
-      if (!tfActive && !altPressed && !ctrlPressed && spaceMode === 'none') {
-        cvs.style.cursor = 'ew-resize';
-      }
     }
   }
 
@@ -5116,6 +5982,14 @@ window.addEventListener('keydown', e => {
 });
 
 window.addEventListener('keyup', e => {
+    /* ---- 数字键 1/2/3 松开 ---- */
+  if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
+    const n = e.code === 'Digit1' ? '1' :
+              e.code === 'Digit2' ? '2' : '3';
+    onNumberKeyUp(n);
+    e.preventDefault();
+    return;
+  }
   /* ---- 松开空格 ---- */
   if (e.code === 'Space') {
     e.preventDefault();
@@ -5157,7 +6031,7 @@ window.addEventListener('keyup', e => {
   /* ---- 松开 X ---- */
   if (e.code === 'KeyX') {
     sizeHeld = false;
-    if (!sizeAdjustActive && !tfActive && !altPressed && !ctrlPressed && spaceMode === 'none') {
+    if (!sizeAdjustActive && !tfActive && !altPressed && !ctrlPressed) {
       cvs.style.cursor = '';
     }
     return;
@@ -5220,10 +6094,287 @@ window.addEventListener('blur', () => {
 });
 
 /* =========================================================
+   数字键 1/2/3：短按切工具，长按弹环形子工具菜单
+   ========================================================= */
+let numberHoldKey = null;
+let numberHoldTimer = null;
+let numberLongPressed = false;
+let lastClientX = window.innerWidth  / 2;
+let lastClientY = window.innerHeight / 2;
+
+const radialMenuEl  = document.getElementById('radialMenu');
+const radialSvgEl   = document.getElementById('radialSvg');
+const radialLabelEl = document.getElementById('radialLabel');
+
+let radialActive = false;
+let radialItems  = [];
+let radialHoverIndex = -1;
+let radialCenterX = 0, radialCenterY = 0;
+let radialOuterR = 130;
+let radialInnerR = 46;
+const radialStartAngle = -Math.PI / 2;
+
+const RADIAL_DEFS = {
+  '1': {
+    label: '放置',
+    items: [
+      { value: 'random', label: '随机' },
+      { value: 'poly',   label: '多边形' },
+      { value: 'star',   label: '星形' },
+      { value: 'rect',   label: '矩形' },
+      { value: 'circle', label: '圆' },
+      { value: 'arc',    label: '扇形' },
+      { value: 'line',   label: '线' },
+      { value: 'cross',  label: '十字' },
+      { value: 'spokes', label: '放射' },
+      { value: 'blob',   label: '墨块' },
+      { value: 'custom', label: '自定义' }
+    ],
+    apply(item) {
+      /* 先同步形状按钮与状态 */
+      const shapeBox = document.getElementById('shapes');
+      shapeBox.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('on', b.dataset.v === item.value));
+      cfg.shape = item.value;
+
+      /* 关键：若当前不是「放置」工具，先切过去（applyTool 内部会刷新 UI） */
+      if (cfg.tool !== 'place') {
+        abortActive();
+        exitSelectionMode();
+        applyTool('place');
+      } else {
+        updateCustomPanelVisibility();
+        updateUIState();
+      }
+    }
+  },
+  '2': {
+    label: '绘画',
+    items: [
+      { value: 'line', label: '画笔' },
+      { value: 'fill', label: '填充' }
+    ],
+    apply(item) {
+      /* 关键：若当前不是「绘画」工具，先切过去 */
+      if (cfg.tool !== 'paint') {
+        abortActive();
+        exitSelectionMode();
+        applyTool('paint');
+      }
+      applyPaintMode(item.value);
+    }
+  },
+  '3': {
+    label: '液化',
+    items: [
+      { value: 'push',  label: '推' },
+      { value: 'pinch', label: '捏合' },
+      { value: 'bloat', label: '膨胀' }
+    ],
+    apply(item) {
+      /* 关键：若当前不是「液化」工具，先切过去 */
+      if (cfg.tool !== 'liquify') {
+        abortActive();
+        exitSelectionMode();
+        applyTool('liquify');
+      }
+      applyLqMode(item.value);
+    }
+  }
+};
+
+function onNumberKeyDown(n) {
+  if (numberHoldKey) return;
+  numberHoldKey = n;
+  numberLongPressed = false;
+
+  if (numberHoldTimer) clearTimeout(numberHoldTimer);
+  numberHoldTimer = setTimeout(() => {
+    numberHoldTimer = null;
+    numberLongPressed = true;
+    openRadial(n);
+  }, 300);
+}
+
+function onNumberKeyUp(n) {
+  if (numberHoldKey !== n) return;
+
+  if (numberHoldTimer) {
+    clearTimeout(numberHoldTimer);
+    numberHoldTimer = null;
+  }
+
+  if (numberLongPressed) {
+    /* 长按结束：若鼠标停在某个扇区则应用 */
+    if (radialActive && radialHoverIndex >= 0) {
+      const def = RADIAL_DEFS[n];
+      const item = radialItems[radialHoverIndex];
+      if (def && item && def.apply) def.apply(item);
+    }
+    hideRadial();
+  } else {
+    /* 短按：切换工具（等价于点击工具栏按钮） */
+    const toolMap = { '1': 'place', '2': 'paint', '3': 'liquify' };
+    const tool = toolMap[n];
+    if (tool && cfg.tool !== tool) {
+      abortActive();
+      exitSelectionMode();
+      applyTool(tool);
+    }
+  }
+
+  numberHoldKey = null;
+  numberLongPressed = false;
+}
+
+function openRadial(n) {
+  const def = RADIAL_DEFS[n];
+  if (!def) return;
+
+  radialItems = def.items.slice();
+  radialActive = true;
+  radialHoverIndex = -1;
+  radialLabelEl.textContent = def.label;
+
+  /* 半径按视口自适应 */
+  const maxR = Math.min(140, Math.min(window.innerWidth, window.innerHeight) / 2 - 12);
+  radialOuterR = Math.max(80, maxR);
+  radialInnerR = radialOuterR * 0.35;
+
+  const size = radialOuterR * 2 + 20;
+
+  let left = lastClientX - size / 2;
+  let top  = lastClientY - size / 2;
+  left = Math.max(6, Math.min(window.innerWidth  - size - 6, left));
+  top  = Math.max(6, Math.min(window.innerHeight - size - 6, top));
+
+  radialMenuEl.style.width  = size + 'px';
+  radialMenuEl.style.height = size + 'px';
+  radialMenuEl.style.left   = left + 'px';
+  radialMenuEl.style.top    = top  + 'px';
+  radialMenuEl.hidden = false;
+
+  /* 记录修正后的真实中心（可能被 clamp 过） */
+  radialCenterX = left + size / 2;
+  radialCenterY = top  + size / 2;
+
+  renderRadial();
+  /* 立即尝试 hover 一次，若鼠标就在某个扇区上能马上高亮 */
+  updateRadialHover(lastClientX, lastClientY);
+}
+
+function hideRadial() {
+  radialActive = false;
+  radialItems  = [];
+  radialHoverIndex = -1;
+  radialMenuEl.hidden = true;
+}
+
+function renderRadial() {
+  const N = radialItems.length;
+  if (!N) { radialSvgEl.innerHTML = ''; return; }
+
+  const size = radialOuterR * 2 + 20;
+  radialSvgEl.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  radialSvgEl.setAttribute('width',  size);
+  radialSvgEl.setAttribute('height', size);
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const arc = TAU / N;
+  const gap = Math.min(0.06, arc * 0.10);
+
+  let html = '';
+  for (let i = 0; i < N; i++) {
+    const a0 = radialStartAngle + i * arc + gap / 2;
+    const a1 = radialStartAngle + (i + 1) * arc - gap / 2;
+    const isHover = (i === radialHoverIndex);
+
+    const path = annularSector(cx, cy, radialInnerR, radialOuterR, a0, a1);
+    html += `<path class="rm-seg${isHover ? ' hover' : ''}" d="${path}"/>`;
+
+    const am = (a0 + a1) / 2;
+    const tr = (radialInnerR + radialOuterR) / 2;
+    const tx = cx + Math.cos(am) * tr;
+    const ty = cy + Math.sin(am) * tr;
+    html += `<text class="rm-txt${isHover ? ' hover' : ''}" x="${tx}" y="${ty}" `
+          + `text-anchor="middle" dominant-baseline="middle">${escapeXml(radialItems[i].label)}</text>`;
+  }
+  radialSvgEl.innerHTML = html;
+}
+
+function annularSector(cx, cy, r0, r1, a0, a1) {
+  const x0 = cx + Math.cos(a0) * r1;
+  const y0 = cy + Math.sin(a0) * r1;
+  const x1 = cx + Math.cos(a1) * r1;
+  const y1 = cy + Math.sin(a1) * r1;
+  const x2 = cx + Math.cos(a1) * r0;
+  const y2 = cy + Math.sin(a1) * r0;
+  const x3 = cx + Math.cos(a0) * r0;
+  const y3 = cy + Math.sin(a0) * r0;
+  const largeArc = (a1 - a0) > Math.PI ? 1 : 0;
+  return `M ${x0} ${y0} `
+       + `A ${r1} ${r1} 0 ${largeArc} 1 ${x1} ${y1} `
+       + `L ${x2} ${y2} `
+       + `A ${r0} ${r0} 0 ${largeArc} 0 ${x3} ${y3} Z`;
+}
+
+function escapeXml(s) {
+  return String(s).replace(/[<>&"']/g, c => ({
+    '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;'
+  }[c]));
+}
+
+function updateRadialHover(clientX, clientY) {
+  if (!radialActive || radialItems.length === 0) return;
+
+  const dx = clientX - radialCenterX;
+  const dy = clientY - radialCenterY;
+  const dist = Math.hypot(dx, dy);
+
+  /* 内圈空白区 → 无选中 */
+  if (dist < radialInnerR * 0.75) {
+    if (radialHoverIndex !== -1) {
+      radialHoverIndex = -1;
+      renderRadial();
+    }
+    return;
+  }
+
+  let ang = Math.atan2(dy, dx) - radialStartAngle;
+  ang = ((ang % TAU) + TAU) % TAU;
+
+  const arc = TAU / radialItems.length;
+  let i = Math.floor(ang / arc);
+  if (i < 0) i = 0;
+  if (i >= radialItems.length) i = radialItems.length - 1;
+
+  if (i !== radialHoverIndex) {
+    radialHoverIndex = i;
+    renderRadial();
+  }
+}
+
+/* =========================================================
    启动
    ========================================================= */
 document.body.style.background = '#000';
 document.documentElement.style.background = '#000';
+
+layersListEl = document.getElementById('layersList');
+/* 「新建图层」按钮现在由 updateLayersUI 动态生成在列表顶部，
+   不再需要静态 id 绑定。 */
+
+/* 图层折叠按钮 */
+const layersPanelEl = document.getElementById('layersPanel');
+const collapseLayersBtn = document.getElementById('collapseLayers');
+if (collapseLayersBtn && layersPanelEl) {
+  collapseLayersBtn.addEventListener('click', () => {
+    layersPanelEl.classList.toggle('collapsed');
+    collapseLayersBtn.textContent =
+      layersPanelEl.classList.contains('collapsed') ? '+' : '−';
+  });
+}
 
 buildCustomSlotsUI();
 updateCustomBrushPreview();
@@ -5232,6 +6383,12 @@ updateBaseHsl();
 colorInputEl.value = cfg.baseColor;
 
 resize();
+
+/* 初始化第一张图层 */
+layers = [newLayerData()];
+activeLayerId = layers[0].id;
+updateLayersUI();
+
 applyTool(cfg.tool);
 applyCtrlMode(cfg.ctrlMode);
 applyPlaceMode(cfg.pMode);
