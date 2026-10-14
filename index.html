@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>RandomShapes2D · Geometry Studio</title>
+<!-- PSD 导出：ag-psd（成熟的浏览器 PSD 读写库） -->
+<script src="https://cdn.jsdelivr.net/npm/ag-psd@25.0.0/dist/bundle.js"></script>
 <style>
   :root{
     --bg:#ffffff;
@@ -71,8 +73,10 @@
   .sw.row-sw input:checked + span::after{transform:translateX(10px)}
 
   .modeHint{margin-top:7px;font-size:10.5px;line-height:1.5;color:#7a7a8c;min-height:15px;}
-  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .actions button{padding:8px 0;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);font-size:11.5px;cursor:pointer;font-family:inherit;transition:.15s;}
+  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+  .actions button{padding:8px 0;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);font-size:11px;cursor:pointer;font-family:inherit;transition:.15s;}
+  .actions button:hover{background:rgba(255,255,255,.12)}
+  .actions button:active{transform:scale(.96)}
   .actions button:hover{background:rgba(255,255,255,.12)}
   .actions button:active{transform:scale(.96)}
   .disabled-section{opacity:.28;pointer-events:none;user-select:none;filter:grayscale(.6);transition:opacity .2s, filter .2s;}
@@ -671,7 +675,8 @@
     <section class="actions">
       <button id="undo">撤销</button>
       <button id="clear">清空</button>
-      <button id="save">保存</button>
+      <button id="save">导出PNG</button>
+      <button id="savePsd">导出PSD</button>
     </section>
   </div>
 </div>
@@ -6684,6 +6689,114 @@ function savePNG() {
 }
 
 /* =========================================================
+   导出 PSD（带图层）
+   =========================================================
+   使用 ag-psd 库（浏览器 bundle 暴露为全局 window.agPsd）。
+   把内部 layers 数组按「从下到上」的顺序转换成 ag-psd 的
+   children 结构，并把 blendMode 从 Canvas GCO 值映射为
+   PSD 的混合模式名称。
+   ========================================================= */
+const CANVAS_GCO_TO_PSD_BLEND = {
+  'source-over': 'normal',
+  'multiply':    'multiply',
+  'screen':      'screen',
+  'overlay':     'overlay',
+  'darken':      'darken',
+  'lighten':     'lighten',
+  'color-dodge': 'color dodge',
+  'color-burn':  'color burn',
+  'hard-light':  'hard light',
+  'soft-light':  'soft light',
+  'difference':  'difference',
+  'exclusion':   'exclusion',
+  'hue':         'hue',
+  'saturation':  'saturation',
+  'color':       'color',
+  'luminosity':  'luminosity'
+};
+
+function exportPSD() {
+  /* 1. 检查库是否加载成功 */
+  if (!window.agPsd || typeof window.agPsd.writePsd !== 'function') {
+    showToast('PSD 库未加载\n请检查网络连接后刷新页面重试');
+    return;
+  }
+
+  if (layers.length === 0) {
+    showToast('没有可导出的图层');
+    return;
+  }
+
+  /* 2. 先把活动图层的内容落地，避免丢失未提交的实时编辑 */
+  const active = getActiveLayer();
+  if (active) saveBaseToLayer(active);
+
+  const W = baseCvs.width;
+  const H = baseCvs.height;
+
+  /* 3. 逐层转换成 ag-psd 的 Layer 结构。
+        children 数组顺序：从下到上（与内部 layers 数组一致）。
+        注意：ag-psd 的 children[0] 是「最底层」。 */
+  const children = [];
+
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i];
+
+    /* 为每个图层生成一个独立画布副本（避免 PS 端拿到活动 canvas 的引用） */
+    const c = document.createElement('canvas');
+    c.width  = W;
+    c.height = H;
+    const cx = c.getContext('2d');
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    cx.globalCompositeOperation = 'source-over';
+    cx.globalAlpha = 1;
+    cx.clearRect(0, 0, W, H);
+    cx.drawImage(layer.canvas, 0, 0);
+
+    const psdBlend = CANVAS_GCO_TO_PSD_BLEND[layer.blendMode] || 'normal';
+
+    children.push({
+      name: layer.name,
+      canvas: c,
+      blendMode: psdBlend,
+      opacity: 1,
+      hidden: !layer.visible,
+      /* 剪贴蒙版：贴到下方图层 */
+      clipping: !!layer.clip
+    });
+  }
+
+  /* 4. 组装 psd 对象并写入 */
+  const psd = {
+    width: W,
+    height: H,
+    children: children
+  };
+
+  let buffer;
+  try {
+    buffer = window.agPsd.writePsd(psd);
+  } catch (err) {
+    console.error('[exportPSD]', err);
+    showToast('导出 PSD 失败：' + (err && err.message ? err.message : '未知错误'));
+    return;
+  }
+
+  /* 5. 下载 */
+  const blob = new Blob([buffer], { type: 'image/vnd.adobe.photoshop' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `geometry-${Date.now()}.psd`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  showToast('已导出 PSD（' + children.length + ' 个图层）');
+}
+
+/* =========================================================
    UI 绑定
    ========================================================= */
 function bindRange(id, apply) {
@@ -6933,6 +7046,8 @@ document.getElementById('bg').addEventListener('input', e => {
 document.getElementById('undo').addEventListener('click', undo);
 document.getElementById('clear').addEventListener('click', clearAll);
 document.getElementById('save').addEventListener('click', savePNG);
+const savePsdBtn = document.getElementById('savePsd');
+if (savePsdBtn) savePsdBtn.addEventListener('click', exportPSD);
 
 const ui = document.getElementById('ui');
 const collapseBtn = document.getElementById('collapse');
