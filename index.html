@@ -182,16 +182,36 @@
   }
   #blurBar .sw { flex: 0 0 auto; }
 
+  /* 模糊条里的模式按钮，复用主面板 .chips 样式但做紧凑化 */
+  #blurBar #blurModes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  #blurBar #blurModes button {
+    padding: 4px 0;
+    font-size: 11px;
+    border-radius: 7px;
+  }
+
   #hint{
     position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
     color:rgba(255,255,255,.75);
-    font-size:12px;letter-spacing:.1em;pointer-events:none;white-space:nowrap;z-index:5;
+    font-size:12px;letter-spacing:.1em;pointer-events:none;z-index:5;
     background:rgba(0,0,0,.55);
-    padding:6px 14px;
+    padding:8px 16px;
     border-radius:10px;
     border:1px solid rgba(255,255,255,.08);
     backdrop-filter:blur(6px);
     -webkit-backdrop-filter:blur(6px);
+    /* 两行显示：允许换行 + 两端居中 + 限制最大宽度避免溢出 */
+    white-space:normal;
+    text-align:center;
+    line-height:1.6;
+    max-width:min(92vw, 880px);
+  }
+  #hint .hint-line{
+    display:block;
   }
   #eraserBadge{
     position:fixed;top:18px;left:50%;transform:translateX(-50%);
@@ -345,10 +365,30 @@
   #layersList::-webkit-scrollbar{width:5px}
   #layersList::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
   .layer-row{
-    display:flex;align-items:center;gap:3px;
-    padding:4px 5px;border-radius:9px;cursor:pointer;
+    display:flex;align-items:center;gap:2px;
+    padding:4px 4px;border-radius:9px;cursor:pointer;
     transition:.12s;border:1px solid transparent;
   }
+  .layer-blend{
+    flex:0 0 auto;
+    width:62px;
+    padding:2px 3px;
+    font-size:10px;
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--line);
+    color:var(--txt);
+    border-radius:6px;
+    outline:none;
+    cursor:pointer;
+    font-family:inherit;
+    transition:.12s;
+    -webkit-appearance:none;
+    appearance:none;
+    text-align:center;
+  }
+  .layer-blend:hover{ background:rgba(255,255,255,.10); }
+  .layer-blend:focus{ border-color:rgba(110,231,255,.55); }
+  .layer-blend option{ background:#1a1a22; }
   /* 顶部「新建图层」行 */
   .layer-add-row{
     display:flex;align-items:center;gap:6px;
@@ -378,10 +418,22 @@
     background:linear-gradient(135deg,rgba(110,231,255,.15),rgba(167,139,250,.15));
     border-color:rgba(110,231,255,.45);
   }
+  /* 多选中但非活动的图层 —— 橙色虚线框 */
+  .layer-row.selected{
+    background:rgba(255,180,80,.10);
+    border-color:rgba(255,180,80,.45);
+    border-style:dashed;
+  }
+  /* 既是 active 又是 selected —— 保持青色主色，加个橙点提示 */
+  .layer-row.selected.active{
+    background:linear-gradient(135deg,rgba(110,231,255,.18),rgba(167,139,250,.18));
+    border-color:rgba(110,231,255,.55);
+    border-style:solid;
+  }
   .layer-btn{
-    width:20px;height:20px;border-radius:6px;
+    width:18px;height:18px;border-radius:6px;
     border:1px solid transparent;background:transparent;
-    color:#c9c9d9;font-size:11px;cursor:pointer;padding:0;
+    color:#c9c9d9;font-size:10px;cursor:pointer;padding:0;
     line-height:1;display:flex;align-items:center;justify-content:center;
     font-family:inherit;transition:.12s;flex:0 0 auto;
   }
@@ -390,7 +442,7 @@
   .layer-btn.on{color:#6ee7ff;background:rgba(110,231,255,.12)}
   .layer-name{
     flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
-    white-space:nowrap;font-size:11.5px;color:#e9e9f0;padding:0 3px;
+    white-space:nowrap;font-size:11px;color:#e9e9f0;padding:0 2px;
   }
 
   @media (max-width:520px){
@@ -418,6 +470,13 @@
       </div>
     </div>
     <div class="bbRight">
+      <div class="bbRow" id="blurModeRow">
+        <span>模式</span>
+        <div class="chips two" style="flex:1" id="blurModes">
+          <button data-v="blur" class="on">模糊</button>
+          <button data-v="smudge">涂抹</button>
+        </div>
+      </div>
       <div class="bbRow">
         <span>大小</span>
         <input id="blurSize" type="range" min="10" max="240" value="80">
@@ -476,6 +535,15 @@
 
     <div id="placePanel">
       <section>
+        <div class="lbl">控制模式</div>
+        <div class="chips two" id="ctrlModes">
+          <button data-v="scatter" class="on">散布</button>
+          <button data-v="drag">拖拽</button>
+        </div>
+        <div class="modeHint" id="ctrlHint">拖动时按间距连续放置形状</div>
+      </section>
+
+      <section>
         <div class="lbl">形状</div>
         <div class="chips" id="shapes">
           <button data-v="random" class="on">随机</button>
@@ -500,15 +568,6 @@
         <div class="row"><span>抖动</span><input id="pJitter" type="range" min="0" max="40" value="8"><i>8</i></div>
         <div class="row"><span>透明度</span><input id="pAlpha" type="range" min="5" max="100" value="85"><i>85%</i><label class="sw row-sw" title="透明度压感"><input id="pAlphaPen" type="checkbox"><span></span></label></div>
         <div class="row"><span>线宽</span><input id="pLw" type="range" min="1" max="120" value="20"><i>2.0</i></div>
-      </section>
-
-      <section>
-        <div class="lbl">控制模式</div>
-        <div class="chips two" id="ctrlModes">
-          <button data-v="scatter" class="on">散布</button>
-          <button data-v="drag">拖拽</button>
-        </div>
-        <div class="modeHint" id="ctrlHint">拖动时按间距连续放置形状</div>
       </section>
 
       <section id="pModeSection">
@@ -591,10 +650,19 @@
           <option value="source-over">正常</option>
           <option value="multiply">正片叠底</option>
           <option value="screen">滤色</option>
-          <option value="difference">差值</option>
           <option value="overlay">叠加</option>
-          <option value="lighten">变亮</option>
           <option value="darken">变暗</option>
+          <option value="lighten">变亮</option>
+          <option value="color-dodge">颜色减淡</option>
+          <option value="color-burn">颜色加深</option>
+          <option value="hard-light">强光</option>
+          <option value="soft-light">柔光</option>
+          <option value="difference">差值</option>
+          <option value="exclusion">排除</option>
+          <option value="hue">色相</option>
+          <option value="saturation">饱和度</option>
+          <option value="color">颜色</option>
+          <option value="luminosity">明度</option>
         </select>
       </div>
       <div class="row"><span>背景</span><input id="bg" type="color" value="#ffffff"></div>
@@ -626,7 +694,10 @@
   <div id="radialLabel"></div>
 </div>
 
-<div id="hint">s+套索 · Shift加选/模糊 · Alt吸色 · Ctrl移动 · T变换 · Ctrl+M曲线 · E橡皮 · Ctrl+空格缩放 · 空格平移/轻按复位 · X调笔刷大小</div>
+<div id="hint">
+  <span class="hint-line">1放置（点击/长摁） · 2绘画（点击/长摁） · 3液化（点击/长摁） · s套索 · Shift加选/模糊 · Alt吸色</span>
+  <span class="hint-line">Ctrl移动 · T变换 · Ctrl+M曲线 · Ctrl+E合并 · E橡皮 · Ctrl+空格缩放 · 空格平移/轻按复位 · X调笔刷大小</span>
+</div>
 
 <script>
 (() => {
@@ -648,9 +719,12 @@ const cfg = {
   ctrlMode: 'scatter',
   paintMode: 'line',
   bWidth: 8, bSmooth: 0.35, bAlpha: 1.0, bSpacing: 0.15,
+  pressureGain: 0,   // 压力增益（对数空间），0 表示不改变
   lqMode: 'push', lqStyle: 'smooth', lqSize: 80, lqStrength: 0.5,
   blurSize: 80,
   blurStrength: 0.5,
+  blurMode: 'blur',        // 'blur' | 'smudge'
+  smudgePickup: 0.55,      // 涂抹时从画布拾取颜色的比例
   baseColor: '#000000',
   hueGradient: 0, hueRandom: false,
   blend: 'source-over', bg: '#ffffff'
@@ -897,27 +971,48 @@ function renderView() {
   vctx.fillStyle = cfg.bg;
   vctx.fillRect(0, 0, baseCvs.width, baseCvs.height);
 
-  /* 合成所有可见图层（含剪贴蒙版） */
-  composeLayersTo(vctx, baseCvs.width, baseCvs.height);
+  /* 合成所有可见图层（含剪贴蒙版）。
+     ── 笔触预览：把活动图层的显示替换为「baseCvs + strokeBuf」
+        用 strokeBlend 混合后的副本。
+        这样预览和提交走完全相同的路径，
+        依赖底层的混合模式（hue / color / overlay / …）也能实时正确显示。 */
+  let previewLayerId = -1;
+  let previewCanvas  = null;
 
-  vctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (strokeActive && strokeBlend !== 'destination-out') {
+    const active = getActiveLayer();
+    if (active) {
+      previewCanvas = document.createElement('canvas');
+      previewCanvas.width  = baseCvs.width;
+      previewCanvas.height = baseCvs.height;
+      const pc = previewCanvas.getContext('2d');
+      pc.setTransform(1, 0, 0, 1, 0, 0);
+      pc.globalCompositeOperation = 'source-over';
+      pc.globalAlpha = 1;
+      pc.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+      pc.drawImage(baseCvs, 0, 0);
 
-  if (strokeActive) {
-    if (strokeBlend === 'destination-out') {
-      /* 擦除已实时写入 baseCvs */
-    } else {
-      vctx.globalCompositeOperation = strokeBlend;
-      vctx.globalAlpha = strokeAlpha;
-      vctx.setTransform(
-        viewScale, 0, 0, viewScale,
-        viewOffsetX * dpr, viewOffsetY * dpr
-      );
-      vctx.drawImage(strokeBuf, 0, 0);
-      vctx.setTransform(1, 0, 0, 1, 0, 0);
-      vctx.globalCompositeOperation = 'source-over';
-      vctx.globalAlpha = 1;
+      /* 用「与提交完全一致的裁剪链」处理 strokeBuf：
+         选区（含反选）+ 锁定像素。
+         否则预览会画到选区外，抬笔才被裁掉 → 视觉跳变。 */
+      const clippedStroke = getPreviewStrokeBuf(active);
+
+      pc.globalCompositeOperation = strokeBlend;
+      pc.globalAlpha = strokeAlpha;
+      pc.drawImage(clippedStroke, 0, 0);
+      pc.globalCompositeOperation = 'source-over';
+      pc.globalAlpha = 1;
+
+      previewLayerId = active.id;
     }
   }
+
+  composeLayersTo(vctx, baseCvs.width, baseCvs.height, {
+    overrideLayerId: previewLayerId,
+    overrideCanvas: previewCanvas
+  });
+
+  vctx.setTransform(1, 0, 0, 1, 0, 0);
 
   if (lassoActive && lassoPoints.length > 1) {
     vctx.setTransform(
@@ -1350,7 +1445,9 @@ function makeShapeDecision(type, pressure) {
 
   let a = cfg.pAlpha;
   if (cfg.placeAlphaPressure && pressure != null && pressure > 0) {
-    a *= (0.05 + pressure * 0.95);
+    const p = pressure;
+    /* 统一使用映射曲线系统 */
+    a *= evalMappingCurve(DEFAULT_PLACE_ALPHA_CURVE, p);
   } else if (a < 0.999) {
     a *= rnd(0.75, 1);
   }
@@ -1766,6 +1863,10 @@ const blurBrushTmpCtx = blurBrushTmpCvs.getContext('2d', { willReadFrequently: t
 let blurBrushCacheKey = '';
 let blurBrushAlphaData = null;
 
+/* 返回「纯 alpha」数组（Uint8Array，长度 size*size）
+   —— 从数据结构上杜绝颜色参与：笔头只用来当形状遮罩，
+      模糊/涂抹的结果颜色完全来自画布本身。
+   缓存键含 size + 原画布尺寸，任何变化都会失效重建。 */
 function getBlurBrushAlpha(size) {
   const cs = blurBrushShape;
   if (!cs || !cs.canvas) return null;
@@ -1779,15 +1880,160 @@ function getBlurBrushAlpha(size) {
   }
   blurBrushTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
   blurBrushTmpCtx.globalCompositeOperation = 'source-over';
+  blurBrushTmpCtx.globalAlpha = 1;
   blurBrushTmpCtx.clearRect(0, 0, size, size);
+
   const maxDim = Math.max(cs.canvas.width, cs.canvas.height);
   const scaleToFit = size / maxDim;
   const dw = cs.canvas.width * scaleToFit;
   const dh = cs.canvas.height * scaleToFit;
-  blurBrushTmpCtx.drawImage(cs.canvas, size / 2 - dw / 2, size / 2 - dh / 2, dw, dh);
-  blurBrushAlphaData = blurBrushTmpCtx.getImageData(0, 0, size, size).data;
+  blurBrushTmpCtx.drawImage(
+    cs.canvas,
+    size / 2 - dw / 2, size / 2 - dh / 2,
+    dw, dh
+  );
+
+  /* 只提取 alpha 通道，丢弃 RGB —— 笔头颜色永不参与结果 */
+  const rgba = blurBrushTmpCtx.getImageData(0, 0, size, size).data;
+  const alphaOnly = new Uint8Array(size * size);
+  for (let i = 0, n = size * size; i < n; i++) {
+    alphaOnly[i] = rgba[i * 4 + 3];
+  }
+
+  blurBrushAlphaData = alphaOnly;
   blurBrushCacheKey = key;
   return blurBrushAlphaData;
+}
+
+/* =========================================================
+   可分离 box blur（两次近似高斯）
+   =========================================================
+   原理：对每一行做 1D box blur，再对每一列做 1D box blur。
+   复杂度从 O(N·K²) 降到 O(N)，视觉上两次 box 的效果与
+   一次高斯非常接近。
+   边缘处理：edge-replicate（越界像素用边界像素代替）
+   ========================================================= */
+
+function boxBlurHorizontal(src, dst, w, h, r) {
+  const win = 2 * r + 1;
+  for (let y = 0; y < h; y++) {
+    const row = y * w * 4;
+    let sr = 0, sg = 0, sb = 0, sa = 0;
+
+    /* 初始窗口：[-r, r]，越界 clamp */
+    for (let k = -r; k <= r; k++) {
+      const xx = k < 0 ? 0 : (k >= w ? w - 1 : k);
+      const idx = row + xx * 4;
+      sr += src[idx];
+      sg += src[idx + 1];
+      sb += src[idx + 2];
+      sa += src[idx + 3];
+    }
+    dst[row]     = sr / win;
+    dst[row + 1] = sg / win;
+    dst[row + 2] = sb / win;
+    dst[row + 3] = sa / win;
+
+    /* 滑动窗口 */
+    for (let x = 1; x < w; x++) {
+      const addX = x + r >= w ? w - 1 : x + r;
+      const remX = x - 1 - r < 0 ? 0 : x - 1 - r;
+      const ai = row + addX * 4;
+      const ri = row + remX * 4;
+      sr += src[ai]     - src[ri];
+      sg += src[ai + 1] - src[ri + 1];
+      sb += src[ai + 2] - src[ri + 2];
+      sa += src[ai + 3] - src[ri + 3];
+      const di = row + x * 4;
+      dst[di]     = sr / win;
+      dst[di + 1] = sg / win;
+      dst[di + 2] = sb / win;
+      dst[di + 3] = sa / win;
+    }
+  }
+}
+
+function boxBlurVertical(src, dst, w, h, r) {
+  const win = 2 * r + 1;
+  for (let x = 0; x < w; x++) {
+    let sr = 0, sg = 0, sb = 0, sa = 0;
+
+    for (let k = -r; k <= r; k++) {
+      const yy = k < 0 ? 0 : (k >= h ? h - 1 : k);
+      const idx = (yy * w + x) * 4;
+      sr += src[idx];
+      sg += src[idx + 1];
+      sb += src[idx + 2];
+      sa += src[idx + 3];
+    }
+    const top = x * 4;
+    dst[top]     = sr / win;
+    dst[top + 1] = sg / win;
+    dst[top + 2] = sb / win;
+    dst[top + 3] = sa / win;
+
+    for (let y = 1; y < h; y++) {
+      const addY = y + r >= h ? h - 1 : y + r;
+      const remY = y - 1 - r < 0 ? 0 : y - 1 - r;
+      const ai = (addY * w + x) * 4;
+      const ri = (remY * w + x) * 4;
+      sr += src[ai]     - src[ri];
+      sg += src[ai + 1] - src[ri + 1];
+      sb += src[ai + 2] - src[ri + 2];
+      sa += src[ai + 3] - src[ri + 3];
+      const di = (y * w + x) * 4;
+      dst[di]     = sr / win;
+      dst[di + 1] = sg / win;
+      dst[di + 2] = sb / win;
+      dst[di + 3] = sa / win;
+    }
+  }
+}
+
+/* 两次 box blur = 一次可分离卷积，得到近似高斯的模糊结果。
+   ── 关键：在 premultiplied alpha 空间做模糊。
+      透明像素的 RGB=0，如果直接平均会把邻近颜色拉黑；
+      先把 RGB 乘以 alpha 再模糊，透明像素就完全不参与贡献，
+      最后再按平均 alpha 反解回 unpremultiplied。 */
+function twoPassBoxBlur(src, w, h, r) {
+  const n = src.length;
+
+  /* 1. premultiply：R' = R * A/255，G' = G * A/255，B' = B * A/255
+        用 Float32Array 保精度，避免 premultiply 时截断出误差 */
+  const pre = new Float32Array(n);
+  for (let i = 0; i < n; i += 4) {
+    const a = src[i + 3] / 255;
+    pre[i]     = src[i]     * a;
+    pre[i + 1] = src[i + 1] * a;
+    pre[i + 2] = src[i + 2] * a;
+    pre[i + 3] = src[i + 3];
+  }
+
+  /* 2. 在 premultiplied 空间做两次 box blur */
+  const tmp     = new Float32Array(n);
+  const blurred = new Float32Array(n);
+  boxBlurHorizontal(pre, tmp, w, h, r);
+  boxBlurVertical(tmp, blurred, w, h, r);
+
+  /* 3. unpremultiply：R = R' / (A/255)，即 R = R' * 255 / A
+        若平均 alpha 接近 0，直接输出透明（避免数值噪声） */
+  const dst = new Uint8ClampedArray(n);
+  for (let i = 0; i < n; i += 4) {
+    const a = blurred[i + 3];
+    if (a < 0.5) {
+      dst[i]     = 0;
+      dst[i + 1] = 0;
+      dst[i + 2] = 0;
+      dst[i + 3] = 0;
+    } else {
+      const inv = 255 / a;
+      dst[i]     = blurred[i]     * inv;
+      dst[i + 1] = blurred[i + 1] * inv;
+      dst[i + 2] = blurred[i + 2] * inv;
+      dst[i + 3] = a;
+    }
+  }
+  return dst;
 }
 
 function applyBlurAt(cssX, cssY) {
@@ -1818,6 +2064,11 @@ function applyBlurAt(cssX, cssY) {
   const src = srcImg.data;
   const out = new Uint8ClampedArray(pw * ph * 4);
 
+  /* 关键优化：用两次 box blur 一次性得到整个区域的模糊结果
+     原来每像素 K² 次采样 → 现在整块 O(N) */
+  const boxR = Math.max(1, Math.round(KR * 0.75));
+  const avg = twoPassBoxBlur(src, pw, ph, boxR);
+
   const brushSize = useCustom ? Math.ceil(rP * 2) : 0;
   const brushHalf = brushSize / 2;
   const brushAlpha = useCustom ? getBlurBrushAlpha(brushSize) : null;
@@ -1840,8 +2091,9 @@ function applyBlurAt(cssX, cssY) {
           out[si + 3] = src[si + 3];
           continue;
         }
-        const bi = (byi * brushSize + bxi) * 4;
-        const ba = brushAlpha[bi + 3] / 255;
+        /* brushAlpha 现在是纯 alpha 数组，索引直接是 y*size+x */
+        const bi = byi * brushSize + bxi;
+        const ba = brushAlpha[bi] / 255;
         if (ba < 0.01) {
           out[si]     = src[si];
           out[si + 1] = src[si + 1];
@@ -1865,24 +2117,11 @@ function applyBlurAt(cssX, cssY) {
         falloff = 0.5 * (1 + Math.cos(Math.PI * t)) * cfg.blurStrength;
       }
 
-      let rs = 0, gs = 0, bs = 0, as = 0, n = 0;
-      for (let ky = -KR; ky <= KR; ky++) {
-        const yy = y + ky;
-        if (yy < 0 || yy >= ph) continue;
-        const rowBase = yy * pw;
-        for (let kx = -KR; kx <= KR; kx++) {
-          const xx = x + kx;
-          if (xx < 0 || xx >= pw) continue;
-          const ki = (rowBase + xx) * 4;
-          rs += src[ki];
-          gs += src[ki + 1];
-          bs += src[ki + 2];
-          as += src[ki + 3];
-          n++;
-        }
-      }
-
-      const avgR = rs / n, avgG = gs / n, avgB = bs / n, avgA = as / n;
+      /* 直接从 avg 读预计算的模糊结果 */
+      const avgR = avg[si];
+      const avgG = avg[si + 1];
+      const avgB = avg[si + 2];
+      const avgA = avg[si + 3];
       const oR = src[si], oG = src[si + 1], oB = src[si + 2], oA = src[si + 3];
 
       out[si]     = oR + (avgR - oR) * falloff;
@@ -1918,6 +2157,15 @@ function applyBlurAt(cssX, cssY) {
 let blurTimer = null;
 let blurLockSnap = null;
 
+/* 按当前模式分发：'blur' → 模糊；'smudge' → 涂抹 */
+function applyBlurToolAt(cssX, cssY) {
+  if (cfg.blurMode === 'smudge') {
+    applySmudgeAt(cssX, cssY);
+  } else {
+    applyBlurAt(cssX, cssY);
+  }
+}
+
 function startBlur(cssX, cssY, pointerId) {
   blurActive = true;
   blurPointerId = pointerId;
@@ -1928,7 +2176,11 @@ function startBlur(cssX, cssY, pointerId) {
   blurLockSnap = captureLockMaskSnapshot();
 
   takeSnapshot();
-  applyBlurAt(cssX, cssY);
+
+  /* 涂抹模式需要先在起点抓一份颜色样本 */
+  if (cfg.blurMode === 'smudge') initSmudgeSample();
+
+  applyBlurToolAt(cssX, cssY);
 
   if (blurTimer) clearInterval(blurTimer);
   blurTimer = setInterval(() => {
@@ -1937,8 +2189,8 @@ function startBlur(cssX, cssY, pointerId) {
       blurTimer = null;
       return;
     }
-    applyBlurAt(blurPrevX, blurPrevY);
-  }, 50);
+    applyBlurToolAt(blurPrevX, blurPrevY);
+  }, 80);
 }
 
 function updateBlur(cssX, cssY) {
@@ -1954,7 +2206,7 @@ function updateBlur(cssX, cssY) {
   const sx = dx / steps, sy = dy / steps;
 
   for (let i = 1; i <= steps; i++) {
-    applyBlurAt(blurPrevX + sx * i, blurPrevY + sy * i);
+    applyBlurToolAt(blurPrevX + sx * i, blurPrevY + sy * i);
   }
 
   blurPrevX = cssX;
@@ -1970,9 +2222,232 @@ function endBlur() {
   }
   restoreOutsideLockMask(blurLockSnap);
   blurLockSnap = null;
+  smudgeSample = null;
   renderView();
 }
 
+/* =========================================================
+   Smudge（涂抹 / 混合）——参照 Krita Color Smudge 的精简实现
+   =========================================================
+   原理：
+   1. 每次 dab 从当前位置拾取一小块画布颜色
+   2. 与「上次携带的颜色」按 pickup 比例混合，得到本次笔尖颜色
+   3. 把笔尖颜色按强度 + 软边遮罩贴回画布
+   4. 携带的颜色继续带着走，形成连贯涂抹
+   ========================================================= */
+
+let smudgeSample = null;   // 当前笔尖携带的颜色块 { canvas, size }
+
+/* 从画布拾取一块 size×size 的像素，越界部分填透明 */
+function pickCanvasPatch(cxP, cyP, size) {
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const cc = c.getContext('2d', { willReadFrequently: true });
+  cc.drawImage(
+    baseCvs,
+    cxP - size / 2, cyP - size / 2, size, size,
+    0, 0, size, size
+  );
+
+  /* 清理极低 alpha 的噪声：这些像素的 RGB 可能是随机值，
+     如果带进涂抹会把脏颜色拖到别处 */
+  const img = cc.getImageData(0, 0, size, size);
+  const data = img.data;
+  let dirty = false;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 3) {
+      if (data[i] || data[i + 1] || data[i + 2] || data[i + 3]) {
+        data[i]     = 0;
+        data[i + 1] = 0;
+        data[i + 2] = 0;
+        data[i + 3] = 0;
+        dirty = true;
+      }
+    }
+  }
+  if (dirty) cc.putImageData(img, 0, 0);
+
+  return { canvas: c, size };
+}
+
+/* 抓初始样本：开始涂抹前先在起点拾取一块，避免第一笔空白 */
+function initSmudgeSample() {
+  const r = Math.max(4, (cfg.blurSize * dpr) / 2);
+  const size = Math.ceil(r * 2);
+  const cxP = blurPrevX * dpr;
+  const cyP = blurPrevY * dpr;
+  smudgeSample = pickCanvasPatch(cxP, cyP, size);
+}
+
+/* 构建涂抹用的笔头遮罩：
+   - 若启用了「自定义模糊笔头」，用它的 alpha 通道
+   - 否则回退到径向渐变（圆形软边） */
+/* 构建涂抹用的笔头遮罩：
+   - 若启用了「自定义模糊笔头」，取它的「纯 alpha」作为遮罩，
+     并强制 RGB 为白 —— 笔头颜色永远不参与涂抹结果
+   - 否则回退到径向渐变（圆形软边） */
+function buildSmudgeMask(size) {
+  const maskCvs = document.createElement('canvas');
+  maskCvs.width = size;
+  maskCvs.height = size;
+  const mc = maskCvs.getContext('2d');
+
+  if (useBlurCustomBrush && blurBrushShape && blurBrushShape.canvas) {
+    const alpha = getBlurBrushAlpha(size);   // 已是纯 alpha 数组
+    if (alpha) {
+      const rgba = new Uint8ClampedArray(size * size * 4);
+      for (let i = 0, n = size * size; i < n; i++) {
+        const pi = i * 4;
+        rgba[pi]     = 255;             // R
+        rgba[pi + 1] = 255;             // G
+        rgba[pi + 2] = 255;             // B
+        rgba[pi + 3] = alpha[i];        // A
+      }
+      mc.putImageData(new ImageData(rgba, size, size), 0, 0);
+      return maskCvs;
+    }
+  }
+
+  /* 无自定义笔头 → 径向渐变，边缘平滑衰减 */
+  const grad = mc.createRadialGradient(
+    size / 2, size / 2, 0,
+    size / 2, size / 2, size / 2
+  );
+  grad.addColorStop(0.0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.7, 'rgba(255,255,255,0.6)');
+  grad.addColorStop(1.0, 'rgba(255,255,255,0)');
+  mc.fillStyle = grad;
+  mc.fillRect(0, 0, size, size);
+  return maskCvs;
+}
+
+/* 执行一次涂抹 dab */
+function applySmudgeAt(cssX, cssY) {
+  const W = baseCvs.width, H = baseCvs.height;
+  const cxP = cssX * dpr, cyP = cssY * dpr;
+
+  const rP = Math.max(4, (cfg.blurSize * dpr) / 2);
+  const size = Math.ceil(rP * 2);
+
+  /* 1. 从当前位置拾取一块新样本 */
+  const fresh = pickCanvasPatch(cxP, cyP, size);
+  const freshData = fresh.canvas
+    .getContext('2d')
+    .getImageData(0, 0, size, size).data;
+
+  /* 2. 与携带样本按 pickup 比例混合
+       —— 关键修复：按 alpha 加权混合（等效 premultiplied 空间混合）。
+       透明像素 RGB=0，如果直接把 RGB 做线性平均，
+       绿色会和"黑"平均出灰暗色，看起来就像混进了黑色。 */
+  const k = cfg.smudgePickup;
+  let carried;
+  if (smudgeSample && smudgeSample.size === size) {
+    const carriedData = smudgeSample.canvas
+      .getContext('2d')
+      .getImageData(0, 0, size, size).data;
+    carried = new Uint8ClampedArray(size * size * 4);
+    for (let i = 0; i < carried.length; i += 4) {
+      const ca = carriedData[i + 3] / 255;   // 携带像素的 alpha
+      const fa = freshData[i + 3] / 255;     // 新采样像素的 alpha
+
+      /* 两边各自对「总权重」的贡献 */
+      const wa = ca * (1 - k);
+      const wb = fa * k;
+      const totalA = wa + wb;
+
+      if (totalA < 1e-4) {
+        /* 两边都接近透明 → 输出透明，避免把 RGB=0 混进来 */
+        carried[i]     = 0;
+        carried[i + 1] = 0;
+        carried[i + 2] = 0;
+        carried[i + 3] = 0;
+        continue;
+      }
+
+      /* 按「颜色 × alpha」加权平均，再除以总 alpha：
+         这样透明像素的 RGB=0 完全不会被算进来 */
+      carried[i]     = (carriedData[i]     * wa + freshData[i]     * wb) / totalA;
+      carried[i + 1] = (carriedData[i + 1] * wa + freshData[i + 1] * wb) / totalA;
+      carried[i + 2] = (carriedData[i + 2] * wa + freshData[i + 2] * wb) / totalA;
+      carried[i + 3] = totalA * 255;
+    }
+  } else {
+    carried = new Uint8ClampedArray(freshData);
+  }
+  const carriedCvs = document.createElement('canvas');
+  carriedCvs.width = size; carriedCvs.height = size;
+  carriedCvs.getContext('2d').putImageData(
+    new ImageData(carried, size, size), 0, 0
+  );
+  smudgeSample = { canvas: carriedCvs, size };
+
+  /* 3. 生成 patch 画布并把 carried 贴上去 */
+  const patch = document.createElement('canvas');
+  patch.width = size; patch.height = size;
+  const pc = patch.getContext('2d');
+  pc.putImageData(new ImageData(carried, size, size), 0, 0);
+
+  /* 4. 用笔头遮罩（自定义笔头或径向渐变）裁掉边缘
+        —— 关键改动：这里用 buildSmudgeMask，涂抹现在也吃自定义笔头 */
+  const maskCvs = buildSmudgeMask(size);
+  pc.globalCompositeOperation = 'destination-in';
+  pc.drawImage(maskCvs, 0, 0);
+  pc.globalCompositeOperation = 'source-over';
+
+  /* 5. 用强度调整 alpha（0~1 缩放） */
+  const strength = cfg.blurStrength;
+  if (strength < 0.999) {
+    const img = pc.getImageData(0, 0, size, size);
+    const data = img.data;
+    for (let i = 3; i < data.length; i += 4) {
+      data[i] = data[i] * strength;
+    }
+    pc.putImageData(img, 0, 0);
+  }
+
+  /* 6. 与选区遮罩求交 */
+  if (hasSelection()) {
+    const selMask = getActiveMaskCvs();
+    if (selMask) {
+      const crop = document.createElement('canvas');
+      crop.width = size; crop.height = size;
+      const cc = crop.getContext('2d');
+      cc.drawImage(
+        selMask,
+        cxP - size / 2, cyP - size / 2, size, size,
+        0, 0, size, size
+      );
+      pc.globalCompositeOperation = 'destination-in';
+      pc.drawImage(crop, 0, 0);
+      pc.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  /* 7. 与图层锁定像素遮罩求交 */
+  const active = getActiveLayer();
+  if (active && active.lockPixels && active.lockMask) {
+    const crop = document.createElement('canvas');
+    crop.width = size; crop.height = size;
+    const cc = crop.getContext('2d');
+    cc.drawImage(
+      active.lockMask,
+      cxP - size / 2, cyP - size / 2, size, size,
+      0, 0, size, size
+    );
+    pc.globalCompositeOperation = 'destination-in';
+    pc.drawImage(crop, 0, 0);
+    pc.globalCompositeOperation = 'source-over';
+  }
+
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = 'source-over';
+  bctx.globalAlpha = 1;
+  bctx.drawImage(patch, cxP - size / 2, cyP - size / 2);
+  bctx.restore();
+
+  renderView();
+}
 /* =========================================================
    曲线（Ctrl+M）
    ========================================================= */
@@ -2180,6 +2655,7 @@ function cpReset() {
 
 function cpOpen() {
   if (cpActive) return;
+  if (!canEditActiveLayer()) return;
   takeSnapshot();
   cpSnapshot = document.createElement('canvas');
   cpSnapshot.width = baseCvs.width;
@@ -2408,6 +2884,7 @@ let tfBase     = null;
 let tfContent  = null;
 let tfCSSW     = 0, tfCSSH = 0;
 let tfVertices = null;      // 网格顶点 [行][列] = {x, y}（CSS 世界坐标）
+let tfHadSelectionAtEnter = false;   // 进入 T 时是否本来就有选区
 let tfGridRows = 4;         // 网格行数（单元数），越大越平滑
 let tfGridCols = 4;         // 网格列数（单元数）
 let tfDrag     = null;
@@ -2561,19 +3038,65 @@ function updateTransformCursor(hit) {
 
 function enterTransform() {
   if (tfActive) return;
-  if (!hasSelection()) { showToast('请先建立选区，再按 T'); return; }
 
-  {
-    const activeL = getActiveLayer();
-    if (activeL && activeL.locked) { showToast('图层已锁定'); return; }
+  if (!canEditActiveLayer()) return;
+
+  /* 记录进入 T 时是否本来就有选区：
+     退出时只有「本来就有选区」才把变换结果写成新选区。 */
+  tfHadSelectionAtEnter = hasSelection();
+
+  const W = baseCvs.width, H = baseCvs.height;
+
+  /* 决定变换范围：
+     - 有选区 → 沿用选区 mask
+     - 无选区 → 用「活动图层非透明像素」的包围盒作为范围；
+       但 mask 本身是「全白的实心矩形」，只标范围，不衰减 alpha。
+       这样半透明像素不会被二次衰减，也不会残留原始形状。
+       如果整个图层都没有像素（空白），提示"空图层"。 */
+  let mask;
+  if (hasSelection()) {
+    mask = getActiveMaskCvs();
+  } else {
+    /* 1. 先用原图 alpha 找像素包围盒 */
+    mask = document.createElement('canvas');
+    mask.width = W;
+    mask.height = H;
+    const mc = mask.getContext('2d', { willReadFrequently: true });
+    mc.drawImage(baseCvs, 0, 0);
+
+    const id = mc.getImageData(0, 0, W, H);
+    const dd = id.data;
+    let minX = W, minY = H, maxX = -1, maxY = -1;
+    for (let y = 0; y < H; y++) {
+      const rb = y * W;
+      for (let x = 0; x < W; x++) {
+        if (dd[(rb + x) * 4 + 3] > 8) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (maxX < minX || maxY < minY) {
+      showToast('当前图层为空\n请先绘制内容，或使用 s+套索 建立选区');
+      return;
+    }
+
+    /* 2. 用包围盒构造全白矩形 mask（不衰减 alpha） */
+    mc.setTransform(1, 0, 0, 1, 0, 0);
+    mc.globalCompositeOperation = 'source-over';
+    mc.globalAlpha = 1;
+    mc.clearRect(0, 0, W, H);
+    mc.fillStyle = '#fff';
+    mc.fillRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
   }
+
+  if (!mask) return;
 
   /* 记录进入变换时的锁定像素快照，供 commitTransform 使用 */
   commitTransform.lockSnap = captureLockMaskSnapshot();
-
-  const W = baseCvs.width, H = baseCvs.height;
-  const mask = getActiveMaskCvs();
-  if (!mask) return;
 
   let data;
   try {
@@ -2685,9 +3208,21 @@ function commitTransform() {
 
   restoreOutsideLockMask(commitTransform.lockSnap || null);
 
-  selectionOps = [{ points: pts, op: 'new' }];
-  selectionInverted = false;
-  rebuildSelection();
+  /* 只有进入 T 时本来就有选区，退出才带选区。
+     无选区进 T 的情况（对整个图层做变换），退出后不该凭空多出选区。 */
+  if (tfHadSelectionAtEnter) {
+    selectionOps = [{ points: pts, op: 'new' }];
+    selectionInverted = false;
+    rebuildSelection();
+  } else {
+    /* 清掉任何可能的残留（防止上一次变换留下的选区干扰） */
+    selectionOps = [];
+    selectionInverted = false;
+    selectionMaskCvs = null;
+    selectionInvMaskCvs = null;
+    selectionContours = [];
+  }
+
   renderView();
 }
 
@@ -3008,6 +3543,10 @@ let layers = [];
 let activeLayerId = 0;
 let nextLayerId = 1;
 let layerNameCounter = 1;
+/* 多选集合：始终至少包含 activeLayerId。
+   - 单选：Set 里只有一个元素，等于 active
+   - 多选：Set 里有多个，active 是其中的“主”项 */
+let selectedLayerIds = new Set();
 
 const layerTmpCvs = document.createElement('canvas');
 const layerTmpCtx = layerTmpCvs.getContext('2d');
@@ -3033,12 +3572,52 @@ function newLayerData() {
     locked: false,
     clip: false,
     lockPixels: false,   // 锁定像素：只能在现有像素内绘制
-    lockMask: null       // 锁定像素时抓取的 alpha 快照
+    lockMask: null,      // 锁定像素时抓取的 alpha 快照
+    blendMode: 'source-over'   // 图层混合模式（Canvas globalCompositeOperation）
   };
 }
 
+/* 混合模式中文名 → canvas GCO 值 */
+const LAYER_BLEND_MODES = [
+  { value: 'source-over',  label: '正常' },
+  { value: 'multiply',     label: '正片叠底' },
+  { value: 'screen',       label: '滤色' },
+  { value: 'overlay',      label: '叠加' },
+  { value: 'darken',       label: '变暗' },
+  { value: 'lighten',      label: '变亮' },
+  { value: 'color-dodge',  label: '颜色减淡' },
+  { value: 'color-burn',   label: '颜色加深' },
+  { value: 'hard-light',   label: '强光' },
+  { value: 'soft-light',   label: '柔光' },
+  { value: 'difference',   label: '差值' },
+  { value: 'exclusion',    label: '排除' },
+  { value: 'hue',          label: '色相' },
+  { value: 'saturation',   label: '饱和度' },
+  { value: 'color',        label: '颜色' },
+  { value: 'luminosity',   label: '明度' }
+];
+
 function getActiveLayer() {
   return layers.find(l => l.id === activeLayerId) || layers[0] || null;
+}
+
+/* 图层是否可编辑 —— 语义：可见 且 未锁定。
+   - 不可见 → 语义上等同"锁死"，一切编辑操作都应被拦截
+   - 已锁定 → 拦截
+   返回 true 表示可以编辑；返回 false 时已经弹出提示。 */
+function canEditActiveLayer() {
+  const active = getActiveLayer();
+  if (!active) return false;
+
+  if (!active.visible) {
+    showToast('图层「' + active.name + '」不可见，无法编辑');
+    return false;
+  }
+  if (active.locked) {
+    showToast('图层「' + active.name + '」已锁定');
+    return false;
+  }
+  return true;
 }
 
 /* 活动图层的内容实时存在 baseCvs 上；其余图层读自己的画布 */
@@ -3078,6 +3657,69 @@ function setActiveLayer(id) {
   renderView();
 }
 
+/* 统一的图层选择逻辑
+   mode = 'single' | 'toggle' | 'range'
+   - single：单击，清空其他选中，只选这一个
+   - toggle：Ctrl/Cmd 点击，切换该图层的选中状态
+   - range：Shift 点击，从 active 到目标的连续区间全选 */
+function selectLayer(id, mode) {
+  const targetIdx = layers.findIndex(l => l.id === id);
+  if (targetIdx < 0) return;
+
+  /* 不可见图层允许被选中，但不自动显示。
+     编辑时由 canEditActiveLayer() 统一拦截并提示。 */
+
+  if (mode === 'range') {
+    const aIdx = layers.findIndex(l => l.id === activeLayerId);
+    if (aIdx < 0) return;
+    const lo = Math.min(aIdx, targetIdx);
+    const hi = Math.max(aIdx, targetIdx);
+    const newSel = new Set();
+    for (let i = lo; i <= hi; i++) newSel.add(layers[i].id);
+    selectedLayerIds = newSel;
+    /* active 保持不动 */
+    updateLayersUI();
+    renderView();
+    return;
+  }
+
+  if (mode === 'toggle') {
+    if (selectedLayerIds.has(id)) {
+      /* 取消选中；但不能取消最后一个 */
+      if (selectedLayerIds.size > 1) {
+        selectedLayerIds.delete(id);
+        if (activeLayerId === id) {
+          const nextId = selectedLayerIds.values().next().value;
+          const oldLayer = getActiveLayer();
+          if (oldLayer) saveBaseToLayer(oldLayer);
+          activeLayerId = nextId;
+          loadLayerToBase(getActiveLayer());
+        }
+      }
+    } else {
+      const oldLayer = getActiveLayer();
+      if (oldLayer) saveBaseToLayer(oldLayer);
+      selectedLayerIds.add(id);
+      activeLayerId = id;
+      loadLayerToBase(getActiveLayer());
+    }
+    updateLayersUI();
+    renderView();
+    return;
+  }
+
+  /* single */
+  if (id !== activeLayerId) {
+    const oldLayer = getActiveLayer();
+    if (oldLayer) saveBaseToLayer(oldLayer);
+    activeLayerId = id;
+    loadLayerToBase(getActiveLayer());
+  }
+  selectedLayerIds = new Set([id]);
+  updateLayersUI();
+  renderView();
+}
+
 function addLayer() {
   if (layers.length >= MAX_LAYERS) { showToast('图层数已达上限（' + MAX_LAYERS + '）'); return; }
   const cur = getActiveLayer();
@@ -3086,6 +3728,7 @@ function addLayer() {
   const idx = layers.findIndex(l => l.id === activeLayerId);
   layers.splice(idx + 1, 0, newL);
   activeLayerId = newL.id;
+  selectedLayerIds = new Set([newL.id]);
   loadLayerToBase(newL);
   updateLayersUI();
   renderView();
@@ -3096,13 +3739,195 @@ function deleteLayer(id) {
   const idx = layers.findIndex(l => l.id === id);
   if (idx < 0) return;
   layers.splice(idx, 1);
+  selectedLayerIds.delete(id);
+
   if (activeLayerId === id) {
     const newIdx = Math.min(idx, layers.length - 1);
     activeLayerId = layers[newIdx].id;
     loadLayerToBase(layers[newIdx]);
+    selectedLayerIds = new Set([activeLayerId]);
+  } else if (!selectedLayerIds.has(activeLayerId)) {
+    selectedLayerIds.add(activeLayerId);
   }
+
   updateLayersUI();
   renderView();
+}
+
+/* =========================================================
+   图层合并（Ctrl+E）
+   =========================================================
+   - 单图层：与下方相邻图层合并，结果放到下方图层的位置
+   - 多图层：合并所有选中图层，结果放到栈里最靠上的那个选中图层
+   ========================================================= */
+
+/* 先把 active 图层的最新内容落地（baseCvs 里的实时编辑），
+   再执行合并，避免合并时丢失未提交的内容。 */
+function flushActiveLayer() {
+  const active = getActiveLayer();
+  if (active) saveBaseToLayer(active);
+}
+
+/* 把「一组图层画布」从下到上叠加成一个新画布 */
+function compositeCanvases(canvasList, width, height) {
+  const tmp = document.createElement('canvas');
+  tmp.width = width;
+  tmp.height = height;
+  const tctx = tmp.getContext('2d');
+  tctx.setTransform(1, 0, 0, 1, 0, 0);
+  tctx.globalCompositeOperation = 'source-over';
+  tctx.globalAlpha = 1;
+  for (const cv of canvasList) {
+    tctx.drawImage(cv, 0, 0);
+  }
+  return tmp;
+}
+
+/* 把 srcCanvas 的内容写入 layer 的画布（整体替换） */
+function replaceLayerCanvas(layer, srcCanvas) {
+  const c = layer.ctx;
+  c.save();
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalCompositeOperation = 'source-over';
+  c.globalAlpha = 1;
+  c.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+  c.drawImage(srcCanvas, 0, 0);
+  c.restore();
+}
+
+/* 合并指定的一组图层 id */
+function mergeLayers(ids) {
+  const indices = Array.from(ids)
+    .map(id => layers.findIndex(l => l.id === id))
+    .filter(i => i >= 0)
+    .sort((a, b) => a - b);
+
+  if (indices.length < 2) return false;
+
+  flushActiveLayer();
+
+  /* 栈里最靠上的选中图层，合并结果放这里 */
+  const topIdx = indices[indices.length - 1];
+  const topLayer = layers[topIdx];
+
+  const W = topLayer.canvas.width;
+  const H = topLayer.canvas.height;
+
+  /* 只合并「可见」图层的像素；不可见图层的内容主动抛弃 */
+  const visibleCanvases = indices
+    .filter(i => layers[i].visible)
+    .map(i => layers[i].canvas);
+
+  if (visibleCanvases.length === 0) {
+    /* 全部不可见 → 结果为空画布 */
+    const empty = document.createElement('canvas');
+    empty.width = W;
+    empty.height = H;
+    replaceLayerCanvas(topLayer, empty);
+  } else {
+    const merged = compositeCanvases(visibleCanvases, W, H);
+    replaceLayerCanvas(topLayer, merged);
+  }
+
+  /* 合并后新图层强制可见，避免出现"合并完却看不见"的困惑 */
+  topLayer.visible = true;
+  /* 混合模式重置为正常 —— 因为像素已经"烤"在一起了，
+     再保留原来的混合模式会让结果显得莫名其妙 */
+  topLayer.blendMode = 'source-over';
+
+  /* 删除其余选中图层（用 id 查找，避免索引错位） */
+  for (let i = 0; i < indices.length - 1; i++) {
+    const delId = layers[indices[i]].id;
+    const curIdx = layers.findIndex(l => l.id === delId);
+    if (curIdx >= 0) layers.splice(curIdx, 1);
+  }
+
+  activeLayerId = topLayer.id;
+  selectedLayerIds = new Set([topLayer.id]);
+  loadLayerToBase(topLayer);
+  updateLayersUI();
+  renderView();
+
+  const skipped = indices.length - visibleCanvases.length;
+  const msg = skipped > 0
+    ? '已合并 ' + visibleCanvases.length + ' 个可见图层（忽略 ' + skipped + ' 个不可见图层）'
+    : '已合并 ' + indices.length + ' 个图层';
+  showToast(msg);
+  return true;
+}
+
+/* 单个图层向下合并 */
+function mergeDown() {
+  const activeIdx = layers.findIndex(l => l.id === activeLayerId);
+  if (activeIdx < 0) return;
+
+  if (activeIdx === 0) {
+    showToast('已是最底层，无法向下合并');
+    return;
+  }
+
+  const above = layers[activeIdx];
+  const below = layers[activeIdx - 1];
+
+  flushActiveLayer();
+
+  const W = below.canvas.width;
+  const H = below.canvas.height;
+
+  /* 只收集「可见」图层的画布，按从下到上顺序；不可见的抛弃 */
+  const visibleCanvases = [];
+  if (below.visible) visibleCanvases.push(below.canvas);
+  if (above.visible) visibleCanvases.push(above.canvas);
+
+  if (visibleCanvases.length === 0) {
+    /* 两边都不可见 → 结果为空画布 */
+    const empty = document.createElement('canvas');
+    empty.width = W;
+    empty.height = H;
+    replaceLayerCanvas(below, empty);
+  } else {
+    const merged = compositeCanvases(visibleCanvases, W, H);
+    replaceLayerCanvas(below, merged);
+  }
+
+  /* 合并后新图层强制可见 */
+  below.visible = true;
+  /* 混合模式重置为正常 */
+  below.blendMode = 'source-over';
+
+  /* 删除上面的图层 */
+  const delIdx = layers.findIndex(l => l.id === above.id);
+  if (delIdx >= 0) layers.splice(delIdx, 1);
+
+  activeLayerId = below.id;
+  selectedLayerIds = new Set([below.id]);
+  loadLayerToBase(below);
+  updateLayersUI();
+  renderView();
+
+  const skipped = (below.visible ? 1 : 0) + (above.visible ? 1 : 0);
+  if (visibleCanvases.length < 2) {
+    showToast('已向下合并（忽略不可见图层内容）');
+  } else {
+    showToast('已向下合并');
+  }
+}
+
+/* Ctrl+E 主入口 */
+function ctrlEMerge() {
+  if (layers.length < 2) {
+    showToast('至少需要两个图层才能合并');
+    return;
+  }
+
+  /* 多选时：合并所有选中 */
+  if (selectedLayerIds.size >= 2) {
+    mergeLayers(selectedLayerIds);
+    return;
+  }
+
+  /* 单选时：向下合并 */
+  mergeDown();
 }
 
 function toggleVisible(id) {
@@ -3174,6 +3999,40 @@ function clipStrokeBufByLockMask() {
   sctx.restore();
 }
 
+/* A'. 供预览使用：对 strokeBuf 的「副本」应用与提交完全相同的裁剪链
+      1. 选区裁剪（含反选）
+      2. 锁定像素裁剪
+      返回裁剪后的画布；若两者都不需要，直接返回原 strokeBuf（零开销）。 */
+function getPreviewStrokeBuf(active) {
+  const activeMask = getActiveMaskCvs();
+  const needLock = active && active.lockPixels && active.lockMask;
+
+  if (!activeMask && !needLock) return strokeBuf;
+
+  const tmp = document.createElement('canvas');
+  tmp.width  = strokeBuf.width;
+  tmp.height = strokeBuf.height;
+  const tc = tmp.getContext('2d');
+  tc.setTransform(1, 0, 0, 1, 0, 0);
+  tc.globalCompositeOperation = 'source-over';
+  tc.globalAlpha = 1;
+  tc.drawImage(strokeBuf, 0, 0);
+
+  if (activeMask) {
+    tc.globalCompositeOperation = 'destination-in';
+    tc.globalAlpha = 1;
+    tc.drawImage(activeMask, 0, 0);
+  }
+  if (needLock) {
+    tc.globalCompositeOperation = 'destination-in';
+    tc.globalAlpha = 1;
+    tc.drawImage(active.lockMask, 0, 0);
+  }
+  tc.globalCompositeOperation = 'source-over';
+
+  return tmp;
+}
+
 /* B. 对直接修改 baseCvs 的操作（模糊 / 液化 / 曲线 / 变换 / 粘贴）
       用「快照 + 回贴」的方式，让遮罩只作用于本次编辑带来的差异，
       不会重新裁剪已有像素。 */
@@ -3242,6 +4101,7 @@ function updateLayersUI() {
     const row = document.createElement('div');
     row.className = 'layer-row';
     if (layer.id === activeLayerId) row.classList.add('active');
+    if (selectedLayerIds.has(layer.id)) row.classList.add('selected');
 
     /* 可见性 */
     const visBtn = document.createElement('button');
@@ -3298,28 +4158,74 @@ function updateLayersUI() {
       deleteLayer(layer.id);
     });
 
+    /* 混合模式下拉（紧凑，放在名称之后、删除之前） */
+    const blendSelect = document.createElement('select');
+    blendSelect.className = 'layer-blend';
+    blendSelect.title = '图层混合模式';
+    for (const m of LAYER_BLEND_MODES) {
+      const opt = document.createElement('option');
+      opt.value = m.value;
+      opt.textContent = m.label;
+      if (m.value === (layer.blendMode || 'source-over')) opt.selected = true;
+      blendSelect.appendChild(opt);
+    }
+    blendSelect.addEventListener('click', e => {
+      /* 阻止冒泡到行点击（避免选中图层时被误触发） */
+      e.stopPropagation();
+    });
+    blendSelect.addEventListener('change', e => {
+      e.stopPropagation();
+      layer.blendMode = e.target.value;
+      /* 混合模式只影响合成结果，不改画布本身，
+         无需 saveBaseToLayer，直接重绘即可 */
+      renderView();
+    });
+
     row.appendChild(visBtn);
     row.appendChild(lockBtn);
     row.appendChild(clipBtn);
     row.appendChild(lockPixBtn);
     row.appendChild(nameEl);
+    row.appendChild(blendSelect);
     row.appendChild(delBtn);
 
-    row.addEventListener('click', () => {
-      if (layer.id !== activeLayerId) setActiveLayer(layer.id);
+    row.addEventListener('click', e => {
+      if (e.shiftKey) {
+        selectLayer(layer.id, 'range');
+      } else if (e.ctrlKey || e.metaKey) {
+        selectLayer(layer.id, 'toggle');
+      } else {
+        selectLayer(layer.id, 'single');
+      }
     });
 
     layersListEl.appendChild(row);
   }
 }
 
-/* ---- 把全部可见图层按剪贴规则合成到 ctx ---- */
-function composeLayersTo(ctx, targetW, targetH) {
+/* ---- 把全部可见图层按剪贴规则合成到 ctx ----
+   每个图层在绘制前设置 globalCompositeOperation = layer.blendMode，
+   绘制后立即复位，避免污染下一张图层的合成。
+   可选参数 opts.overrideLayerId / opts.overrideCanvas：
+   - 用于笔触预览：把指定图层的显示源临时替换为自定义画布，
+     让预览和提交走同一条渲染路径。 */
+function composeLayersTo(ctx, targetW, targetH, opts) {
+  const overrideId  = (opts && opts.overrideLayerId) || -1;
+  const overrideCvs = (opts && opts.overrideCanvas)  || null;
+
   for (let i = 0; i < layers.length; i++) {
     const layer = layers[i];
     if (!layer.visible) continue;
-    const src = getLayerCanvas(layer);
+
+    let src;
+    if (overrideCvs && layer.id === overrideId) {
+      src = overrideCvs;
+    } else {
+      src = getLayerCanvas(layer);
+    }
     if (!src) continue;
+
+    const blend = layer.blendMode || 'source-over';
 
     if (layer.clip && i > 0) {
       /* 找下方第一个可见图层作为底 */
@@ -3331,7 +4237,9 @@ function composeLayersTo(ctx, targetW, targetH) {
         }
       }
       if (!belowCanvas) {
+        ctx.globalCompositeOperation = blend;
         ctx.drawImage(src, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
         continue;
       }
 
@@ -3347,9 +4255,14 @@ function composeLayersTo(ctx, targetW, targetH) {
       layerTmpCtx.globalCompositeOperation = 'destination-in';
       layerTmpCtx.drawImage(belowCanvas, 0, 0);
       layerTmpCtx.globalCompositeOperation = 'source-over';
+
+      ctx.globalCompositeOperation = blend;
       ctx.drawImage(layerTmpCvs, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
     } else {
+      ctx.globalCompositeOperation = blend;
       ctx.drawImage(src, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
     }
   }
 }
@@ -3746,16 +4659,21 @@ function hasAnyCustomShape() {
 /* =========================================================
    放置
    ========================================================= */
+/* 放置工具的大小曲线：沿用与画笔一致的映射系统 */
+const DEFAULT_PLACE_SIZE_CURVE = [[0, 0.22], [0.35, 0.58], [0.7, 0.85], [1.0, 1.0]];
+/* 放置工具的透明度曲线：轻压更淡、过渡更缓 */
+const DEFAULT_PLACE_ALPHA_CURVE = [[0, 0.02], [0.25, 0.18], [0.5, 0.45], [0.75, 0.72], [1.0, 1.0]];
+
 function sizeFactor(pressure) {
   if (!cfg.placeSizePressure) return 1.0;
   const p = (pressure > 0) ? pressure : 0.5;
-  return 0.10 + p * 1.10;
+  return evalMappingCurve(DEFAULT_PLACE_SIZE_CURVE, p);
 }
 
 function alphaFactor(pressure) {
   if (!cfg.placeAlphaPressure) return 1.0;
   const p = (pressure > 0) ? pressure : 0.5;
-  return 0.05 + p * 0.95;
+  return evalMappingCurve(DEFAULT_PLACE_ALPHA_CURVE, p);
 }
 
 function isPlaceErasing() {
@@ -4030,8 +4948,113 @@ function clearStrokeBuf() {
   sctx.restore();
 }
 
+/* =========================================================
+   压感映射系统（参照 libmypaint 的 mapping 架构）
+   =========================================================
+   libmypaint 将每个设置的动态控制抽象为「输入 → 控制点曲线 → 设置值」的映射。
+   我们用同样的思路，把压力映射曲线从硬编码的幂函数改为可配置的曲线。
+   曲线由若干控制点定义，使用分段线性插值评估。 */
+
+/* 默认压感曲线：模拟当前的幂函数手感 + 末端软饱和
+   控制点格式：[pressure, output] 均在 0-1 范围
+   关键：在 0.85~1.0 之间加入控制点，让末端斜率逐渐减小
+   配合单调三次插值 → 接近满压时笔刷仍在缓慢变化，不会硬切 */
+const DEFAULT_SIZE_CURVE  = [
+  [0,    0.22],
+  [0.30, 0.52],
+  [0.60, 0.78],
+  [0.85, 0.93],
+  [1.0,  1.0]
+];
+const DEFAULT_ALPHA_CURVE = [
+  [0,    0.10],
+  [0.30, 0.48],
+  [0.60, 0.76],
+  [0.85, 0.92],
+  [1.0,  1.0]
+];
+
+/* 单调三次插值（Fritsch-Carlson 算法）——参照 Krita 的曲线评估
+   相比分段线性：
+   - 曲线 C1 连续，控制点处没有斜率跳变
+   - 单调性保持，不会产生过冲（overshoot）
+   - 末端斜率自然过渡到接近 0，形成软饱和 */
+function evalMappingCurve(curve, x) {
+  const n = curve.length;
+  if (!curve || n === 0) return x;
+  if (n === 1) return curve[0][1];
+  if (x <= curve[0][0]) return curve[0][1];
+  if (x >= curve[n - 1][0]) return curve[n - 1][1];
+
+  /* 找段 */
+  let seg = 0;
+  for (let i = 0; i < n - 1; i++) {
+    if (x >= curve[i][0] && x <= curve[i + 1][0]) { seg = i; break; }
+  }
+
+  /* 每段的斜率 */
+  const delta = new Array(n - 1);
+  for (let i = 0; i < n - 1; i++) {
+    const dx = curve[i + 1][0] - curve[i][0] || 1e-9;
+    delta[i] = (curve[i + 1][1] - curve[i][1]) / dx;
+  }
+
+  /* 每个控制点的切线（Fritsch-Carlson 加权调和平均） */
+  const m = new Array(n);
+  m[0] = delta[0];
+  m[n - 1] = delta[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (delta[i - 1] * delta[i] <= 0) {
+      m[i] = 0;
+    } else {
+      const h0 = curve[i][0] - curve[i - 1][0];
+      const h1 = curve[i + 1][0] - curve[i][0];
+      const w1 = 2 * h1 + h0;
+      const w2 = h1 + 2 * h0;
+      m[i] = (w1 + w2) / (w1 / delta[i - 1] + w2 / delta[i]);
+    }
+  }
+
+  const x0 = curve[seg][0], y0 = curve[seg][1];
+  const x1 = curve[seg + 1][0], y1 = curve[seg + 1][1];
+  const h = x1 - x0 || 1e-9;
+
+  let t;
+  if (x <= x0) t = 0;
+  else if (x >= x1) t = 1;
+  else t = (x - x0) / h;
+
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const h00 =  2 * t3 - 3 * t2 + 1;
+  const h10 =        t3 - 2 * t2 + t;
+  const h01 = -2 * t3 + 3 * t2;
+  const h11 =        t3 -     t2;
+
+  return h00 * y0 + h10 * h * m[seg] + h01 * y1 + h11 * h * m[seg + 1];
+}
+
+/* 压力增益——参照 MyPaint 的 pressure_gain_log
+   对数空间中的乘法因子，用于整体拉伸或压缩压力响应范围 */
+function applyPressureGain(p, gainLog) {
+  if (!gainLog || Math.abs(gainLog) < 0.01) return p;
+  /* gainLog > 0 → 压力被放大（更灵敏）
+     gainLog < 0 → 压力被压缩（需要更用力） */
+  const gain = Math.exp(gainLog);
+  return Math.min(1, Math.max(0, p * gain));
+}
+
+/* 主入口：将原始压力转换为笔刷大小倍率 */
 function pressureMul(p) {
-  const sizeMul = cfg.paintSizePressure ? (0.10 + p * 1.10) : 1;
+  if (!cfg.paintSizePressure) return { sizeMul: 1 };
+  const q = (p > 0) ? p : 0.5;
+
+  /* 步骤1：应用压力增益 */
+  const gained = applyPressureGain(q, cfg.pressureGain || 0);
+
+  /* 步骤2：通过映射曲线整形 */
+  const sizeMul = evalMappingCurve(DEFAULT_SIZE_CURVE, gained);
+
   return { sizeMul };
 }
 
@@ -4113,12 +5136,21 @@ function paintDab(x, y, pressure) {
   let targetA = cfg.bAlpha;
   if (cfg.paintAlphaPressure) {
     const p = (pressure > 0) ? pressure : 0.5;
-    targetA *= 0.05 + p * 0.95;
+
+    /* 参照 MyPaint 的输入处理流程：
+       1. 先应用压力增益
+       2. 再通过映射曲线整形 */
+    const gained = applyPressureGain(p, cfg.pressureGain || 0);
+    const shaped = evalMappingCurve(DEFAULT_ALPHA_CURVE, gained);
+    targetA *= shaped;
   }
   targetA = Math.max(0.01, Math.min(1, targetA));
 
   const sp = Math.max(0.005, cfg.bSpacing);
-  const dabA = 1 - Math.pow(1 - targetA, sp);
+
+  /* 覆盖次数校正——保证视觉 alpha 与目标 alpha 一一对应 */
+  const coverageN = Math.max(0.5, sizeMul / sp);
+  const dabA = 1 - Math.pow(1 - targetA, 1 / coverageN);
 
   const useBrush = useCustomBrush && customBrushShape && customBrushShape.canvas;
 
@@ -4154,13 +5186,28 @@ function paintDab(x, y, pressure) {
   }
 }
 
-function emitDabsAlongPolyline(pts, pressure) {
+function emitDabsAlongPolyline(pts, pStart, pEnd) {
   const spacing = Math.max(0.4, cfg.bWidth * cfg.bSpacing);
 
+  /* 兼容旧调用：只给一个压力时退化为常量 */
+  if (pStart === undefined) pStart = pEnd;
+  if (pEnd === undefined) pEnd = pStart;
+
+  /* 先算总长，用于把每个 dab 的位置映射到 0..1 的压力参数 t */
+  let totalLen = 0;
+  const segLens = new Array(pts.length - 1);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const L = Math.hypot(pts[i+1].x - pts[i].x, pts[i+1].y - pts[i].y);
+    segLens[i] = L;
+    totalLen += L;
+  }
+  if (totalLen < 1e-9) return;
+
+  let traveled = 0;
   for (let i = 0; i < pts.length - 1; i++) {
     const x0 = pts[i].x, y0 = pts[i].y;
     const x1 = pts[i+1].x, y1 = pts[i+1].y;
-    const segLen = Math.hypot(x1 - x0, y1 - y0);
+    const segLen = segLens[i];
     if (segLen < 1e-9) continue;
 
     const ux = (x1 - x0) / segLen;
@@ -4168,10 +5215,13 @@ function emitDabsAlongPolyline(pts, pressure) {
 
     let d = spacing - dabPhase;
     while (d <= segLen) {
-      paintDab(x0 + ux * d, y0 + uy * d, pressure);
+      const t = (traveled + d) / totalLen;
+      const p = pStart + (pEnd - pStart) * t;   // 沿几何位置线性插值压力
+      paintDab(x0 + ux * d, y0 + uy * d, p);
       d += spacing;
     }
     dabPhase = segLen - (d - spacing);
+    traveled += segLen;
   }
 }
 
@@ -4367,14 +5417,49 @@ function continuePaintStroke(x, y, pressure) {
     smoothPt.x += dxS * k;
     smoothPt.y += dyS * k;
 
-    smoothPressure += (pressure - smoothPressure) * 0.5;
+    const prevPressure = smoothPressure;
+
+    const usingCustomBrush =
+      useCustomBrush && customBrushShape && customBrushShape.canvas;
+
+    const riseK = 0.50;
+    const fallBase = usingCustomBrush ? 0.018 : 0.040;
+    const dropAmount = smoothPressure - pressure;
+    const fallK = dropAmount > 0.3 ? fallBase * 0.6 : fallBase;
+    let pK = (pressure >= smoothPressure) ? riseK : fallK;
+
+    /* ===== 顶部缓冲（新增）=====
+       当平滑压力接近最大值时，同时减速「上升」和「下降」，
+       让进入满压与退出满压都变得柔和，不再硬切。
+       原理：压力在 0.85 以下时，因子 = 1（正常速度）；
+             压力越接近 1.0，因子越小，变化越缓慢。 */
+    const TOP_BUFFER_START  = 0.85;
+    const TOP_BUFFER_STRENGTH = 0.72;   // 最大缓冲 72%
+    if (smoothPressure > TOP_BUFFER_START) {
+      const t = Math.min(1, (smoothPressure - TOP_BUFFER_START) /
+                             (1 - TOP_BUFFER_START));
+      /* 平滑过渡曲线：t=0 → 因子 1.0；t=1 → 因子 0.28 */
+      const ease = t * t * (3 - 2 * t);   // smoothstep
+      const buffer = 1 - ease * TOP_BUFFER_STRENGTH;
+      pK *= buffer;
+    }
+
+    smoothPressure += (pressure - smoothPressure) * pK;
+
+    /* 笔画收尾（参照 MyPaint 的 stroke_threshold）：
+       当压力低于阈值且正在快速下降时，额外减缓下降速度，
+       产生自然的笔尾淡出效果。阈值默认 0.15。 */
+    const strokeEndThreshold = 0.15;
+    if (pressure < strokeEndThreshold && smoothPressure > pressure) {
+      smoothPressure += (pressure - smoothPressure) * 0.04;
+    }
 
     if (!hasFirstMove) {
       const m1x = (prevSmoothX + smoothPt.x) / 2;
       const m1y = (prevSmoothY + smoothPt.y) / 2;
       emitDabsAlongPolyline(
         [{ x: prevSmoothX, y: prevSmoothY }, { x: m1x, y: m1y }],
-        smoothPressure
+        prevPressure, smoothPressure
       );
       prevMidX = m1x; prevMidY = m1y;
       hasFirstMove = true;
@@ -4393,7 +5478,7 @@ function continuePaintStroke(x, y, pressure) {
           y: mt*mt*prevMidY + 2*mt*t*prevSmoothY + t*t*m2y
         });
       }
-      emitDabsAlongPolyline(poly, smoothPressure);
+      emitDabsAlongPolyline(poly, prevPressure, smoothPressure);
 
       prevMidX = m2x; prevMidY = m2y;
     }
@@ -4801,7 +5886,16 @@ function pickColorAt(cssX, cssY) {
   const py = Math.round(cssY * dpr);
   if (px < 0 || py < 0 || px >= baseCvs.width || py >= baseCvs.height) return;
 
-  const d = bctx.getImageData(px, py, 1, 1).data;
+  /* 从「所有可见图层的合成结果」取样，
+     而不是只从当前活动图层取样。
+     合成画布上该像素如果是透明的，才回退到背景色。 */
+  const comp = document.createElement('canvas');
+  comp.width  = baseCvs.width;
+  comp.height = baseCvs.height;
+  const cctx = comp.getContext('2d', { willReadFrequently: true });
+  composeLayersTo(cctx, comp.width, comp.height);
+
+  const d = cctx.getImageData(px, py, 1, 1).data;
   let hex;
   if (d[3] < 10) {
     hex = cfg.bg;
@@ -4886,6 +5980,7 @@ function abortActive() {
   if (blurActive) {
     blurActive = false;
     blurPointerId = null;
+    smudgeSample = null;
   }
   if (moveActive) endMove();
   if (sizeAdjustActive) {
@@ -5011,14 +6106,10 @@ cvs.addEventListener('pointerdown', e => {
     return;
   }
 
-  /* ---- 图层锁定检查：进入任何会修改内容的操作前拦截 ---- */
-  {
-    const activeL = getActiveLayer();
-    if (activeL && activeL.locked) {
-      showToast('图层「' + activeL.name + '」已锁定');
-      return;
-    }
-  }
+  /* ---- 图层可编辑性检查：不可见 / 锁定 都拦截
+          —— 覆盖 shift 模糊/涂抹、ctrl 移动、普通绘制、液化 等
+             所有会写 baseCvs 的操作入口 ---- */
+  if (!canEditActiveLayer()) return;
 
   if (e.shiftKey && e.button === 0 && !sHeld) {
     e.preventDefault();
@@ -5472,6 +6563,7 @@ window.addEventListener('paste', e => {
 });
 
 function pasteImageToCanvas(img) {
+  if (!canEditActiveLayer()) return;
   lastSnap = 0;
   takeSnapshot();
 
@@ -5559,6 +6651,7 @@ function undo() {
 }
 
 function clearAll() {
+  if (!canEditActiveLayer()) return;
   takeSnapshot();
   clearStrokeBuf();
   strokeActive = false;
@@ -5614,6 +6707,24 @@ bindRange('bAlpha',  (v, o) => { cfg.bAlpha = v/100;      o.textContent = v + '%
 bindRange('bSpacing', (v, o) => { cfg.bSpacing = v/100; o.textContent = v + '%'; });
 
 bindRange('lqSize',     (v, o) => { cfg.lqSize = v;              o.textContent = v; });
+
+/* 模糊 / 涂抹模式按钮 */
+const blurModesBox = document.getElementById('blurModes');
+if (blurModesBox) {
+  blurModesBox.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.dataset.v === cfg.blurMode) return;
+    cfg.blurMode = btn.dataset.v;
+    blurModesBox.querySelectorAll('button').forEach(b =>
+      b.classList.toggle('on', b.dataset.v === cfg.blurMode));
+    /* 涂抹模式下，自定义模糊笔头预览不再生效，做一次视觉提示 */
+    const preview = document.getElementById('blurBrushPreview');
+    if (preview) {
+      preview.style.opacity = (cfg.blurMode === 'smudge') ? '0.45' : '1';
+    }
+  });
+}
 
 const blurSizeEl = document.getElementById('blurSize');
 const blurSizeOut = blurSizeEl.nextElementSibling;
@@ -5948,6 +7059,12 @@ window.addEventListener('keydown', e => {
     return;
   }
 
+  if ((e.ctrlKey || e.metaKey) && k === 'e') {
+    e.preventDefault();
+    ctrlEMerge();
+    return;
+  }
+
   if (k === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     enterTransform();
@@ -6118,34 +7235,18 @@ const RADIAL_DEFS = {
   '1': {
     label: '放置',
     items: [
-      { value: 'random', label: '随机' },
-      { value: 'poly',   label: '多边形' },
-      { value: 'star',   label: '星形' },
-      { value: 'rect',   label: '矩形' },
-      { value: 'circle', label: '圆' },
-      { value: 'arc',    label: '扇形' },
-      { value: 'line',   label: '线' },
-      { value: 'cross',  label: '十字' },
-      { value: 'spokes', label: '放射' },
-      { value: 'blob',   label: '墨块' },
-      { value: 'custom', label: '自定义' }
+      { value: 'scatter', label: '散布' },
+      { value: 'drag',    label: '拖拽' }
     ],
     apply(item) {
-      /* 先同步形状按钮与状态 */
-      const shapeBox = document.getElementById('shapes');
-      shapeBox.querySelectorAll('button').forEach(b =>
-        b.classList.toggle('on', b.dataset.v === item.value));
-      cfg.shape = item.value;
-
-      /* 关键：若当前不是「放置」工具，先切过去（applyTool 内部会刷新 UI） */
+      /* 若当前不是「放置」工具，先切过去 */
       if (cfg.tool !== 'place') {
         abortActive();
         exitSelectionMode();
         applyTool('place');
-      } else {
-        updateCustomPanelVisibility();
-        updateUIState();
       }
+      /* 统一走 applyCtrlMode：内部会同步按钮高亮 + 更新提示文本 */
+      applyCtrlMode(item.value);
     }
   },
   '2': {
@@ -6286,9 +7387,14 @@ function renderRadial() {
 
   let html = '';
   for (let i = 0; i < N; i++) {
+    /* 反向映射：视觉位置 i → 数据索引 N-1-i
+       环形菜单从正上方顺时针排列；UI 面板从左到右排列。
+       为让两者的视觉顺序一致（左 ↔ 逆时针方向），做一次反向。 */
+    const itemIdx = N - 1 - i;
+
     const a0 = radialStartAngle + i * arc + gap / 2;
     const a1 = radialStartAngle + (i + 1) * arc - gap / 2;
-    const isHover = (i === radialHoverIndex);
+    const isHover = (itemIdx === radialHoverIndex);
 
     const path = annularSector(cx, cy, radialInnerR, radialOuterR, a0, a1);
     html += `<path class="rm-seg${isHover ? ' hover' : ''}" d="${path}"/>`;
@@ -6298,7 +7404,7 @@ function renderRadial() {
     const tx = cx + Math.cos(am) * tr;
     const ty = cy + Math.sin(am) * tr;
     html += `<text class="rm-txt${isHover ? ' hover' : ''}" x="${tx}" y="${ty}" `
-          + `text-anchor="middle" dominant-baseline="middle">${escapeXml(radialItems[i].label)}</text>`;
+          + `text-anchor="middle" dominant-baseline="middle">${escapeXml(radialItems[itemIdx].label)}</text>`;
   }
   radialSvgEl.innerHTML = html;
 }
@@ -6344,13 +7450,19 @@ function updateRadialHover(clientX, clientY) {
   let ang = Math.atan2(dy, dx) - radialStartAngle;
   ang = ((ang % TAU) + TAU) % TAU;
 
-  const arc = TAU / radialItems.length;
-  let i = Math.floor(ang / arc);
-  if (i < 0) i = 0;
-  if (i >= radialItems.length) i = radialItems.length - 1;
+  const N = radialItems.length;
+  const arc = TAU / N;
+  let visualI = Math.floor(ang / arc);
+  if (visualI < 0) visualI = 0;
+  if (visualI >= N) visualI = N - 1;
 
-  if (i !== radialHoverIndex) {
-    radialHoverIndex = i;
+  /* 视觉位置 → 数据索引，与 renderRadial 的反向映射保持一致。
+     radialHoverIndex 现在直接就是「数据索引」，
+     所以 onNumberKeyUp 里 radialItems[radialHoverIndex] 无需修改。 */
+  const itemIdx = N - 1 - visualI;
+
+  if (itemIdx !== radialHoverIndex) {
+    radialHoverIndex = itemIdx;
     renderRadial();
   }
 }
@@ -6387,6 +7499,7 @@ resize();
 /* 初始化第一张图层 */
 layers = [newLayerData()];
 activeLayerId = layers[0].id;
+selectedLayerIds = new Set([activeLayerId]);
 updateLayersUI();
 
 applyTool(cfg.tool);
