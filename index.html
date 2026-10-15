@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>RandomShapes2D · Geometry Studio</title>
 <!-- PSD 导出：ag-psd（成熟的浏览器 PSD 读写库） -->
-<script src="https://cdn.jsdelivr.net/npm/ag-psd@25.0.0/dist/bundle.js"></script>
+<script src="./ag-psd.bundle.js"></script>
 <style>
   :root{
     --bg:#ffffff;
@@ -236,6 +236,62 @@
     pointer-events:none;z-index:20;white-space:nowrap;
     font-variant-numeric:tabular-nums;
   }
+  #sTolerancePanel{
+  position:fixed;top:18px;left:50%;transform:translateX(-50%);
+  display:none;align-items:center;gap:10px;
+  padding:8px 14px;border-radius:12px;
+  background:var(--panel);
+  backdrop-filter:blur(14px) saturate(1.4);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4);
+  border:1px solid var(--line);
+  box-shadow:0 8px 30px rgba(0,0,0,.5);
+  z-index:22;user-select:none;font-size:12px;
+}
+#sTolerancePanel .stpLabel{
+  color:#c9c9d9;white-space:nowrap;
+}
+#sTolerancePanel input[type=range]{
+  width:200px;-webkit-appearance:none;appearance:none;
+  height:3px;border-radius:3px;background:rgba(255,255,255,.14);
+  outline:none;cursor:pointer;
+}
+#sTolerancePanel input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:#e9e9f0;border:none;cursor:pointer;
+  box-shadow:0 0 0 3px rgba(110,231,255,.25);
+}
+#sTolerancePanel input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;
+  background:#e9e9f0;border:none;cursor:pointer;
+}
+#sTolerancePanel > i{
+  color:#b9b9c9;font-style:normal;
+  font-variant-numeric:tabular-nums;
+  min-width:28px;text-align:right;
+}
+
+    /* X 滑动调笔刷大小时，跟随光标显示的数值标签 */
+  #sizeBadge{
+    position:fixed;
+    display:none;
+    padding:3px 9px;
+    border-radius:7px;
+    background:rgba(10,10,14,.92);
+    border:1px solid rgba(110,231,255,.6);
+    color:#c9f4ff;
+    font-size:11.5px;
+    font-family:inherit;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.04em;
+    line-height:1.3;
+    pointer-events:none;
+    z-index:25;
+    white-space:nowrap;
+    box-shadow:0 4px 14px rgba(0,0,0,.55),
+               0 0 0 1px rgba(0,0,0,.4);
+    transform:translate(0,0);
+    transition:none;
+  }
 
   #curvePanel{
     position:fixed;top:0;left:0;
@@ -365,6 +421,8 @@
   #layersPanel #addLayer:hover{background:rgba(255,255,255,.12)}
   #layersList{
     flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:6px;
+    touch-action:pan-y;
+    -ms-touch-action:pan-y;
   }
   #layersList::-webkit-scrollbar{width:5px}
   #layersList::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
@@ -373,6 +431,46 @@
     display:flex;flex-direction:column;
     border-radius:9px;border:1px solid transparent;
     margin-bottom:2px;transition:background .12s,border-color .12s;
+    position:relative;
+    cursor:grab;
+    /* 关键：禁用浏览器/系统的手势识别，否则 WebView2 会把笔的
+       持续移动识别成"滚动手势"，pointermove 被吞掉 */
+    touch-action:none;
+    -ms-touch-action:none;
+  }
+  .layer-item:active{ cursor:grabbing; }
+  .layer-item.dragging{
+    opacity:.4;
+    cursor:grabbing;
+    /* 拖动源描虚线边，一眼能看出哪个在被拖 */
+    border-color:rgba(110,231,255,.6) !important;
+    border-style:dashed !important;
+    background:rgba(110,231,255,.08) !important;
+    z-index:5;
+  }
+    /* 拖动时鼠标悬停的目标图层整体高亮，比只有一条线更明显 */
+  .layer-item.drop-highlight{
+    background:linear-gradient(135deg,
+      rgba(110,231,255,.25), rgba(167,139,250,.25)) !important;
+    border-color:rgba(110,231,255,.8) !important;
+    box-shadow:0 0 0 1px rgba(110,231,255,.45),
+               inset 0 0 16px rgba(110,231,255,.15);
+  }
+  /* 拖到图层上方时的插入指示线 */
+  .layer-item.drop-above::before{
+    content:''; position:absolute;
+    left:4px; right:4px; top:-2px; height:2px;
+    background:#ffffff; border-radius:1px; z-index:2;
+    box-shadow:0 0 6px rgba(255,255,255,.85);
+    pointer-events:none;
+  }
+  /* 拖到图层下方时的插入指示线 */
+  .layer-item.drop-below::after{
+    content:''; position:absolute;
+    left:4px; right:4px; bottom:-2px; height:2px;
+    background:#ffffff; border-radius:1px; z-index:2;
+    box-shadow:0 0 6px rgba(255,255,255,.85);
+    pointer-events:none;
   }
   .layer-item:hover{background:rgba(255,255,255,.05)}
   .layer-item.active{
@@ -452,6 +550,22 @@
     border-color:rgba(110,231,255,.7);
     color:#fff;
   }
+  /* 拖动图层悬停在「新建图层」上 → 表示将复制 */
+  .layer-add-row.drop-copy{
+    background:rgba(110,231,255,.28);
+    border-color:#6ee7ff;
+    color:#fff;
+    box-shadow:0 0 0 2px rgba(110,231,255,.35),
+               inset 0 0 16px rgba(110,231,255,.2);
+  }
+    /* 拖动过程中：整个图层面板内的光标强制抓握状，
+     且不允许选中文字 / 触发 hover 干扰 */
+  body.layer-dragging,
+  body.layer-dragging #layersPanel,
+  body.layer-dragging #layersPanel *{
+    cursor:grabbing !important;
+    user-select:none !important;
+  }
   .layer-add-row .layer-add-plus{
     width:20px;height:20px;border-radius:6px;
     display:flex;align-items:center;justify-content:center;
@@ -526,8 +640,15 @@
 <div id="selOverlay"></div>
 <div id="lqCursor"></div>
 <div id="brushCursor"></div>
+<div id="sizeBadge"></div>
 <div id="eraserBadge">橡皮模式（按住 E）</div>
 <div id="zoomBadge">100%</div>
+
+<div id="sTolerancePanel">
+  <span class="stpLabel">魔棒容差</span>
+  <input id="wandTolerance" type="range" min="0" max="100" value="30">
+  <i>30</i>
+</div>
 
 <div id="curvePanel" hidden>
   <div class="cpHead">
@@ -616,9 +737,10 @@
     <div id="paintPanel" hidden>
       <section>
         <div class="lbl">绘画模式</div>
-        <div class="chips two" id="paintModes">
+        <div class="chips" id="paintModes">
           <button data-v="line" class="on">画笔</button>
-          <button data-v="fill">填充</button>
+          <button data-v="lasso">套索绘画</button>
+          <button data-v="bucket">填充</button>
         </div>
         <div class="modeHint" id="paintHint">自由画线</div>
       </section>
@@ -629,6 +751,7 @@
         <div class="row" id="bSpacingRow"><span>间隔</span><input id="bSpacing" type="range" min="1" max="100" value="15"><i>15%</i></div>
         <div class="row" id="bSmoothRow"><span>平滑</span><input id="bSmooth" type="range" min="0" max="90" value="35"><i>35%</i></div>
         <div class="row" id="bAlphaRow"><span>透明度</span><input id="bAlpha" type="range" min="5" max="100" value="100"><i>100%</i><label class="sw row-sw" title="透明度压感"><input id="bAlphaPen" type="checkbox"><span></span></label></div>
+        <div class="row" id="bToleranceRow"><span>容差</span><input id="bTolerance" type="range" min="0" max="100" value="30"><i>30</i></div>
       </section>
 
       <section id="customBrushSection">
@@ -728,11 +851,13 @@
 </div>
 
 <div id="hint">
-  <span class="hint-line">1放置（点击/长摁） · 2绘画（点击/长摁） · 3液化（点击/长摁） · s套索 · Shift加选/模糊 · Alt吸色</span>
-  <span class="hint-line">Ctrl移动 · T变换 · Ctrl+M曲线 · Ctrl+E合并 · E橡皮 · Ctrl+空格缩放 · 空格平移/轻按复位 · X调笔刷大小</span>
+  <span class="hint-line">1放置（点击/长摁） · 2绘画（点击/长摁） · 3液化（点击/长摁） · s套索/魔棒 · Shift加选/模糊 · Alt吸色</span>
+  <span class="hint-line">Ctrl移动/点击选层 · T变换 · Ctrl+M曲线 · Ctrl+E合并 · Ctrl+Z撤销 · Ctrl+Y重做 · E橡皮 · Ctrl+空格缩放 · 空格平移/复位 · X调笔刷大小</span>
 </div>
 
 <script>
+
+
 (() => {
 'use strict';
 
@@ -752,6 +877,8 @@ const cfg = {
   ctrlMode: 'scatter',
   paintMode: 'line',
   bWidth: 8, bSmooth: 0.35, bAlpha: 1.0, bSpacing: 0.15,
+  paintTolerance: 30, // 油漆桶容差 0~100（映射到 0~255 通道差异）
+  wandTolerance: 30,
   pressureGain: 0,   // 压力增益（对数空间），0 表示不改变
   lqMode: 'push', lqStyle: 'smooth', lqSize: 80, lqStrength: 0.5,
   blurSize: 80,
@@ -778,8 +905,32 @@ const lqCursor = document.getElementById('lqCursor');
 const brushCursor = document.getElementById('brushCursor');
 const eraserBadge = document.getElementById('eraserBadge');
 const zoomBadge = document.getElementById('zoomBadge');
+const sizeBadge = document.getElementById('sizeBadge');
 
-let dpr = 1;
+/* 显示 / 隐藏「X 滑动调大小」的数值标签
+   value 是当前值（数字）；x/y 是鼠标的 CSS 坐标 */
+function showSizeBadge(x, y, value) {
+  if (!sizeBadge) return;
+  sizeBadge.textContent = String(value);
+  /* 放在光标右上方一点，避免挡住笔刷圆圈 */
+  sizeBadge.style.left = (x + 14) + 'px';
+  sizeBadge.style.top  = (y - 30) + 'px';
+  sizeBadge.style.display = 'block';
+}
+function hideSizeBadge() {
+  if (!sizeBadge) return;
+  sizeBadge.style.display = 'none';
+}
+
+/* 画布固定：首次 resize 时确定 dpr 和画布物理尺寸，
+   之后跨屏拖动（窗口大小 / dpr 变化）不再改变画布尺寸，
+   避免内容被压缩/拉伸变形。
+   —— 窗口变化只影响"能看到画布多少"，不影响画布本身。 */
+let dpr = 0;
+let fixedBw = 0;
+let fixedBh = 0;
+let lastWinW = 0;
+let lastWinH = 0;
 
 /* =========================================================
    橡皮模式状态（按住 E）
@@ -848,96 +999,83 @@ function updateEraserBadge() {
 }
 
 function resize() {
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = window.innerWidth, h = window.innerHeight;
-  const nw = Math.round(w * dpr), nh = Math.round(h * dpr);
 
-  const bw = nw * 2, bh = nh * 2;
+  /* ===== 首次：锁定 dpr 和画布物理尺寸 ===== */
+  if (!dpr) {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const nw0 = Math.round(w * dpr);
+    const nh0 = Math.round(h * dpr);
+    fixedBw = nw0 * 2;
+    fixedBh = nh0 * 2;
+  }
+  const bw = fixedBw;
+  const bh = fixedBh;
+  const nw = Math.round(w * dpr);
+  const nh = Math.round(h * dpr);
 
-  if (cvs.width === nw && cvs.height === nh &&
-      baseCvs.width === bw && baseCvs.height === bh) {
-    const cw0 = bw / dpr, ch0 = bh / dpr;
-    viewOffsetX = (w / 2) - (cw0 / 2) * viewScale;
-    viewOffsetY = (h / 2) - (ch0 / 2) * viewScale;
-    return;
+  /* ===== 记录当前窗口中心的世界坐标，resize 后保持 ===== */
+  let centerWX = null, centerWY = null;
+  if (lastWinW > 0 && lastWinH > 0) {
+    centerWX = (lastWinW / 2 - viewOffsetX) / viewScale;
+    centerWY = (lastWinH / 2 - viewOffsetY) / viewScale;
   }
 
-  if (tfActive) cancelTransform();
-
-  /* 先把活动图层的内容实时写回图层画布，避免 resize 后不同步 */
-  const activeBeforeResize = getActiveLayer();
-  if (activeBeforeResize) saveBaseToLayer(activeBeforeResize);
-
-  let old = null;
-  if (baseCvs.width && baseCvs.height) {
-    old = document.createElement('canvas');
-    old.width = baseCvs.width;
-    old.height = baseCvs.height;
-    old.getContext('2d').drawImage(baseCvs, 0, 0);
+  /* ===== 显示画布 cvs 跟随窗口 ===== */
+  if (cvs.width !== nw || cvs.height !== nh ||
+      cvs.style.width !== (w + 'px') || cvs.style.height !== (h + 'px')) {
+    cvs.width = nw;
+    cvs.height = nh;
+    cvs.style.width = w + 'px';
+    cvs.style.height = h + 'px';
+    vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  cvs.width = nw;
-  cvs.height = nh;
-  cvs.style.width = w + 'px';
-  cvs.style.height = h + 'px';
+  /* ===== 只在首次（或画布尺寸意外不一致）时重设 baseCvs ===== */
+  const needReinit = (baseCvs.width !== bw || baseCvs.height !== bh);
 
-  baseCvs.width = bw;
-  baseCvs.height = bh;
-  strokeBuf.width = bw;
-  strokeBuf.height = bh;
+  if (needReinit) {
+    if (tfActive) cancelTransform();
 
-  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const activeBeforeResize = getActiveLayer();
+    if (activeBeforeResize) saveBaseToLayer(activeBeforeResize);
 
-  if (old) {
-    bctx.save();
-    bctx.setTransform(1, 0, 0, 1, 0, 0);
-    bctx.globalCompositeOperation = 'source-over';
-    bctx.globalAlpha = 1;
-    bctx.drawImage(old, 0, 0);
-    bctx.restore();
-  }
+    baseCvs.width = bw;
+    baseCvs.height = bh;
+    strokeBuf.width = bw;
+    strokeBuf.height = bh;
+    bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  /* 同步缩放所有图层画布 */
-  for (const layer of layers) {
-    const oldL = document.createElement('canvas');
-    oldL.width  = layer.canvas.width;
-    oldL.height = layer.canvas.height;
-    if (oldL.width && oldL.height) {
-      oldL.getContext('2d').drawImage(layer.canvas, 0, 0);
-    }
-    layer.canvas.width  = bw;
-    layer.canvas.height = bh;
-    /* canvas 尺寸变化会重置 ctx 状态 */
-    layer.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (oldL.width && oldL.height) {
-      layer.ctx.save();
-      layer.ctx.setTransform(1, 0, 0, 1, 0, 0);
-      layer.ctx.drawImage(oldL, 0, 0);
-      layer.ctx.restore();
+    /* 图层画布 / 锁定遮罩同步为固定尺寸 */
+    for (const layer of layers) {
+      if (layer.canvas.width !== bw || layer.canvas.height !== bh) {
+        layer.canvas.width = bw;
+        layer.canvas.height = bh;
+        layer.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      if (layer.lockMask &&
+          (layer.lockMask.width !== bw || layer.lockMask.height !== bh)) {
+        layer.lockMask.width = bw;
+        layer.lockMask.height = bh;
+        const mc = layer.lockMask.getContext('2d');
+        mc.setTransform(1, 0, 0, 1, 0, 0);
+      }
     }
 
-    /* 同步缩放锁定像素遮罩 */
-    if (layer.lockMask && layer.lockMask.width && layer.lockMask.height) {
-      const oldM = document.createElement('canvas');
-      oldM.width  = layer.lockMask.width;
-      oldM.height = layer.lockMask.height;
-      oldM.getContext('2d').drawImage(layer.lockMask, 0, 0);
-
-      layer.lockMask.width  = bw;
-      layer.lockMask.height = bh;
-      const mc = layer.lockMask.getContext('2d');
-      mc.setTransform(1, 0, 0, 1, 0, 0);
-      mc.clearRect(0, 0, bw, bh);
-      mc.drawImage(oldM, 0, 0, bw, bh);
-    }
+    /* 首次初始化：画布居中 */
+    const cw = bw / dpr;
+    const ch = bh / dpr;
+    viewOffsetX = (w / 2) - (cw / 2) * viewScale;
+    viewOffsetY = (h / 2) - (ch / 2) * viewScale;
+  } else if (centerWX !== null) {
+    /* 后续 resize：保持窗口中心的世界坐标不变 */
+    viewOffsetX = w / 2 - centerWX * viewScale;
+    viewOffsetY = h / 2 - centerWY * viewScale;
   }
 
-  const cw = bw / dpr;
-  const ch = bh / dpr;
-  viewOffsetX = (w / 2) - (cw / 2) * viewScale;
-  viewOffsetY = (h / 2) - (ch / 2) * viewScale;
+  lastWinW = w;
+  lastWinH = h;
 
   endLiquifySession();
   rebuildSelection();
@@ -1540,14 +1678,15 @@ function updateUIState() {
 
   } else if (isPaint) {
     const isLine    = cfg.paintMode === 'line';
-    const isFill    = cfg.paintMode === 'fill';
-    const isNonLine = isFill;
+    const isBucket  = cfg.paintMode === 'bucket';
+    const isNonLine = !isLine;   // lasso 和 bucket 都不是画笔
 
     const bWidthRow     = document.getElementById('bWidthRow');
     const bAlphaPenWrap = document.getElementById('bAlphaPen').parentElement;
+    const bToleranceRow = document.getElementById('bToleranceRow');
 
     setDisabled(pModeSection, false);
-    setDisabled(bSmoothRow, !isLine);
+    setDisabled(bSmoothRow, isNonLine);   // 套索 / 油漆桶都禁用平滑
     setDisabled(bAlphaRow, false);
     setDisabled(paintColorGroup, eraser);
     setDisabled(blendRow, eraser);
@@ -1556,6 +1695,9 @@ function updateUIState() {
     setDisabled(bAlphaPenWrap, isNonLine);
     setDisabled(document.getElementById('bSpacingRow'), isNonLine);
     setDisabled(document.getElementById('customBrushSection'), !isLine);
+
+    /* 容差：只有油漆桶模式可用 */
+    setDisabled(bToleranceRow, !isBucket);
   }
 }
 
@@ -1568,17 +1710,27 @@ let selectionInvMaskCvs = null;
 let selectionInverted = false;
 let selectionContours = [];
 
+/* 内部剪贴板：保存选区抠出的像素及其在画布中的位置
+   { canvas, x, y, w, h } —— 全部为物理像素（乘过 dpr） */
+let clipBuffer = null;
+
 let lassoActive = false;
 let lassoPoints = [];
 let lassoPointerId = null;
 let lassoModifier = 'new';
+let sPointerDownX = 0, sPointerDownY = 0;
+let sPointerMoved = false;
 let lassoColor = '#6ee7ff';
 
 let moveActive = false;
 let moveStartX = 0, moveStartY = 0;
 let moveCurDxCss = 0, moveCurDyCss = 0;
 let moveSnapshot = null;
+let moveDidDrag = false;
 let movePointerId = null;
+let multiMove = null;   // null 或 Map<layerId, canvas>（多图层移动时的各图层快照）
+let moveRejected = false;   // 拖动被 canPerformMove 拒绝（用于 endMove 判断是否跳过选层）
+
 
 let blurActive = false;
 let blurPointerId = null;
@@ -1704,12 +1856,18 @@ function rebuildSelection() {
   const mtc = mc.getContext('2d');
   mtc.setTransform(1, 0, 0, 1, 0, 0);
 
-  for (const { points, op } of selectionOps) {
-    if (points.length < 3) continue;
-    const path = pointsToPath(points, dpr);
-    mtc.globalCompositeOperation = op === 'sub' ? 'destination-out' : 'source-over';
-    mtc.fillStyle = '#fff';
-    mtc.fill(path);
+  for (const entry of selectionOps) {
+    if (entry.type === 'wand') {
+      mtc.globalCompositeOperation = entry.op === 'sub' ? 'destination-out' : 'source-over';
+      mtc.drawImage(entry.maskCanvas, 0, 0);
+    } else {
+      const { points, op } = entry;
+      if (points.length < 3) continue;
+      const path = pointsToPath(points, dpr);
+      mtc.globalCompositeOperation = op === 'sub' ? 'destination-out' : 'source-over';
+      mtc.fillStyle = '#fff';
+      mtc.fill(path);
+    }
   }
   mtc.globalCompositeOperation = 'source-over';
   selectionMaskCvs = mc;
@@ -1750,6 +1908,272 @@ function clearSelection() {
   renderView();
 }
 
+/* =========================================================
+   选区剪贴板（Ctrl+C / Ctrl+X / Ctrl+V）
+   =========================================================
+   - copySelection(true)  剪切：抠出选区像素并擦除原图层
+   - copySelection(false) 复制：只抠出，不改图层
+   - pasteClipboard()     粘贴：把剪贴板像素画到当前活动图层
+   位置：粘贴到「源位置」（同一坐标），方便跨图层对齐
+   ========================================================= */
+function copySelection(cut) {
+  if (!hasSelection()) {
+    showToast(cut ? '没有选区可剪切' : '没有选区可复制');
+    return false;
+  }
+
+  const active = getActiveLayer();
+  if (!active) return false;
+
+  if (cut) {
+    if (!active.visible) { showToast('图层不可见，无法剪切'); return false; }
+    if (active.locked)   { showToast('图层已锁定，无法剪切'); return false; }
+  }
+
+  const W = baseCvs.width, H = baseCvs.height;
+  const mask = getActiveMaskCvs();
+  if (!mask) return false;
+
+  /* 1. 找选区包围盒（用 mask 的 alpha 判断） */
+  let minX = W, minY = H, maxX = -1, maxY = -1;
+  try {
+    const mdata = mask.getContext('2d').getImageData(0, 0, W, H).data;
+    for (let y = 0; y < H; y++) {
+      const rb = y * W;
+      for (let x = 0; x < W; x++) {
+        if (mdata[(rb + x) * 4 + 3] > 8) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+  } catch (err) { return false; }
+
+  if (maxX < minX || maxY < minY) {
+    showToast('选区为空');
+    return false;
+  }
+
+  const bw = maxX - minX + 1;
+  const bh = maxY - minY + 1;
+
+  /* 2. 抠出选区内的像素 */
+  const piece = document.createElement('canvas');
+  piece.width = bw;
+  piece.height = bh;
+  const pc = piece.getContext('2d');
+  pc.setTransform(1, 0, 0, 1, 0, 0);
+  pc.globalCompositeOperation = 'source-over';
+  pc.drawImage(baseCvs, minX, minY, bw, bh, 0, 0, bw, bh);
+  pc.globalCompositeOperation = 'destination-in';
+  pc.drawImage(mask, minX, minY, bw, bh, 0, 0, bw, bh);
+  pc.globalCompositeOperation = 'source-over';
+
+  clipBuffer = { canvas: piece, x: minX, y: minY, w: bw, h: bh };
+
+  /* 3. 剪切：从 baseCvs 中擦除选区内的像素 */
+  if (cut) {
+    takeSnapshot();
+    bctx.save();
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.globalCompositeOperation = 'destination-out';
+    bctx.globalAlpha = 1;
+    bctx.drawImage(mask, 0, 0);
+    bctx.restore();
+    renderView();
+  }
+
+  return true;
+}
+
+function pasteClipboard() {
+  if (!clipBuffer) return false;
+
+  const active = getActiveLayer();
+  if (!active) return false;
+  if (!active.visible) { showToast('图层不可见，无法粘贴'); return false; }
+  if (active.locked)   { showToast('图层已锁定，无法粘贴'); return false; }
+
+  takeSnapshot();
+
+  const W = baseCvs.width, H = baseCvs.height;
+
+  const tmp = document.createElement('canvas');
+  tmp.width = W;
+  tmp.height = H;
+  const tc = tmp.getContext('2d');
+  tc.setTransform(1, 0, 0, 1, 0, 0);
+  tc.globalCompositeOperation = 'source-over';
+  tc.drawImage(clipBuffer.canvas, clipBuffer.x, clipBuffer.y);
+
+  if (hasSelection()) {
+    const mask = getActiveMaskCvs();
+    if (mask) {
+      tc.globalCompositeOperation = 'destination-in';
+      tc.globalAlpha = 1;
+      tc.drawImage(mask, 0, 0);
+      tc.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  if (active.lockPixels && active.lockMask) {
+    tc.globalCompositeOperation = 'destination-in';
+    tc.globalAlpha = 1;
+    tc.drawImage(active.lockMask, 0, 0);
+    tc.globalCompositeOperation = 'source-over';
+  }
+
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = 'source-over';
+  bctx.globalAlpha = 1;
+  bctx.drawImage(tmp, 0, 0);
+  bctx.restore();
+
+  const cssX = clipBuffer.x / dpr;
+  const cssY = clipBuffer.y / dpr;
+  const cssW = clipBuffer.w / dpr;
+  const cssH = clipBuffer.h / dpr;
+
+  const pts = [
+    { x: cssX,          y: cssY          },
+    { x: cssX + cssW,   y: cssY          },
+    { x: cssX + cssW,   y: cssY + cssH   },
+    { x: cssX,          y: cssY + cssH   }
+  ];
+
+  selectionOps = [{ points: pts, op: 'new' }];
+  selectionInverted = false;
+  rebuildSelection();
+
+  renderView();
+  showToast('已粘贴到「' + active.name + '」');
+  return true;
+}
+
+/* ---- S 键：容差面板显示/隐藏 ---- */
+function showSTolerancePanel() {
+  const panel = document.getElementById('sTolerancePanel');
+  if (panel) panel.style.display = 'flex';
+}
+function hideSTolerancePanel() {
+  const panel = document.getElementById('sTolerancePanel');
+  if (panel) panel.style.display = 'none';
+}
+
+/* ---- 魔棒：在 (cssX, cssY) 处执行 flood-fill 选区 ---- */
+function performMagicWand(cssX, cssY) {
+  const W = baseCvs.width, H = baseCvs.height;
+  const px = Math.round(cssX * dpr);
+  const py = Math.round(cssY * dpr);
+  if (px < 0 || py < 0 || px >= W || py >= H) return;
+
+  // 从「所有可见图层的合成结果」取样，跟吸色工具保持一致
+  const comp = document.createElement('canvas');
+  comp.width = W;
+  comp.height = H;
+  const cctx = comp.getContext('2d', { willReadFrequently: true });
+  composeLayersTo(cctx, W, H);
+
+  let src;
+  try {
+    src = cctx.getImageData(0, 0, W, H).data;
+  } catch (e) { return; }
+
+  const startIdx = (py * W + px) * 4;
+  const sr = src[startIdx], sg = src[startIdx + 1];
+  const sb = src[startIdx + 2], sa = src[startIdx + 3];
+
+  const tol = Math.round((cfg.wandTolerance / 100) * 255);
+
+  const matchColor = (i4) => {
+    const dr = src[i4]     - sr;
+    const dg = src[i4 + 1] - sg;
+    const db = src[i4 + 2] - sb;
+    const da = src[i4 + 3] - sa;
+    return (
+      (dr < 0 ? -dr : dr) <= tol &&
+      (dg < 0 ? -dg : dg) <= tol &&
+      (db < 0 ? -db : db) <= tol &&
+      (da < 0 ? -da : da) <= tol
+    );
+  };
+
+  // 扫描线 flood fill 生成掩码
+  const maskCvs = document.createElement('canvas');
+  maskCvs.width = W;
+  maskCvs.height = H;
+  const mctx = maskCvs.getContext('2d', { willReadFrequently: true });
+  const maskImg = mctx.createImageData(W, H);
+  const maskData = maskImg.data;
+
+  const visited = new Uint8Array(W * H);
+  const stack = [[px, py]];
+  let iter = 0;
+  const MAX_ITER = W * H;
+
+  while (stack.length && iter < MAX_ITER) {
+    const pair = stack.pop();
+    const x = pair[0], y = pair[1];
+    const rowBase = y * W;
+
+    let xl = x;
+    while (xl >= 0 && !visited[rowBase + xl] && matchColor((rowBase + xl) * 4)) xl--;
+    xl++;
+    let xr = x;
+    while (xr < W && !visited[rowBase + xr] && matchColor((rowBase + xr) * 4)) xr++;
+    xr--;
+
+    if (xl > xr) continue;
+
+    for (let i = xl; i <= xr; i++) {
+      const idx = rowBase + i;
+      visited[idx] = 1;
+      const o = idx * 4;
+      maskData[o]     = 255;
+      maskData[o + 1] = 255;
+      maskData[o + 2] = 255;
+      maskData[o + 3] = 255;
+      iter++;
+    }
+
+    if (y > 0) {
+      const upBase = rowBase - W;
+      for (let i = xl; i <= xr; i++) {
+        const uIdx = upBase + i;
+        if (!visited[uIdx] && matchColor(uIdx * 4)) stack.push([i, y - 1]);
+      }
+    }
+    if (y < H - 1) {
+      const dnBase = rowBase + W;
+      for (let i = xl; i <= xr; i++) {
+        const dIdx = dnBase + i;
+        if (!visited[dIdx] && matchColor(dIdx * 4)) stack.push([i, y + 1]);
+      }
+    }
+  }
+
+  mctx.putImageData(maskImg, 0, 0);
+
+  // 掩码是否为空
+  let hasAny = false;
+  for (let i = 3; i < maskData.length; i += 4) {
+    if (maskData[i] > 0) { hasAny = true; break; }
+  }
+  if (!hasAny) { showToast('未找到匹配区域'); return; }
+
+  // 写入选区之前抓快照，这样 Ctrl+Z 能撤销魔棒本身
+  takeSnapshot();
+
+  // 写入选区系统（type:'wand' 让 rebuildSelection 直接贴掩码）
+  selectionOps = [{ type: 'wand', maskCanvas: maskCvs, op: 'new' }];
+  selectionInverted = false;
+  rebuildSelection();
+  renderView();
+}
+
 function invertSelection() {
   if (!hasSelection()) return;
   selectionInverted = !selectionInverted;
@@ -1760,6 +2184,10 @@ function invertSelection() {
    Ctrl 移动
    ========================================================= */
 function startMove(cssX, cssY, pointerId) {
+  /* 延迟初始化：点击时只记录起点状态。
+     真正的可编辑性/不可见图层检查延迟到 updateMove 里
+     用户真正拖动超过阈值时才做，这样"Ctrl+点击选层"
+     不被这些检查拦截。 */
   moveActive = true;
   movePointerId = pointerId;
   cvs.setPointerCapture(pointerId);
@@ -1767,8 +2195,62 @@ function startMove(cssX, cssY, pointerId) {
   moveStartY = cssY;
   moveCurDxCss = 0;
   moveCurDyCss = 0;
+  moveDidDrag = false;
+  moveSnapshot = null;
+  multiMove = null;
+  moveRejected = false;
+}
 
-  takeSnapshot();
+/* 拖动前的准入检查：活动图层可编辑 + 选中集合全可见 */
+function canPerformMove() {
+  const active = getActiveLayer();
+  if (!active) return { ok: false, msg: '没有活动图层' };
+  if (!active.visible) {
+    return { ok: false, msg: '活动图层不可见，无法移动' };
+  }
+  if (active.locked) {
+    return { ok: false, msg: '活动图层已锁定，无法移动' };
+  }
+
+  if (selectedLayerIds.size >= 2) {
+    const hiddenNames = [];
+    for (const id of selectedLayerIds) {
+      const layer = layers.find(l => l.id === id);
+      if (layer && !layer.visible) hiddenNames.push(layer.name);
+    }
+    if (hiddenNames.length > 0) {
+      return {
+        ok: false,
+        msg: '无法移动不可见图层\n' +
+             hiddenNames.join('、') +
+             '\n请先取消选中或恢复可见'
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+/* 首次确认拖动时，才真正初始化移动所需的状态 */
+function ensureMoveInitialized() {
+  if (moveSnapshot) return;
+  if (selectedLayerIds.size >= 2) {
+    takeLayerSnapshot({ needPixels: true });
+    multiMove = new Map();
+    for (const id of selectedLayerIds) {
+      const layer = layers.find(l => l.id === id);
+      if (!layer) continue;
+      const snap = document.createElement('canvas');
+      snap.width = baseCvs.width;
+      snap.height = baseCvs.height;
+      const src = (id === activeLayerId) ? baseCvs : layer.canvas;
+      snap.getContext('2d').drawImage(src, 0, 0);
+      multiMove.set(id, snap);
+    }
+  } else {
+    takeSnapshot();
+    multiMove = null;
+  }
 
   moveSnapshot = document.createElement('canvas');
   moveSnapshot.width = baseCvs.width;
@@ -1779,19 +2261,85 @@ function startMove(cssX, cssY, pointerId) {
 function updateMove(cssX, cssY) {
   moveCurDxCss = cssX - moveStartX;
   moveCurDyCss = cssY - moveStartY;
+
+  /* 阈值判断：小于 5 CSS px 视为尚未拖动，等真拖了再初始化 */
+  if (!moveDidDrag) {
+    if (Math.hypot(moveCurDxCss, moveCurDyCss) < 5) return;
+
+    /* 真正拖动前才做准入检查 —— 这样点击不会被拦截 */
+    const check = canPerformMove();
+    if (!check.ok) {
+      /* 只标记一次，不中止整个会话。
+         moveDidDrag 保持 false、moveActive 保持 true，
+         抬笔时 endMove 会走"点击"分支，
+         但因为 moveRejected=true，会跳过 pickLayerAtPoint。 */
+      if (!moveRejected) {
+        showToast(check.msg);
+        moveRejected = true;
+      }
+      return;
+    }
+
+    moveDidDrag = true;
+    ensureMoveInitialized();
+  }
+
   const dxPx = moveCurDxCss * dpr;
   const dyPx = moveCurDyCss * dpr;
 
   const W = baseCvs.width;
   const H = baseCvs.height;
+  const activeMask = getActiveMaskCvs();
 
+  /* ---- 多图层移动：每个选中可见图层各自重建 ---- */
+  if (multiMove && multiMove.size > 0) {
+    for (const [id, snap] of multiMove) {
+      const layer = layers.find(l => l.id === id);
+      if (!layer || !layer.visible) continue;
+      const dst = (id === activeLayerId) ? bctx : layer.ctx;
+
+      dst.save();
+      dst.setTransform(1, 0, 0, 1, 0, 0);
+      dst.globalCompositeOperation = 'source-over';
+      dst.globalAlpha = 1;
+      dst.clearRect(0, 0, W, H);
+
+      if (activeMask) {
+        /* 选区外：留在原位 */
+        const t1 = document.createElement('canvas');
+        t1.width = W; t1.height = H;
+        const t1c = t1.getContext('2d');
+        t1c.drawImage(snap, 0, 0);
+        t1c.globalCompositeOperation = 'destination-out';
+        t1c.drawImage(activeMask, 0, 0);
+        t1c.globalCompositeOperation = 'source-over';
+        dst.drawImage(t1, 0, 0);
+
+        /* 选区内：整体平移到新位置 */
+        const t2 = document.createElement('canvas');
+        t2.width = W; t2.height = H;
+        const t2c = t2.getContext('2d');
+        t2c.drawImage(snap, 0, 0);
+        t2c.globalCompositeOperation = 'destination-in';
+        t2c.drawImage(activeMask, 0, 0);
+        t2c.globalCompositeOperation = 'source-over';
+        dst.drawImage(t2, dxPx, dyPx);
+      } else {
+        dst.drawImage(snap, dxPx, dyPx);
+      }
+
+      dst.restore();
+    }
+    renderView();
+    return;
+  }
+
+  /* ---- 单图层：原有逻辑 ---- */
   bctx.save();
   bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.globalCompositeOperation = 'source-over';
   bctx.globalAlpha = 1;
   bctx.clearRect(0, 0, W, H);
-
-  const activeMask = getActiveMaskCvs();
 
   if (activeMask) {
     const t1 = document.createElement('canvas');
@@ -1806,7 +2354,8 @@ function updateMove(cssX, cssY) {
     bctx.drawImage(t1, 0, 0);
 
     const t2 = document.createElement('canvas');
-    t2.width = W; t2.height = H;
+    t2.width = W;
+    t2.height = H;
     const t2c = t2.getContext('2d');
     t2c.setTransform(1, 0, 0, 1, 0, 0);
     t2c.drawImage(moveSnapshot, 0, 0);
@@ -1824,29 +2373,121 @@ function updateMove(cssX, cssY) {
   renderView();
 }
 
-function endMove() {
+/* Ctrl+点击（不拖动）：从点击位置向上查找第一个有像素的可见图层。
+   世界坐标入参，转物理像素后单点读 alpha。 */
+function pickLayerAtPoint(worldX, worldY) {
+  const px = Math.round(worldX * dpr);
+  const py = Math.round(worldY * dpr);
+  if (px < 0 || py < 0 || px >= baseCvs.width || py >= baseCvs.height) return;
+
+  /* 先确保 baseCvs 里是最新的活动图层内容 */
+  const active = getActiveLayer();
+  if (active) saveBaseToLayer(active);
+
+  /* 从上往下（视觉最上层优先） */
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i];
+    if (!layer.visible) continue;
+    /* 活动图层从 baseCvs 读（保证是最新内容），其他图层从各自的 canvas 读 */
+    const src = (layer.id === activeLayerId) ? baseCvs : layer.canvas;
+    let hit = false;
+    try {
+      const d = src.getContext('2d').getImageData(px, py, 1, 1).data;
+      hit = d[3] > 8;
+    } catch (e) { hit = false; }
+    if (hit) {
+      /* 命中活动图层：什么都不做（已经选着它了） */
+      if (layer.id === activeLayerId) return;
+      /* 命中非活动图层：切换过去 */
+      selectLayer(layer.id, 'single');
+      showToast('已选择图层：' + layer.name);
+      return;
+    }
+  }
+
+  /* 全部透明 → 选到最顶层可见图层（PS 行为） */
+  for (let i = layers.length - 1; i >= 0; i--) {
+    if (layers[i].visible) {
+      if (layers[i].id !== activeLayerId) {
+        selectLayer(layers[i].id, 'single');
+        showToast('已选择图层：' + layers[i].name);
+      }
+      return;
+    }
+  }
+}
+
+function endMove(skipPickLayer) {
+  /* 从未拖动 → 视为 Ctrl+点击：快速选层 */
+  if (!moveDidDrag) {
+    const px = moveStartX;
+    const py = moveStartY;
+    const wasRejected = moveRejected;   // 被拒绝的拖动 → 不要触发选层
+
+    moveActive = false;
+    movePointerId = null;
+    moveSnapshot = null;
+    multiMove = null;
+    moveDidDrag = false;
+    moveRejected = false;
+    moveCurDxCss = 0;
+    moveCurDyCss = 0;
+
+    if (!wasRejected && !skipPickLayer) pickLayerAtPoint(px, py);
+    return;
+  }
+
   if (hasSelection() && (moveCurDxCss !== 0 || moveCurDyCss !== 0)) {
     const dx = moveCurDxCss, dy = moveCurDyCss;
 
-    /* 关键：如果活动图层开启了锁定像素，遮罩也要跟着平移，
-       否则原位置残留 alpha 会继续允许绘制，新位置反而画不出来。 */
-    const active = getActiveLayer();
-    if (active && active.lockPixels && active.lockMask && !selectionInverted) {
-      const oldMask = getActiveMaskCvs();
-      if (oldMask) {
-        moveLockMaskRegion(active.lockMask, oldMask, dx, dy);
+    /* 关键：如果图层开启了锁定像素，遮罩也要跟着平移。
+       多图层时遍历所有参与移动的图层。 */
+    const oldMask = getActiveMaskCvs();
+    if (oldMask && !selectionInverted) {
+      if (multiMove && multiMove.size > 0) {
+        for (const [id] of multiMove) {
+          const lay = layers.find(l => l.id === id);
+          if (lay && lay.lockPixels && lay.lockMask) {
+            moveLockMaskRegion(lay.lockMask, oldMask, dx, dy);
+          }
+        }
+      } else {
+        const active = getActiveLayer();
+        if (active && active.lockPixels && active.lockMask) {
+          moveLockMaskRegion(active.lockMask, oldMask, dx, dy);
+        }
       }
     }
 
-    selectionOps = selectionOps.map(opt => ({
-      op: opt.op,
-      points: opt.points.map(p => ({ x: p.x + dx, y: p.y + dy }))
-    }));
+    /* 平移选区：套索走点平移，魔棒走掩码平移 */
+    selectionOps = selectionOps.map(opt => {
+      if (opt.type === 'wand') {
+        const dxPx = Math.round(dx * dpr);
+        const dyPx = Math.round(dy * dpr);
+        const newMask = document.createElement('canvas');
+        newMask.width  = opt.maskCanvas.width;
+        newMask.height = opt.maskCanvas.height;
+        const nc = newMask.getContext('2d');
+        nc.setTransform(1, 0, 0, 1, 0, 0);
+        nc.globalCompositeOperation = 'source-over';
+        nc.globalAlpha = 1;
+        nc.clearRect(0, 0, newMask.width, newMask.height);
+        nc.drawImage(opt.maskCanvas, dxPx, dyPx);
+        return { type: 'wand', maskCanvas: newMask, op: opt.op };
+      }
+      return {
+        op: opt.op,
+        points: opt.points.map(p => ({ x: p.x + dx, y: p.y + dy }))
+      };
+    });
     rebuildSelection();
   }
+
   moveActive = false;
   movePointerId = null;
   moveSnapshot = null;
+  multiMove = null;
+  moveDidDrag = false;
   moveCurDxCss = 0;
   moveCurDyCss = 0;
 }
@@ -3586,6 +4227,213 @@ const layerTmpCtx = layerTmpCvs.getContext('2d');
 
 let layersListEl = null;
 
+/* =========================================================
+   图层拖动排序（Pointer 版）
+   =========================================================
+   HTML5 drag & drop 在 Tauri / WebView2 里不可靠（dragstart 能触发，
+   但 dragover / drop 常常收不到），因此改用 Pointer Events 手动实现，
+   和项目里 cpPanel / transform 的拖动保持一致。
+   ========================================================= */
+/* =========================================================
+   图层拖动排序（Pointer 版 · window 监听）
+   =========================================================
+   — pointermove / pointerup 挂在 window 上，不依赖 pointer capture。
+     WebView2 里 setPointerCapture 有时失效，事件会丢，
+     挂 window 后无论鼠标移到哪里都能持续收到事件，
+     按住鼠标全程保持"拖动中"状态，直到松手。
+   ========================================================= */
+let layerDrag = null;
+let suppressNextLayerClick = false;
+
+function clearLayerDropHints() {
+  document.querySelectorAll('.layer-item.drop-above, .layer-item.drop-below, .layer-item.drop-highlight')
+    .forEach(el => el.classList.remove('drop-above', 'drop-below', 'drop-highlight'));
+  document.querySelectorAll('.layer-add-row.drop-copy')
+    .forEach(el => el.classList.remove('drop-copy'));
+}
+
+function startLayerDrag(e, item, layer) {
+  /* 从滑条 / 下拉 / 按钮上按下时不启动拖动 */
+  const t = e.target;
+  if (t && t.closest && t.closest('input, select, button')) return;
+  if (e.pointerType === 'touch') return;
+  if (e.pointerType !== 'pen' && e.button !== 0) return;
+
+  /* 若已有 layerDrag（例如笔重复 down / 上一次 pointerup 丢失），
+     先把旧状态清理干净，避免残留高亮和幽灵监听 */
+  if (layerDrag) {
+    clearLayerDropHints();
+    if (layerDrag.sourceItem) layerDrag.sourceItem.classList.remove('dragging');
+    document.body.classList.remove('layer-dragging');
+    window.removeEventListener('pointermove', onLayerDragMove, true);
+    window.removeEventListener('pointerup', onLayerDragEnd, true);
+    window.removeEventListener('pointercancel', onLayerDragEnd, true);
+    layerDrag = null;
+  }
+
+  layerDrag = {
+    sourceId: layer.id,
+    sourceItem: item,
+    pointerId: e.pointerId,
+    pointerType: e.pointerType || 'mouse',
+    startX: e.clientX,
+    startY: e.clientY,
+    active: false,
+    hover: null
+  };
+
+  window.addEventListener('pointermove', onLayerDragMove, true);
+  window.addEventListener('pointerup', onLayerDragEnd, true);
+  window.addEventListener('pointercancel', onLayerDragEnd, true);
+}
+
+function onLayerDragMove(e) {
+  if (!layerDrag) return;
+  if (e.pointerType === 'touch') return;
+
+  /* 鼠标兜底：pointerup 丢失时，鼠标移动 event.buttons 会变 0。
+     笔不做这个检查（不同驱动的 buttons 字段不可靠）。 */
+  if (e.pointerType === 'mouse' && e.buttons === 0) {
+    onLayerDragEnd(e);
+    return;
+  }
+
+  /* 超过 4px 才认为是拖动，避免单击被误判 */
+  if (!layerDrag.active) {
+    const dx = e.clientX - layerDrag.startX;
+    const dy = e.clientY - layerDrag.startY;
+    if (dx * dx + dy * dy < 16) return;
+    layerDrag.active = true;
+    layerDrag.sourceItem.classList.add('dragging');
+    document.body.classList.add('layer-dragging');
+  }
+
+  e.preventDefault();
+
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  clearLayerDropHints();
+  layerDrag.hover = null;
+  if (!under) return;
+
+  /* 悬停在「新建图层」上 → 提示复制 */
+  const addRow = under.closest('.layer-add-row');
+  if (addRow) {
+    addRow.classList.add('drop-copy');
+    layerDrag.hover = { addRow: true };
+    return;
+  }
+
+  /* 悬停在另一个图层上 → 提示排序 */
+  const targetItem = under.closest('.layer-item');
+  if (!targetItem || targetItem === layerDrag.sourceItem) return;
+
+  const tid = parseInt(targetItem.dataset.layerId, 10);
+  if (!tid || tid === layerDrag.sourceId) return;
+
+  const rect = targetItem.getBoundingClientRect();
+  const above = e.clientY < rect.top + rect.height / 2;
+  targetItem.classList.add('drop-highlight');
+  targetItem.classList.add(above ? 'drop-above' : 'drop-below');
+  layerDrag.hover = { targetId: tid, above };
+}
+
+function onLayerDragEnd(e) {
+  if (!layerDrag) return;
+  if (e.pointerType === 'touch') return;
+
+  window.removeEventListener('pointermove', onLayerDragMove, true);
+  window.removeEventListener('pointerup', onLayerDragEnd, true);
+  window.removeEventListener('pointercancel', onLayerDragEnd, true);
+
+  const wasActive = layerDrag.active;
+  const hover = layerDrag.hover;
+  const sourceId = layerDrag.sourceId;
+  const srcItem = layerDrag.sourceItem;
+
+  clearLayerDropHints();
+  if (srcItem) srcItem.classList.remove('dragging');
+  document.body.classList.remove('layer-dragging');
+  layerDrag = null;
+
+  /* 只是单击，交给 click 事件 */
+  if (!wasActive) return;
+
+  /* 阻止紧随而来的 click（否则会误选图层） */
+  suppressNextLayerClick = true;
+
+  if (!hover) return;
+  if (hover.addRow) {
+    duplicateLayer(sourceId);
+  } else if (hover.targetId) {
+    reorderLayer(sourceId, hover.targetId, hover.above);
+  }
+}
+
+/* 拖动重排：把 srcId 图层移到 dstId 图层的上方(before=true)或下方 */
+function reorderLayer(srcId, dstId, before) {
+  if (srcId === dstId) return;
+  const srcIdx = layers.findIndex(l => l.id === srcId);
+  const dstIdx = layers.findIndex(l => l.id === dstId);
+  if (srcIdx < 0 || dstIdx < 0) return;
+
+  takeLayerSnapshot({ needPixels: false });
+
+  const [moved] = layers.splice(srcIdx, 1);
+  /* splice 后 dstIdx 可能左移，重新查找 */
+  const newDstIdx = layers.findIndex(l => l.id === dstId);
+  /* layers 数组是「从下到上」，UI 是「从上到下」：
+     - before=true（鼠标在目标视觉上方）→ 数组里插到 newDstIdx 之后 = 视觉上更靠上
+     - before=false（鼠标在目标视觉下方）→ 数组里插到 newDstIdx 之前 = 视觉上更靠下 */
+  const insertIdx = before ? newDstIdx + 1 : newDstIdx;
+  layers.splice(insertIdx, 0, moved);
+
+  /* activeLayerId 不变（同一个图层对象），只是顺序变了 */
+  updateLayersUI();
+  renderView();
+}
+
+/* 复制图层：在源图层上方插入一个完全相同的副本 */
+function duplicateLayer(srcId) {
+  if (layers.length >= MAX_LAYERS) {
+    showToast('图层数已达上限（' + MAX_LAYERS + '）');
+    return;
+  }
+  const src = layers.find(l => l.id === srcId);
+  if (!src) return;
+
+  takeLayerSnapshot({ needPixels: false });
+
+  /* 先把活动图层内容落地，保证副本拿到的是最新像素 */
+  const curActive = getActiveLayer();
+  if (curActive) saveBaseToLayer(curActive);
+
+  const newL = newLayerData();
+  newL.name = src.name + ' 副本';
+
+  newL.ctx.save();
+  newL.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  newL.ctx.globalCompositeOperation = 'source-over';
+  newL.ctx.globalAlpha = 1;
+  newL.ctx.clearRect(0, 0, newL.canvas.width, newL.canvas.height);
+  newL.ctx.drawImage(src.canvas, 0, 0);
+  newL.ctx.restore();
+
+  newL.visible   = src.visible;
+  newL.clip      = src.clip;
+  newL.blendMode = src.blendMode;
+  newL.opacity   = src.opacity ?? 1;
+
+  const srcIdx = layers.findIndex(l => l.id === srcId);
+  layers.splice(srcIdx + 1, 0, newL);
+
+  activeLayerId = newL.id;
+  selectedLayerIds = new Set([newL.id]);
+  loadLayerToBase(newL);
+  updateLayersUI();
+  renderView();
+  showToast('已复制为「' + newL.name + '」');
+}
+
 function createLayerCanvas() {
   const c = document.createElement('canvas');
   c.width  = baseCvs.width  || 1;
@@ -3815,12 +4663,13 @@ function compositeCanvases(layerList, width, height) {
   tctx.setTransform(1, 0, 0, 1, 0, 0);
 
   for (const l of layerList) {
-    /* 只读一层 alpha；不处理 blendMode 的复杂语义，
-       因为混合模式在合并场景下一般被 reset 为 normal。
-       若需要更精确，可改成 (i === 0 ? 'source-over' : l.blendMode)。 */
     tctx.globalCompositeOperation = 'source-over';
     tctx.globalAlpha = l.opacity ?? 1;
-    tctx.drawImage(l.canvas, 0, 0);
+    /* 用 getLayerCanvas 而不是 l.canvas：
+       活动图层的最新内容实时存在 baseCvs 上，
+       直接读 l.canvas 可能拿到过时的副本。 */
+    const src = getLayerCanvas(l) || l.canvas;
+    tctx.drawImage(src, 0, 0);
   }
   tctx.globalCompositeOperation = 'source-over';
   tctx.globalAlpha = 1;
@@ -3886,11 +4735,15 @@ function mergeLayers(ids) {
      整体再乘一次会双重衰减。 */
   topLayer.opacity = 1;
 
-  /* 删除其余选中图层（用 id 查找，避免索引错位） */
-  for (let i = 0; i < indices.length - 1; i++) {
-    const delId = layers[indices[i]].id;
-    const curIdx = layers.findIndex(l => l.id === delId);
-    if (curIdx >= 0) layers.splice(curIdx, 1);
+  /* 删除其余选中图层。
+     —— 必须从「高索引」向「低索引」删除。
+        从低到高删除时，splice 会让后面的索引整体左移，
+        导致后续的 layers[indices[i]] 取到错误的图层
+        （曾出现"5 个图层合并后只保留了 2 个"的 bug）。 */
+  for (let i = indices.length - 1; i >= 0; i--) {
+    const idx = indices[i];
+    if (idx === topIdx) continue;   // 跳过合并后的目标图层
+    layers.splice(idx, 1);
   }
 
   activeLayerId = topLayer.id;
@@ -4290,7 +5143,17 @@ function updateLayersUI() {
     item.appendChild(row);
     item.appendChild(opacityRow);
 
+    /* 把 id 记在 DOM 上，供拖动中的 elementFromPoint 反查 */
+    item.dataset.layerId = String(layer.id);
+
     item.addEventListener('click', e => {
+      /* 拖动刚结束 → 吃掉这一次 click，避免误选图层 */
+      if (suppressNextLayerClick) {
+        suppressNextLayerClick = false;
+        e.stopPropagation();
+        e.preventDefault();
+        return;
+      }
       if (e.shiftKey) {
         selectLayer(layer.id, 'range');
       } else if (e.ctrlKey || e.metaKey) {
@@ -4298,6 +5161,13 @@ function updateLayersUI() {
       } else {
         selectLayer(layer.id, 'single');
       }
+    });
+
+    /* ---- Pointer 版拖动：排序 / 拖到「新建图层」复制 ----
+       pointermove / pointerup 由 startLayerDrag 挂到 window 上，
+       这里只负责起点识别。 */
+    item.addEventListener('pointerdown', e => {
+      startLayerDrag(e, item, layer);
     });
 
     layersListEl.appendChild(item);
@@ -5340,7 +6210,7 @@ function redrawLasso() {
   const n = pts.length;
   const rad = Math.max(0.5, sctx.lineWidth / 2);
   const isErase = strokeErasing;
-  const isFill  = strokePaintMode === 'fill';
+  const isFill  = strokePaintMode === 'lasso';
 
   if (n === 0) return;
 
@@ -5445,6 +6315,162 @@ function applyLassoEraseToBase() {
   clearStrokeBuf();
 }
 
+/* =========================================================
+   油漆桶（Flood Fill）
+   =========================================================
+   与 PS 油漆桶语义一致：
+   1. 取点击点像素作为"被替换色"
+   2. 用容差匹配颜色（4 通道最大差异 ≤ tol）
+   3. 扫描线 flood fill 找到连通区域
+   4. 用当前基色替换该区域（走 strokeBlend 语义，含选区/锁定像素裁剪）
+   ========================================================= */
+function applyBucketFill(cssX, cssY, erase) {
+  const W = baseCvs.width, H = baseCvs.height;
+  const px = Math.round(cssX * dpr);
+  const py = Math.round(cssY * dpr);
+  if (px < 0 || py < 0 || px >= W || py >= H) return;
+
+  /* 从 baseCvs 读取全部像素 */
+  let src;
+  try {
+    src = bctx.getImageData(0, 0, W, H).data;
+  } catch (e) { return; }
+
+  const startIdx = (py * W + px) * 4;
+  const sr = src[startIdx], sg = src[startIdx + 1];
+  const sb = src[startIdx + 2], sa = src[startIdx + 3];
+
+  /* 目标颜色：使用基色（baseColor）。
+     想要随机/渐变的用户可以再扩展。 */
+  const rgbT = hexToRgb(cfg.baseColor);
+  const tr = rgbT[0], tg = rgbT[1], tb = rgbT[2];
+
+  /* 容差：0~100 映射到 0~255 的通道差异上限 */
+  const tol = Math.round((cfg.paintTolerance / 100) * 255);
+
+  /* 颜色匹配：4 通道最大差异 ≤ 容差 */
+  const matchColor = (i4) => {
+    const dr = src[i4]     - sr;
+    const dg = src[i4 + 1] - sg;
+    const db = src[i4 + 2] - sb;
+    const da = src[i4 + 3] - sa;
+    return (
+      (dr < 0 ? -dr : dr) <= tol &&
+      (dg < 0 ? -dg : dg) <= tol &&
+      (db < 0 ? -db : db) <= tol &&
+      (da < 0 ? -da : da) <= tol
+    );
+  };
+
+  /* 生成填充 mask（白=要填充） */
+  const maskCvs = document.createElement('canvas');
+  maskCvs.width = W;
+  maskCvs.height = H;
+  const mctx = maskCvs.getContext('2d', { willReadFrequently: true });
+  const maskImg = mctx.createImageData(W, H);
+  const maskData = maskImg.data;
+
+  const visited = new Uint8Array(W * H);
+  const stack = [[px, py]];
+  let iter = 0;
+  const MAX_ITER = W * H;
+
+  while (stack.length && iter < MAX_ITER) {
+    const pair = stack.pop();
+    const x = pair[0], y = pair[1];
+    const rowBase = y * W;
+
+    /* 向左扩展 */
+    let xl = x;
+    while (xl >= 0 && !visited[rowBase + xl] && matchColor((rowBase + xl) * 4)) xl--;
+    xl++;
+    /* 向右扩展 */
+    let xr = x;
+    while (xr < W && !visited[rowBase + xr] && matchColor((rowBase + xr) * 4)) xr++;
+    xr--;
+
+    if (xl > xr) continue;
+
+    for (let i = xl; i <= xr; i++) {
+      const idx = rowBase + i;
+      visited[idx] = 1;
+      const o = idx * 4;
+      maskData[o]     = 255;
+      maskData[o + 1] = 255;
+      maskData[o + 2] = 255;
+      maskData[o + 3] = 255;
+      iter++;
+    }
+
+    /* 检查上一行 / 下一行的对应区段 */
+    if (y > 0) {
+      const upBase = rowBase - W;
+      for (let i = xl; i <= xr; i++) {
+        const uIdx = upBase + i;
+        if (!visited[uIdx] && matchColor(uIdx * 4)) stack.push([i, y - 1]);
+      }
+    }
+    if (y < H - 1) {
+      const dnBase = rowBase + W;
+      for (let i = xl; i <= xr; i++) {
+        const dIdx = dnBase + i;
+        if (!visited[dIdx] && matchColor(dIdx * 4)) stack.push([i, y + 1]);
+      }
+    }
+  }
+
+  mctx.putImageData(maskImg, 0, 0);
+
+  /* 用目标色 + mask 裁出填充图形 */
+  const fillCvs = document.createElement('canvas');
+  fillCvs.width = W;
+  fillCvs.height = H;
+  const fctx = fillCvs.getContext('2d');
+  fctx.fillStyle = 'rgb(' + tr + ',' + tg + ',' + tb + ')';
+  fctx.fillRect(0, 0, W, H);
+  fctx.globalCompositeOperation = 'destination-in';
+  fctx.drawImage(maskCvs, 0, 0);
+  fctx.globalCompositeOperation = 'source-over';
+
+  /* 选区裁剪 */
+  const activeMask = getActiveMaskCvs();
+  if (activeMask) {
+    const tmp = document.createElement('canvas');
+    tmp.width = W; tmp.height = H;
+    const tc = tmp.getContext('2d');
+    tc.drawImage(fillCvs, 0, 0);
+    tc.globalCompositeOperation = 'destination-in';
+    tc.drawImage(activeMask, 0, 0);
+    tc.globalCompositeOperation = 'source-over';
+    fctx.clearRect(0, 0, W, H);
+    fctx.drawImage(tmp, 0, 0);
+  }
+
+  /* 锁定像素裁剪 */
+  const active = getActiveLayer();
+  if (active && active.lockPixels && active.lockMask) {
+    const tmp = document.createElement('canvas');
+    tmp.width = W; tmp.height = H;
+    const tc = tmp.getContext('2d');
+    tc.drawImage(fillCvs, 0, 0);
+    tc.globalCompositeOperation = 'destination-in';
+    tc.drawImage(active.lockMask, 0, 0);
+    tc.globalCompositeOperation = 'source-over';
+    fctx.clearRect(0, 0, W, H);
+    fctx.drawImage(tmp, 0, 0);
+  }
+
+  /* 混合到 baseCvs：走 strokeBlend 语义（含擦除） */
+  bctx.save();
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  bctx.globalCompositeOperation = erase ? 'destination-out' : cfg.blend;
+  bctx.globalAlpha = cfg.bAlpha;
+  bctx.drawImage(fillCvs, 0, 0);
+  bctx.restore();
+
+  renderView();
+}
+
 function startPaintStroke(x, y, pressure) {
   strokeOriginX = x;
   strokeOriginY = y;
@@ -5455,12 +6481,12 @@ function startPaintStroke(x, y, pressure) {
 
   if (eraserHeld) {
     strokeErasing = true;
-    if (cfg.paintMode === 'fill') {
+    if (cfg.paintMode === 'lasso') {
       strokePaintMode = 'erase';
     }
   }
 
-  if (strokePaintMode === 'fill') {
+  if (strokePaintMode === 'lasso') {
     initFillSectors();
     const rgb = fillSectorColors[0];
     strokeColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
@@ -5973,18 +6999,15 @@ function isSHeld() {
 }
 
 function updateModifierCursor() {
+  cvs.classList.remove('picking');
+  cvs.classList.remove('moving');
   if (tfActive) return;
   if (spaceMode !== 'none') return;
   if (sizeHeld) return;
   if (altPressed) {
     cvs.classList.add('picking');
-    cvs.classList.remove('moving');
   } else if (ctrlPressed) {
     cvs.classList.add('moving');
-    cvs.classList.remove('picking');
-  } else {
-    cvs.classList.remove('picking');
-    cvs.classList.remove('moving');
   }
 }
 
@@ -6010,15 +7033,39 @@ function pickColorAt(cssX, cssY) {
     hex = rgbToHex(d[0], d[1], d[2]);
   }
   applyNewBaseColor(hex);
-  showToast('已吸取 ' + hex);
+}
+
+/* 节流版吸色：pointermove 连续拖动时限制到 ~25fps，
+   避免每次都重合成所有图层 + getImageData 造成卡顿。 */
+let lastPickTime = 0;
+function pickColorAtThrottled(cssX, cssY) {
+  const now = performance.now();
+  if (now - lastPickTime < 40) return;
+  lastPickTime = now;
+  pickColorAt(cssX, cssY);
 }
 
 function applyNewBaseColor(hex) {
   cfg.baseColor = hex;
   updateBaseHsl();
   colorInputEl.value = hex;
+
+  /* 短暂高亮色块，作为"吸到了"的视觉反馈（替代 toast） */
+  colorInputEl.style.transition = 'box-shadow .12s';
+  colorInputEl.style.boxShadow = '0 0 0 2px rgba(110,231,255,.9)';
+  clearTimeout(applyNewBaseColor._t);
+  applyNewBaseColor._t = setTimeout(() => {
+    colorInputEl.style.boxShadow = '';
+  }, 180);
 }
 
+/* 当前工具是否支持通过 X 键调笔刷大小 */
+function canAdjustSize() {
+  if (cfg.tool === 'place') return true;                                 // 放置：pSize
+  if (cfg.tool === 'liquify') return true;                               // 液化：lqSize
+  if (cfg.tool === 'paint' && cfg.paintMode === 'line') return true;     // 绘画-画笔：bWidth
+  return false;   // 绘画-套索 / 绘画-填充（油漆桶）不需要大小
+}
 /* ---- 同步 UI 滑块 ---- */
 function setPSizeValue(v) {
   const el = document.getElementById('pSize');
@@ -6089,20 +7136,19 @@ function abortActive() {
     blurPointerId = null;
     smudgeSample = null;
   }
-  if (moveActive) endMove();
+  if (moveActive) endMove(true);
   if (sizeAdjustActive) {
     sizeAdjustActive = false;
     sizeAdjustPointerId = null;
   }
+  hideSizeBadge();
   lqCursor.style.display = 'none';
 }
 
 cvs.addEventListener('pointerdown', e => {
   /* ---- X 键 + 左键：调笔刷大小（优先处理）---- */
   if (sizeHeld && e.button === 0 && spaceMode !== 'zoom' &&
-      (cfg.tool === 'place' ||
-       cfg.tool === 'paint' ||
-       cfg.tool === 'liquify')) {
+      canAdjustSize()) {
     e.preventDefault();
     sizeAdjustActive = true;
     sizeAdjustPointerId = e.pointerId;
@@ -6119,6 +7165,7 @@ cvs.addEventListener('pointerdown', e => {
     }
     try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
     cvs.style.cursor = 'ew-resize';
+    showSizeBadge(e.clientX, e.clientY, Math.round(sizeAdjustStartValue));
     return;
   }
 
@@ -6182,18 +7229,26 @@ cvs.addEventListener('pointerdown', e => {
 
   if (sHeld) lastSKeydownTime = performance.now();
 
-  if (e.altKey && e.button !== 1 && !sHeld && !e.shiftKey) {
+if (e.altKey && e.button !== 1 && !sHeld && !e.shiftKey) {
     e.preventDefault();
-    pickColorAt(evtX(e), evtY(e));
+    /* 捕获指针，保证 pointerup / pointercancel 一定派发到 canvas，
+       不会因系统菜单抢焦点而丢失 */
+    try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
+    pickColorAtThrottled(evtX(e), evtY(e));
     return;
-  }
+}
 
-  if (sHeld && e.button === 0) {
+    if (sHeld && e.button === 0) {
     e.preventDefault();
     lassoActive = true;
     lassoPointerId = e.pointerId;
     try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
     lassoPoints = [{ x: evtX(e), y: evtY(e) }];
+
+    /* 记录起点，供"没移动 → 魔棒"分支使用 */
+    sPointerDownX = e.clientX;
+    sPointerDownY = e.clientY;
+    sPointerMoved = false;
 
     if (e.shiftKey) {
       lassoModifier = 'add';
@@ -6213,18 +7268,17 @@ cvs.addEventListener('pointerdown', e => {
     return;
   }
 
-  /* ---- 图层可编辑性检查：不可见 / 锁定 都拦截
-          —— 覆盖 shift 模糊/涂抹、ctrl 移动、普通绘制、液化 等
-             所有会写 baseCvs 的操作入口 ---- */
-  if (!canEditActiveLayer()) return;
-
+  /* Shift 模糊：需要可编辑图层 */
   if (e.shiftKey && e.button === 0 && !sHeld) {
+    if (!canEditActiveLayer()) return;
     e.preventDefault();
     lqCursor.style.display = 'none';
     startBlur(evtX(e), evtY(e), e.pointerId);
     return;
   }
 
+  /* Ctrl 移动/选层：不受图层可编辑性检查限制，
+     由内部在真正拖拽时再判断是否可移动 */
   if (e.ctrlKey && e.button === 0) {
     e.preventDefault();
     lqCursor.style.display = 'none';
@@ -6232,16 +7286,8 @@ cvs.addEventListener('pointerdown', e => {
     return;
   }
 
-  if (selecting) {
-    e.preventDefault();
-    isSelDragging = true;
-    selPointerId = e.pointerId;
-    cvs.setPointerCapture(e.pointerId);
-    selStartX = selEndX = evtX(e);
-    selStartY = selEndY = evtY(e);
-    updateSelOverlay();
-    return;
-  }
+  /* 其余工具（放置 / 绘画 / 液化）需要可编辑的活动图层 */
+  if (!canEditActiveLayer()) return;
 
   e.preventDefault();
   if (drawing || lqActive) return;
@@ -6262,6 +7308,13 @@ cvs.addEventListener('pointerdown', e => {
     lqPrevY = y;
     takeSnapshot();
     startLiquifySession();
+    return;
+  }
+
+  /* 油漆桶：点击即完成，不进入拖动流程 */
+  if (cfg.tool === 'paint' && cfg.paintMode === 'bucket') {
+    takeSnapshot();
+    applyBucketFill(x, y, eraserHeld);
     return;
   }
 
@@ -6332,18 +7385,21 @@ cvs.addEventListener('pointermove', e => {
   if (sizeAdjustActive && e.pointerId === sizeAdjustPointerId) {
     e.preventDefault();
     const dx = e.clientX - sizeAdjustStartX;
+    let newVal = 0;
     if (sizeAdjustTarget === 'pSize') {
       const minV = 6, maxV = 160;
       const rate = (maxV - minV) / 400;
       let v = sizeAdjustStartValue + dx * rate;
       v = Math.max(minV, Math.min(maxV, v));
-      setPSizeValue(Math.round(v));
+      newVal = Math.round(v);
+      setPSizeValue(newVal);
     } else if (sizeAdjustTarget === 'lqSize') {
       const minV = 10, maxV = 240;
       const rate = (maxV - minV) / 400;
       let v = sizeAdjustStartValue + dx * rate;
       v = Math.max(minV, Math.min(maxV, v));
-      setLqSizeValue(Math.round(v));
+      newVal = Math.round(v);
+      setLqSizeValue(newVal);
       /* 让液化的圆形光标跟随新尺寸 */
       updateLqCursor(e.clientX, e.clientY, e);
     } else {
@@ -6351,8 +7407,10 @@ cvs.addEventListener('pointermove', e => {
       const rate = (maxV - minV) / 400;
       let v = sizeAdjustStartValue + dx * rate;
       v = Math.max(minV, Math.min(maxV, v));
-      setBWidthValue(Math.round(v));
+      newVal = Math.round(v);
+      setBWidthValue(newVal);
     }
+    showSizeBadge(e.clientX, e.clientY, newVal);
     updateBrushCursor(e.clientX, e.clientY, e);
     return;
   }
@@ -6369,12 +7427,19 @@ cvs.addEventListener('pointermove', e => {
 
   if (e.altKey && (e.buttons & 1) && !(e.buttons & 4) && !isSHeld() && !e.shiftKey) {
     e.preventDefault();
-    pickColorAt(evtX(e), evtY(e));
+    pickColorAtThrottled(evtX(e), evtY(e));
     return;
   }
 
   if (lassoActive && e.pointerId === lassoPointerId) {
     e.preventDefault();
+        if (!sPointerMoved) {
+      const mdx = e.clientX - sPointerDownX;
+      const mdy = e.clientY - sPointerDownY;
+      if (mdx * mdx + mdy * mdy > 25) {   // 5px 阈值
+        sPointerMoved = true;
+      }
+    }
     const x = evtX(e), y = evtY(e);
     const last = lassoPoints[lassoPoints.length - 1];
     if (Math.hypot(x - last.x, y - last.y) < 2) return;
@@ -6510,6 +7575,7 @@ function endStroke(e) {
     sizeAdjustActive = false;
     sizeAdjustPointerId = null;
     cvs.style.cursor = sizeHeld ? 'ew-resize' : '';
+    hideSizeBadge();
     return;
   }
 
@@ -6524,6 +7590,14 @@ function endStroke(e) {
   if (lassoActive && (!e || e.pointerId === lassoPointerId)) {
     lassoActive = false;
     lassoPointerId = null;
+
+        // 没移动 → 魔棒；移动了 → 套索
+    if (!sPointerMoved && e) {
+      performMagicWand(evtX(e), evtY(e));
+      lassoPoints = [];
+      renderView();
+      return;
+    }
 
     if (lassoPoints.length >= 3) {
       const pts = lassoPoints.slice();
@@ -6615,6 +7689,16 @@ window.addEventListener('keydown', e => {
   if (k === '+' || k === '=' || k === '-' || k === '_') {
     e.preventDefault();
     e.stopPropagation();
+  }
+}, { capture: true });
+
+/* 阻止 Alt 单击激活 WebView / 系统菜单。
+   —— Windows 上 Alt+单击 会弹出窗口菜单，导致 keyup/pointerup 丢失，
+      altPressed 卡在 true，光标停在 picking 无法恢复。
+      capture 阶段 + preventDefault 才能真正拦住。 */
+window.addEventListener('keydown', e => {
+  if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
+    e.preventDefault();
   }
 }, { capture: true });
 
@@ -6725,6 +7809,7 @@ function pasteImageToCanvas(img) {
    撤销 / 清空 / 保存
    ========================================================= */
 const history = [];
+const redoStack = [];
 let lastSnap = 0;
 
 function takeSnapshot() {
@@ -6732,13 +7817,70 @@ function takeSnapshot() {
   if (now - lastSnap < 350 && history.length) return;
   lastSnap = now;
   try {
+    /* 深拷贝选区：套索复制点坐标；魔棒保存掩码画布引用
+       （endMove 时是新建画布而不是修改旧画布，所以引用是安全的） */
+    const selOps = selectionOps.map(opt => {
+      if (opt.type === 'wand') {
+        return { type: 'wand', maskCanvas: opt.maskCanvas, op: opt.op };
+      }
+      return {
+        op: opt.op,
+        points: opt.points.map(p => ({ x: p.x, y: p.y }))
+      };
+    });
+
     history.push({
       kind: 'pixel',
-      data: baseCvs.toDataURL('image/png')
+      data: baseCvs.toDataURL('image/png'),
+      selectionOps: selOps,
+      selectionInverted: selectionInverted
     });
     if (history.length > 16) history.shift();
+    /* 新操作使 redo 链失效 */
+    redoStack.length = 0;
   } catch (err) {}
 }
+
+/* 捕获当前完整状态（图层 + 选区），用于 undo/redo 栈 */
+function captureCurrentState() {
+  const active = getActiveLayer();
+  if (active) saveBaseToLayer(active);
+
+  const snapLayers = layers.map(l => ({
+    id: l.id,
+    name: l.name,
+    visible: l.visible,
+    locked: l.locked,
+    clip: l.clip,
+    lockPixels: l.lockPixels,
+    blendMode: l.blendMode,
+    opacity: l.opacity ?? 1,
+    data: l.canvas.toDataURL('image/png'),
+    lockMaskData: l.lockMask ? l.lockMask.toDataURL('image/png') : null
+  }));
+
+  const selOps = selectionOps.map(opt => {
+    if (opt.type === 'wand') {
+      return { type: 'wand', maskCanvas: opt.maskCanvas, op: opt.op };
+    }
+    return {
+      op: opt.op,
+      points: opt.points.map(p => ({ x: p.x, y: p.y }))
+    };
+  });
+
+  return {
+    kind: 'layers',
+    layers: snapLayers,
+    activeLayerId,
+    selectedLayerIds: Array.from(selectedLayerIds),
+    nextLayerId,
+    layerNameCounter,
+    selectionOps: selOps,
+    selectionInverted: selectionInverted
+  };
+}
+
 
 /* 图层级快照：记录完整图层结构（含每层像素、不透明度、混合模式等）。
    needPixels=true 时给每层像素编码 PNG，撤销删除/合并时靠它恢复。 */
@@ -6770,23 +7912,36 @@ function takeLayerSnapshot(options) {
       return s;
     });
 
+    const selOps = selectionOps.map(opt => {
+      if (opt.type === 'wand') {
+        return { type: 'wand', maskCanvas: opt.maskCanvas, op: opt.op };
+      }
+      return {
+        op: opt.op,
+        points: opt.points.map(p => ({ x: p.x, y: p.y }))
+      };
+    });
+
     history.push({
       kind: 'layers',
       layers: snapLayers,
       activeLayerId,
       selectedLayerIds: Array.from(selectedLayerIds),
       nextLayerId,
-      layerNameCounter
+      layerNameCounter,
+      selectionOps: selOps,
+      selectionInverted: selectionInverted
     });
     if (history.length > 16) history.shift();
+    /* 新操作使 redo 链失效 */
+    redoStack.length = 0;
   } catch (err) {}
 }
 
 let undoing = false;
 
-function undo() {
-  if (undoing) return;
-  const snap = history.pop();
+/* 恢复一份快照（undo / redo 共用） */
+function restoreSnapshot(snap) {
   if (!snap) return;
 
   /* 兼容旧格式（直接是字符串 dataURL） */
@@ -6814,7 +7969,7 @@ function undo() {
     return;
   }
 
-  /* 像素级快照：只恢复活动图层像素 */
+  /* 像素级快照 */
   const img = new Image();
   img.onload = () => {
     bctx.save();
@@ -6826,9 +7981,52 @@ function undo() {
     bctx.restore();
     const active = getActiveLayer();
     if (active) saveBaseToLayer(active);
+
+    if (snap.selectionOps) {
+      selectionOps = snap.selectionOps.map(opt => {
+        if (opt.type === 'wand') {
+          return { type: 'wand', maskCanvas: opt.maskCanvas, op: opt.op };
+        }
+        return {
+          op: opt.op,
+          points: opt.points.map(p => ({ x: p.x, y: p.y }))
+        };
+      });
+      selectionInverted = !!snap.selectionInverted;
+      rebuildSelection();
+    }
+
     renderView();
   };
   img.src = snap.data;
+}
+
+function undo() {
+  if (undoing) return;
+  const snap = history.pop();
+  if (!snap) return;
+
+  /* 撤销前，把当前状态存进 redoStack */
+  try {
+    redoStack.push(captureCurrentState());
+    if (redoStack.length > 16) redoStack.shift();
+  } catch (err) {}
+
+  restoreSnapshot(snap);
+}
+
+function redo() {
+  if (undoing) return;
+  const snap = redoStack.pop();
+  if (!snap) return;
+
+  /* 重做前，把当前状态存回 history */
+  try {
+    history.push(captureCurrentState());
+    if (history.length > 16) history.shift();
+  } catch (err) {}
+
+  restoreSnapshot(snap);
 }
 
 /* 还原图层级快照：重建图层数组、活动图层、选中集合 */
@@ -6916,6 +8114,27 @@ function undoLayerSnapshot(snap) {
     if (snap.nextLayerId) nextLayerId = snap.nextLayerId;
     if (snap.layerNameCounter) layerNameCounter = snap.layerNameCounter;
 
+    /* 恢复选区（快照里有 selectionOps 就还原，否则清空） */
+    if (snap.selectionOps) {
+      selectionOps = snap.selectionOps.map(opt => {
+        if (opt.type === 'wand') {
+          return { type: 'wand', maskCanvas: opt.maskCanvas, op: opt.op };
+        }
+        return {
+          op: opt.op,
+          points: opt.points.map(p => ({ x: p.x, y: p.y }))
+        };
+      });
+      selectionInverted = !!snap.selectionInverted;
+      rebuildSelection();
+    } else {
+      selectionOps = [];
+      selectionInverted = false;
+      selectionMaskCvs = null;
+      selectionInvMaskCvs = null;
+      selectionContours = [];
+    }
+
     loadLayerToBase(getActiveLayer());
     updateLayersUI();
     renderView();
@@ -6938,7 +8157,42 @@ function clearAll() {
   renderView();
 }
 
-function savePNG() {
+  /* 桌面（Tauri）环境下用原生保存对话框；
+   浏览器环境下降级用 a.download 下载。 */
+async function downloadBlob(blob, filename) {
+  if (window.__TAURI__ && window.__TAURI__.dialog && window.__TAURI__.fs) {
+    try {
+      const filePath = await window.__TAURI__.dialog.save({
+        defaultPath: filename,
+        filters: [
+          {
+            name: '文件',
+            extensions: [filename.split('.').pop()]
+          }
+        ]
+      });
+      if (!filePath) return false;
+      const arrayBuffer = await blob.arrayBuffer();
+      await window.__TAURI__.fs.writeFile(filePath, new Uint8Array(arrayBuffer));
+      return true;
+    } catch (err) {
+      console.error('[downloadBlob]', err);
+      showToast('保存失败：' + (err.message || '未知错误'));
+      return false;
+    }
+  }
+
+  /* 浏览器降级 */
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
+}
+
+async function savePNG() {
   /* 先把活动图层内容落地，再全图层合成导出 */
   const active = getActiveLayer();
   if (active) saveBaseToLayer(active);
@@ -6949,10 +8203,10 @@ function savePNG() {
   const tctx = tmp.getContext('2d');
   composeLayersTo(tctx, tmp.width, tmp.height);
 
-  const a = document.createElement('a');
-  a.download = `geometry-${Date.now()}.png`;
-  a.href = tmp.toDataURL('image/png');
-  a.click();
+  tmp.toBlob(async blob => {
+    const ok = await downloadBlob(blob, `geometry-${Date.now()}.png`);
+    if (ok) showToast('已导出 PNG');
+  }, 'image/png');
 }
 
 /* =========================================================
@@ -6982,7 +8236,7 @@ const CANVAS_GCO_TO_PSD_BLEND = {
   'luminosity':  'luminosity'
 };
 
-function exportPSD() {
+async function exportPSD() {
   /* 1. 检查库是否加载成功 */
   if (!window.agPsd || typeof window.agPsd.writePsd !== 'function') {
     showToast('PSD 库未加载\n请检查网络连接后刷新页面重试');
@@ -7049,18 +8303,12 @@ function exportPSD() {
     return;
   }
 
-  /* 5. 下载 */
+  /* 5. 保存 */
   const blob = new Blob([buffer], { type: 'image/vnd.adobe.photoshop' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `geometry-${Date.now()}.psd`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-  showToast('已导出 PSD（' + children.length + ' 个图层）');
+  const ok = await downloadBlob(blob, `geometry-${Date.now()}.psd`);
+  if (ok) {
+    showToast('已导出 PSD（' + children.length + ' 个图层）');
+  }
 }
 
 /* =========================================================
@@ -7085,6 +8333,7 @@ bindRange('bWidth',  (v, o) => { cfg.bWidth = v;          o.textContent = v; });
 bindRange('bSmooth', (v, o) => { cfg.bSmooth = v/100;     o.textContent = v + '%'; });
 bindRange('bAlpha',  (v, o) => { cfg.bAlpha = v/100;      o.textContent = v + '%'; });
 bindRange('bSpacing', (v, o) => { cfg.bSpacing = v/100; o.textContent = v + '%'; });
+bindRange('bTolerance', (v, o) => { cfg.paintTolerance = v; o.textContent = v; });
 
 bindRange('lqSize',     (v, o) => { cfg.lqSize = v;              o.textContent = v; });
 
@@ -7168,6 +8417,13 @@ function applyTool(tool) {
   toolBox.querySelectorAll('button').forEach(b =>
     b.classList.toggle('on', b.dataset.v === tool));
 
+  /* 若新工具不支持 X 调大小，且 X 键还按着，主动解除，
+     免得光标一直显示 ew-resize 但松手拖动没反应 */
+  if (sizeHeld && !canAdjustSize()) {
+    sizeHeld = false;
+    cvs.style.cursor = '';
+  }
+
   const isPlace = tool === 'place';
   const isPaint = tool === 'paint';
   const isLq    = tool === 'liquify';
@@ -7246,8 +8502,9 @@ pModeBox.addEventListener('click', e => {
 const paintModeBox = document.getElementById('paintModes');
 const paintHint    = document.getElementById('paintHint');
 const PAINT_TIPS = {
-  line:  '自由画笔，颜色由拾色器和渐变共同决定',
-  fill:  '柳叶笔套索，以起点为圆心 72 扇区填色'
+  line:   '自由画笔，颜色由拾色器和渐变共同决定',
+  lasso:  '柳叶笔套索，以起点为圆心 72 扇区填色',
+  bucket: '点击填充连通区域（油漆桶），容差控制颜色宽容度'
 };
 function applyPaintMode(mode) {
   cfg.paintMode = mode;
@@ -7255,6 +8512,12 @@ function applyPaintMode(mode) {
     b.classList.toggle('on', b.dataset.v === mode));
   paintHint.textContent = PAINT_TIPS[mode] || '';
   updateUIState();
+
+  /* 画笔 ↔ 填充/套索 切换时，重判 X 是否还有效 */
+  if (sizeHeld && !canAdjustSize()) {
+    sizeHeld = false;
+    cvs.style.cursor = '';
+  }
 }
 paintModeBox.addEventListener('click', e => {
   const btn = e.target.closest('button');
@@ -7367,13 +8630,12 @@ window.addEventListener('keydown', e => {
 
   /* ---- X 键：按住调笔刷大小 ---- */
   if (e.code === 'KeyX' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    /* 支持所有能调尺寸的工具：
+    /* 只有当前工具需要笔刷大小的时候才生效：
        - 放置
-       - 绘画（画笔线 / 填充 / 按住 E 擦除）
-       - 液化 */
-    if (cfg.tool === 'place' ||
-        cfg.tool === 'paint' ||
-        cfg.tool === 'liquify') {
+       - 液化
+       - 绘画-画笔（line）
+       （绘画-套索 / 绘画-填充 无笔刷大小，忽略 X） */
+    if (canAdjustSize()) {
       sizeHeld = true;
       if (!tfActive && !altPressed && !ctrlPressed) {
         cvs.style.cursor = 'ew-resize';
@@ -7401,6 +8663,7 @@ window.addEventListener('keydown', e => {
     backtickHeld = true;
     lastSKeydownTime = performance.now();
     if (!tfActive) cvs.style.cursor = 'crosshair';
+        showSTolerancePanel();
   }
 
   if (backtickHeld) {
@@ -7447,6 +8710,27 @@ window.addEventListener('keydown', e => {
     return;
   }
 
+    /* ---- Ctrl+C / Ctrl+X / Ctrl+V：选区剪贴板 ---- */
+  if ((e.ctrlKey || e.metaKey) && k === 'c') {
+    if (copySelection(false)) e.preventDefault();
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && k === 'x') {
+    if (copySelection(true)) e.preventDefault();
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && k === 'v') {
+    /* 内部剪贴板有内容 → 优先走内部粘贴；
+       否则让浏览器默认行为触发 paste 事件（粘贴系统剪贴板图像） */
+    if (clipBuffer) {
+      e.preventDefault();
+      pasteClipboard();
+    }
+    return;
+  }
+
   if (k === 't' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     enterTransform();
@@ -7471,10 +8755,16 @@ window.addEventListener('keydown', e => {
     return;
   }
 
+    if ((e.ctrlKey || e.metaKey) && k === 'y') {
+    e.preventDefault();
+    redo();
+    return;
+  }
+
   if (e.key === 'Escape') {
     if (lassoActive) { lassoActive = false; lassoPoints = []; renderView(); return; }
     if (blurActive) { endBlur(); return; }
-    if (moveActive) { endMove(); return; }
+    if (moveActive) { endMove(true); return; }
     if (hasSelection()) { clearSelection(); return; }
     if (selecting) { exitSelectionMode(); return; }
   }
@@ -7549,11 +8839,12 @@ window.addEventListener('keyup', e => {
     backtickHeld = false;
     lastSKeydownTime = -1e9;
     if (!tfActive && !altPressed && !ctrlPressed && !sizeHeld) cvs.style.cursor = '';
+        hideSTolerancePanel();
   }
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
     blurBar.style.display = 'none';
   }
-  if (!e.altKey && altPressed) {
+  if ((e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight' || !e.altKey) && altPressed) {
     altPressed = false;
     updateModifierCursor();
   }
@@ -7567,6 +8858,7 @@ window.addEventListener('blur', () => {
   if (altPressed) { altPressed = false; updateModifierCursor(); }
   if (ctrlPressed) { ctrlPressed = false; updateModifierCursor(); }
   blurBar.style.display = 'none';
+    hideSTolerancePanel();
 
   if (eraserHeld) {
     eraserHeld = false;
@@ -7589,7 +8881,45 @@ window.addEventListener('blur', () => {
     sizeAdjustPointerId = null;
   }
 
+  hideSizeBadge();
+
   cvs.style.cursor = '';
+});
+
+/* 用 pointer 事件的 altKey / ctrlKey 作为权威来源，
+   双向同步 altPressed / ctrlPressed。
+   —— PC / Tauri 下按住 Alt 点击可能触发系统菜单，导致 Alt 的 keyup 丢失，
+      只靠 keyup 复位会让 altPressed 卡死，光标一直停留在 picking。 */
+function syncModifierStatesFromPointer(e) {
+  const hasAlt  = !!e.altKey;
+  const hasCtrl = !!(e.ctrlKey || e.metaKey);
+  let changed = false;
+  if (altPressed  !== hasAlt)  { altPressed  = hasAlt;  changed = true; }
+  if (ctrlPressed !== hasCtrl) { ctrlPressed = hasCtrl; changed = true; }
+  if (changed) updateModifierCursor();
+}
+
+window.addEventListener('pointermove',   syncModifierStatesFromPointer);
+window.addEventListener('pointerup',     syncModifierStatesFromPointer);
+window.addEventListener('pointercancel', syncModifierStatesFromPointer);
+/* 捕获阶段：pointerdown 时先校准一次，保证吸色判断和后续状态一致 */
+window.addEventListener('pointerdown',   syncModifierStatesFromPointer, true);
+
+/* 窗口重新获得焦点时清空修饰键状态，防止 Tauri / 浏览器切换焦点后残留 */
+window.addEventListener('focus', () => {
+  let changed = false;
+  if (altPressed)  { altPressed  = false; changed = true; }
+  if (ctrlPressed) { ctrlPressed = false; changed = true; }
+  if (changed) updateModifierCursor();
+});
+
+/* 页面重新可见时也清一次 */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  let changed = false;
+  if (altPressed)  { altPressed  = false; changed = true; }
+  if (ctrlPressed) { ctrlPressed = false; changed = true; }
+  if (changed) updateModifierCursor();
 });
 
 /* =========================================================
@@ -7634,8 +8964,9 @@ const RADIAL_DEFS = {
   '2': {
     label: '绘画',
     items: [
-      { value: 'line', label: '画笔' },
-      { value: 'fill', label: '填充' }
+      { value: 'line',   label: '画笔' },
+      { value: 'lasso',  label: '套索' },
+      { value: 'bucket', label: '填充' }
     ],
     apply(item) {
       /* 关键：若当前不是「绘画」工具，先切过去 */
@@ -7873,6 +9204,15 @@ if (collapseLayersBtn && layersPanelEl) {
 buildCustomSlotsUI();
 updateCustomBrushPreview();
 updateBlurBrushPreview();
+const wandToleranceEl = document.getElementById('wandTolerance');
+if (wandToleranceEl) {
+  const out = wandToleranceEl.nextElementSibling;
+  wandToleranceEl.addEventListener('input', () => {
+    const v = parseFloat(wandToleranceEl.value);
+    cfg.wandTolerance = v;
+    if (out) out.textContent = v;
+  });
+}
 updateBaseHsl();
 colorInputEl.value = cfg.baseColor;
 
@@ -7887,7 +9227,7 @@ updateLayersUI();
 applyTool(cfg.tool);
 applyCtrlMode(cfg.ctrlMode);
 applyPlaceMode(cfg.pMode);
-if (cfg.paintMode === 'erase') cfg.paintMode = 'line';
+if (cfg.paintMode === 'erase' || cfg.paintMode === 'fill') cfg.paintMode = 'line';
 applyPaintMode(cfg.paintMode);
 applyLqMode(cfg.lqMode);
 applyLqStyle(cfg.lqStyle);
