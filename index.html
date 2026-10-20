@@ -913,10 +913,10 @@
 
       <section>
         <div class="lbl">笔触</div>
-        <div class="row"><span>大小</span><input id="pSize" type="range" min="6" max="160" value="30"><i>30</i><label class="sw row-sw" title="大小压感"><input id="pSizePen" type="checkbox"><span></span></label></div>
-        <div class="row"><span>大小变化</span><input id="pSizeVar" type="range" min="0" max="100" value="55"><i>55%</i></div>
-        <div class="row"><span>间距</span><input id="pSpacing" type="range" min="3" max="80" value="18"><i>18</i></div>
-        <div class="row"><span>抖动</span><input id="pJitter" type="range" min="0" max="40" value="8"><i>8</i></div>
+        <div class="row" id="pSizeRow">大小</span><input id="pSize" type="range" min="6" max="160" value="30"><i>30</i><label class="sw row-sw" title="大小压感"><input id="pSizePen" type="checkbox"><span></span></label></div>
+        <div class="row" id="pSizeVarRow"><span>大小变化</span><input id="pSizeVar" type="range" min="0" max="100" value="55"><i>55%</i></div>
+        <div class="row" id="pSpacingRow"><span>间距</span><input id="pSpacing" type="range" min="3" max="80" value="18"><i>18</i></div>
+        <div class="row" id="pJitterRow">抖动</span><input id="pJitter" type="range" min="0" max="40" value="8"><i>8</i></div>
         <div class="row"><span>透明度</span><input id="pAlpha" type="range" min="5" max="100" value="85"><i>85%</i><label class="sw row-sw" title="透明度压感"><input id="pAlphaPen" type="checkbox"><span></span></label></div>
         <div class="row"><span>线宽</span><input id="pLw" type="range" min="1" max="120" value="20"><i>2.0</i></div>
       </section>
@@ -1100,8 +1100,9 @@ const pick = arr => arr[(Math.random() * arr.length) | 0];
 const cfg = {
   tool: 'place',
   shape: 'random',
-  pSize: 30, pSizeVar: 0.55, pSpacing: 18, pJitter: 8,
-  pAlpha: 0.85, pLw: 2, pMode: 'mix',
+pSize: 30, pSizeVar: 0.55, pSpacing: 18, pJitter: 8,
+pEraserSize: 60,
+pAlpha: 0.85, pLw: 2, pMode: 'mix',
   placeSizePressure: false,
   placeAlphaPressure: false,
   paintSizePressure: false,
@@ -1109,6 +1110,7 @@ const cfg = {
   ctrlMode: 'scatter',
   paintMode: 'line',
   bWidth: 8, bSmooth: 0.35, bAlpha: 1.0, bSpacing: 0.15,
+bEraserWidth: 16,
   paintTolerance: 30, // 油漆桶容差 0~100（映射到 0~255 通道差异）
   paintContiguous: true,   // 油漆桶：连续（true = 只填接壤区域；false = 全画布同色）
   wandTolerance: 30,
@@ -1228,8 +1230,22 @@ function isEraserTool() {
   return eraserHeld && (cfg.tool === 'place' || cfg.tool === 'paint');
 }
 
+function setRangeDisplay(id, v) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = String(v);
+  const out = el.nextElementSibling;
+  if (out) out.textContent = String(v);
+}
+
 function updateEraserBadge() {
   eraserBadge.style.display = isEraserTool() ? 'block' : 'none';
+  if (cfg.tool === 'place') {
+    setRangeDisplay('pSize', eraserHeld ? cfg.pEraserSize : cfg.pSize);
+  }
+  if (cfg.tool === 'paint') {
+    setRangeDisplay('bWidth', eraserHeld ? cfg.bEraserWidth : cfg.bWidth);
+  }
 }
 
 function resize() {
@@ -1902,10 +1918,16 @@ function updateUIState() {
   if (isPlace) {
     const isCustom     = cfg.shape === 'custom';
     const isStrokeOnly = STROKE_ONLY.has(cfg.shape);
+    const isDrag       = cfg.ctrlMode === 'drag';
 
     setDisabled(pModeSection, isCustom || isStrokeOnly);
     setDisabled(paintColorGroup, isCustom || eraser);
     setDisabled(blendRow, eraser);
+
+    setDisabled(document.getElementById('pSizeRow'), isDrag);
+    setDisabled(document.getElementById('pSizeVarRow'), isDrag);
+    setDisabled(document.getElementById('pSpacingRow'), isDrag);
+    setDisabled(document.getElementById('pJitterRow'), isDrag);
 
     setDisabled(bSmoothRow, false);
     setDisabled(bAlphaRow, false);
@@ -2137,6 +2159,26 @@ function clearSelection() {
   renderView();
 }
 
+/* 内部复制/剪切后，把系统剪贴板里的图片清掉，
+   避免下次 Ctrl+V 被之前从外部复制的旧图片抢占。
+   用空文本作为占位（ClipboardItem 优先，降级 writeText）。 */
+function clearSystemClipboardAfterInternalCopy() {
+  try {
+    if (navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
+      const item = new ClipboardItem({
+        'text/plain': new Blob([''], { type: 'text/plain' })
+      });
+      navigator.clipboard.write([item]).catch(() => {
+        if (navigator.clipboard.writeText) {
+          navigator.clipboard.writeText('').catch(() => {});
+        }
+      });
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText('').catch(() => {});
+    }
+  } catch (e) {}
+}
+
 /* =========================================================
    选区剪贴板（Ctrl+C / Ctrl+X / Ctrl+V）
    =========================================================
@@ -2213,6 +2255,9 @@ function copySelection(cut) {
     bctx.restore();
     renderView();
   }
+
+  /* 清空系统剪贴板里的图片，避免下次 Ctrl+V 被旧的外部图片抢占 */
+  clearSystemClipboardAfterInternalCopy();
 
   return true;
 }
@@ -5922,7 +5967,8 @@ function stampCustomShape(x, y, pressure, cs) {
   const erase = isPlaceErasing();
 
   const scale = sizeFactor(pressure);
-  const targetSize = cfg.pSize * scale * rnd(1 - cfg.pSizeVar, 1 + cfg.pSizeVar);
+  const sizeSrc = erase ? cfg.pEraserSize : cfg.pSize;
+  const targetSize = sizeSrc * scale * rnd(1 - cfg.pSizeVar, 1 + cfg.pSizeVar);
 
   const maxDim = Math.max(cs.w, cs.h);
   const s = targetSize / maxDim;
@@ -5975,7 +6021,8 @@ function stampShape(x, y, pressure) {
 
   const scale = sizeFactor(pressure);
 
-  const base = cfg.pSize * scale * rnd(1 - cfg.pSizeVar, 1 + cfg.pSizeVar);
+  const sizeSrc = erase ? cfg.pEraserSize : cfg.pSize;
+  const base = sizeSrc * scale * rnd(1 - cfg.pSizeVar, 1 + cfg.pSizeVar);
   const r = Math.max(0.8, base / 2);
 
   const dec = makeShapeDecision(type, pressure);
@@ -6363,9 +6410,10 @@ function drawBrushDab(g, x, y, radius, tint) {
 
 function paintDab(x, y, pressure) {
   const { sizeMul } = pressureMul(pressure);
-  const radius = Math.max(0.4, cfg.bWidth * sizeMul / 2);
+  const bw = strokeErasing ? cfg.bEraserWidth : cfg.bWidth;
+  const radius = Math.max(0.4, bw * sizeMul / 2);
 
-  const step = Math.max(0.4, cfg.bWidth * cfg.bSpacing);
+  const step = Math.max(0.4, bw * cfg.bSpacing);
   lineProgress += step;
   if (!strokeErasing) updateDabColor();
 
@@ -6423,7 +6471,8 @@ function paintDab(x, y, pressure) {
 }
 
 function emitDabsAlongPolyline(pts, pStart, pEnd) {
-  const spacing = Math.max(0.4, cfg.bWidth * cfg.bSpacing);
+  const bw = strokeErasing ? cfg.bEraserWidth : cfg.bWidth;
+  const spacing = Math.max(0.4, bw * cfg.bSpacing);
 
   /* 兼容旧调用：只给一个压力时退化为常量 */
   if (pStart === undefined) pStart = pEnd;
@@ -7240,7 +7289,10 @@ function updateBrushCursor(x, y, e) {
   if (isSHeld()) { brushCursor.style.display = 'none'; return; }
   if (e && e.shiftKey) { brushCursor.style.display = 'none'; return; }
 
-  const rawSize = isPlace ? cfg.pSize : cfg.bWidth;
+  const erasing = isEraserTool();
+  const rawSize = isPlace
+    ? (erasing ? cfg.pEraserSize : cfg.pSize)
+    : (erasing ? cfg.bEraserWidth : cfg.bWidth);
   const size = Math.max(4, Math.min(500, rawSize * viewScale));
 
   brushCursor.style.display = 'block';
@@ -7711,19 +7763,23 @@ document.addEventListener('pointerdown', e => {
 
 /* 当前工具是否支持通过 X 键调笔刷大小 */
 function canAdjustSize() {
-  if (cfg.tool === 'place') return true;                                 // 放置：pSize
-  if (cfg.tool === 'liquify') return true;                               // 液化：lqSize
-  if (cfg.tool === 'paint' && cfg.paintMode === 'line') return true;     // 绘画-画笔：bWidth
-  return false;   // 绘画-套索 / 绘画-填充（油漆桶）不需要大小
+  if (cfg.tool === 'place') return cfg.ctrlMode !== 'drag';
+  if (cfg.tool === 'liquify') return true;
+  if (cfg.tool === 'paint' && cfg.paintMode === 'line') return true;
+  return false;
 }
 /* ---- 同步 UI 滑块 ---- */
 function setPSizeValue(v) {
-  const el = document.getElementById('pSize');
-  if (!el) return;
-  el.value = String(v);
-  const out = el.nextElementSibling;
-  if (out) out.textContent = String(v);
   cfg.pSize = v;
+  if (!(isEraserTool() && cfg.tool === 'place')) {
+    setRangeDisplay('pSize', v);
+  }
+}
+function setPEraserSizeValue(v) {
+  cfg.pEraserSize = v;
+  if (isEraserTool() && cfg.tool === 'place') {
+    setRangeDisplay('pSize', v);
+  }
 }
 function setLqSizeValue(v) {
   const el = document.getElementById('lqSize');
@@ -7743,12 +7799,16 @@ function setBlurSizeValue(v) {
   blurBrushCacheKey = '';  /* 尺寸变了，缓存失效 */
 }
 function setBWidthValue(v) {
-  const el = document.getElementById('bWidth');
-  if (!el) return;
-  el.value = String(v);
-  const out = el.nextElementSibling;
-  if (out) out.textContent = String(v);
   cfg.bWidth = v;
+  if (!(isEraserTool() && cfg.tool === 'paint')) {
+    setRangeDisplay('bWidth', v);
+  }
+}
+function setBEraserWidthValue(v) {
+  cfg.bEraserWidth = v;
+  if (isEraserTool() && cfg.tool === 'paint') {
+    setRangeDisplay('bWidth', v);
+  }
 }
 
 /* =========================================================
@@ -7994,14 +8054,14 @@ cvs.addEventListener('pointerdown', e => {
       sizeAdjustStartValue = cfg.blurSize;
       sizeAdjustTarget = 'blurSize';
     } else if (cfg.tool === 'place') {
-      sizeAdjustStartValue = cfg.pSize;
-      sizeAdjustTarget = 'pSize';
+      if (eraserHeld) { sizeAdjustStartValue = cfg.pEraserSize; sizeAdjustTarget = 'pEraserSize'; }
+      else            { sizeAdjustStartValue = cfg.pSize;       sizeAdjustTarget = 'pSize'; }
     } else if (cfg.tool === 'liquify') {
       sizeAdjustStartValue = cfg.lqSize;
       sizeAdjustTarget = 'lqSize';
     } else {
-      sizeAdjustStartValue = cfg.bWidth;
-      sizeAdjustTarget = 'bWidth';
+      if (eraserHeld) { sizeAdjustStartValue = cfg.bEraserWidth; sizeAdjustTarget = 'bEraserWidth'; }
+      else            { sizeAdjustStartValue = cfg.bWidth;       sizeAdjustTarget = 'bWidth'; }
     }
     try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
     cvs.style.cursor = 'ew-resize';
@@ -8276,13 +8336,14 @@ cvs.addEventListener('pointermove', e => {
     e.preventDefault();
     const dx = e.clientX - sizeAdjustStartX;
     let newVal = 0;
-    if (sizeAdjustTarget === 'pSize') {
+    if (sizeAdjustTarget === 'pSize' || sizeAdjustTarget === 'pEraserSize') {
       const minV = 6, maxV = 160;
       const rate = (maxV - minV) / 400;
       let v = sizeAdjustStartValue + dx * rate;
       v = Math.max(minV, Math.min(maxV, v));
       newVal = Math.round(v);
-      setPSizeValue(newVal);
+      if (sizeAdjustTarget === 'pSize') setPSizeValue(newVal);
+      else                              setPEraserSizeValue(newVal);
     } else if (sizeAdjustTarget === 'lqSize') {
       const minV = 10, maxV = 240;
       const rate = (maxV - minV) / 400;
@@ -8301,13 +8362,14 @@ cvs.addEventListener('pointermove', e => {
       setBlurSizeValue(newVal);
       /* 让模糊/涂抹的圆形光标跟随新尺寸 */
       updateLqCursor(e.clientX, e.clientY, e);
-    } else {
+      } else if (sizeAdjustTarget === 'bWidth' || sizeAdjustTarget === 'bEraserWidth') {
       const minV = 1, maxV = 120;
       const rate = (maxV - minV) / 400;
       let v = sizeAdjustStartValue + dx * rate;
       v = Math.max(minV, Math.min(maxV, v));
       newVal = Math.round(v);
-      setBWidthValue(newVal);
+      if (sizeAdjustTarget === 'bWidth') setBWidthValue(newVal);
+      else                               setBEraserWidthValue(newVal);
     }
     showSizeBadge(e.clientX, e.clientY, newVal);
     updateBrushCursor(e.clientX, e.clientY, e);
@@ -8521,6 +8583,13 @@ function endStroke(e) {
     }
 
     if (lassoPoints.length >= 3) {
+      /* 套索完成前抓快照，让 Ctrl+Z 能单独撤销套索本身，
+         不会把上一次绘画一起撤掉。
+         lastSnap = 0 绕过 takeSnapshot 的 350ms 节流 —— 否则刚画完就套索
+         会被跳过，仍然恢复到绘画前的状态。 */
+      lastSnap = 0;
+      takeSnapshot();
+
       const pts = lassoPoints.slice();
       if (lassoModifier === 'new' || selectionOps.length === 0) {
         selectionOps = [{ points: pts, op: 'new' }];
@@ -9605,14 +9674,22 @@ function bindRange(id, apply) {
   handler();
 }
 
-bindRange('pSize',    (v, o) => { cfg.pSize = v;         o.textContent = v; });
+bindRange('pSize', (v, o) => {
+  if (isEraserTool() && cfg.tool === 'place') cfg.pEraserSize = v;
+  else                                        cfg.pSize = v;
+  o.textContent = v;
+});
 bindRange('pSizeVar', (v, o) => { cfg.pSizeVar = v/100;  o.textContent = v + '%'; });
 bindRange('pSpacing', (v, o) => { cfg.pSpacing = v;      o.textContent = v; });
 bindRange('pJitter',  (v, o) => { cfg.pJitter = v;       o.textContent = v; });
 bindRange('pAlpha',   (v, o) => { cfg.pAlpha = v/100;    o.textContent = v + '%'; });
 bindRange('pLw',      (v, o) => { cfg.pLw = v/10;        o.textContent = (v/10).toFixed(1); });
 
-bindRange('bWidth',  (v, o) => { cfg.bWidth = v;          o.textContent = v; });
+bindRange('bWidth', (v, o) => {
+  if (isEraserTool() && cfg.tool === 'paint') cfg.bEraserWidth = v;
+  else                                        cfg.bWidth = v;
+  o.textContent = v;
+});
 bindRange('bSmooth', (v, o) => { cfg.bSmooth = v/100;     o.textContent = v + '%'; });
 bindRange('bAlpha',  (v, o) => { cfg.bAlpha = v/100;      o.textContent = v + '%'; });
 bindRange('bSpacing', (v, o) => { cfg.bSpacing = v/100; o.textContent = v + '%'; });
@@ -9752,6 +9829,11 @@ function applyCtrlMode(mode) {
   ctrlBox.querySelectorAll('button').forEach(b =>
     b.classList.toggle('on', b.dataset.v === mode));
   ctrlHint.textContent = CTRL_TIPS[mode] || '';
+  updateUIState();
+  if (sizeHeld && !canAdjustSize()) {
+    sizeHeld = false;
+    if (!tfActive && !altPressed && !ctrlPressed) cvs.style.cursor = '';
+  }
 }
 ctrlBox.addEventListener('click', e => {
   const btn = e.target.closest('button');
