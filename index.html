@@ -7279,7 +7279,7 @@ function updateBrushCursor(x, y, e) {
   if (spaceMode === 'pan' || spaceMode === 'zoom') { brushCursor.style.display = 'none'; return; }
   if (gHeld) { brushCursor.style.display = 'none'; return; }
 
-  const isPlace = cfg.tool === 'place';
+  const isPlace = cfg.tool === 'place' && cfg.ctrlMode !== 'drag';
   const isPaint = cfg.tool === 'paint' && cfg.paintMode === 'line';
   if (!isPlace && !isPaint) { brushCursor.style.display = 'none'; return; }
 
@@ -9833,6 +9833,11 @@ function applyCtrlMode(mode) {
   if (sizeHeld && !canAdjustSize()) {
     sizeHeld = false;
     if (!tfActive && !altPressed && !ctrlPressed) cvs.style.cursor = '';
+  }
+  
+  // 新增：切换到拖拽模式时，立即隐藏可能残留的笔刷圆环
+  if (mode === 'drag') {
+    brushCursor.style.display = 'none';
   }
 }
 ctrlBox.addEventListener('click', e => {
