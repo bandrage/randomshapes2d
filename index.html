@@ -50,6 +50,7 @@
   .chips button:hover{background:rgba(255,255,255,.09);color:#fff}
   .chips button.on{background:linear-gradient(135deg,rgba(110,231,255,.22),rgba(167,139,250,.22));border-color:rgba(110,231,255,.55);color:#fff;box-shadow:inset 0 0 12px rgba(110,231,255,.15);}
   .row{display:flex;align-items:center;gap:8px;margin:7px 0}
+  .row[hidden]{display:none !important}
   .row > span{flex:0 0 52px;color:var(--dim);font-size:11px}
   .row > i{flex:0 0 36px;text-align:right;font-style:normal;color:#b9b9c9;font-size:10.5px;font-variant-numeric:tabular-nums;}
   .row input[type=range]{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:3px;border-radius:3px;background:rgba(255,255,255,.14);outline:none;cursor:pointer;}
@@ -760,6 +761,14 @@
     .custom-preview{height:56px}
     #layersPanel{width:200px;max-height:42dvh;bottom:12px;right:12px}
   }
+
+  /* Ctrl+H：收起除底部快捷键提示外的所有常驻 UI。
+     #hint 不在列表里，因此始终保留。 */
+  body.ui-hidden #ui,
+  body.ui-hidden #customPanel,
+  body.ui-hidden #layersPanel {
+    display: none !important;
+  }
 </style>
 </head>
 <body>
@@ -935,9 +944,10 @@
     <div id="paintPanel" hidden>
       <section>
         <div class="lbl">绘画模式</div>
-        <div class="chips two" id="paintModes">
+        <div class="chips" id="paintModes">
           <button data-v="line" class="on">画笔</button>
-          <button data-v="lasso">套索绘画</button>
+          <button data-v="lasso">套索</button>
+          <button data-v="gradient">渐变线</button>
         </div>
         <div class="modeHint" id="paintHint">自由画线</div>
       </section>
@@ -945,9 +955,14 @@
       <section>
         <div class="lbl">笔刷</div>
         <div class="row" id="bWidthRow"><span>笔宽</span><input id="bWidth" type="range" min="1" max="120" value="8"><i>8</i><label class="sw row-sw" title="大小压感"><input id="bSizePen" type="checkbox"><span></span></label></div>
+        <div class="row" id="bHardnessRow"><span>硬度</span><input id="bHardness" type="range" min="0" max="100" value="100"><i>100%</i></div>
+        <div class="row" id="bAngleJitterRow"><span>角度</span><input id="bAngleJitter" type="range" min="0" max="180" value="0"><i>0°</i></div>
+        <div class="row" id="bSizeJitterRow"><span>大小</span><input id="bSizeJitter" type="range" min="0" max="100" value="0"><i>0%</i></div>
+        <div class="row" id="bRoundnessRow"><span>圆度</span><input id="bRoundness" type="range" min="0" max="100" value="0"><i>0%</i></div>
         <div class="row" id="bSpacingRow"><span>间隔</span><input id="bSpacing" type="range" min="1" max="100" value="15"><i>15%</i></div>
         <div class="row" id="bSmoothRow"><span>平滑</span><input id="bSmooth" type="range" min="0" max="90" value="35"><i>35%</i></div>
         <div class="row" id="bAlphaRow"><span>透明度</span><input id="bAlpha" type="range" min="5" max="100" value="100"><i>100%</i><label class="sw row-sw" title="透明度压感"><input id="bAlphaPen" type="checkbox"><span></span></label></div>
+        <div class="row" id="bGradReverseRow" hidden><span>反向</span><label class="sw"><input id="bGradReverse" type="checkbox" checked><span></span></label></div>
 
       </section>
 
@@ -996,6 +1011,7 @@
         <div class="row"><span>颜色</span><input id="baseColor" type="color" value="#000000"></div>
         <div class="row"><span>渐变</span><input id="hueGradient" type="range" min="0" max="100" value="0"><i>0%</i></div>
         <div class="row"><span>随机颜色</span><label class="sw"><input id="hueRandom" type="checkbox"><span></span></label></div>
+        <div class="row" id="applyPerStrokeRow"><span>应用每笔</span><label class="sw"><input id="applyPerStroke" type="checkbox"><span></span></label></div>
       </div>
       <div class="row" id="blendRow"><span>混合</span>
         <select id="blend">
@@ -1085,6 +1101,9 @@
   <span class="hint-item">Ctrl+点击选层</span>
   <span class="hint-item">Ctrl+拖动移动</span>
   <span class="hint-item">Ctrl+空格缩放</span>
+  <span class="hint-item">Ctrl+J复制图层</span>
+  <span class="hint-item">H显示/隐藏快捷键提示</span>
+  <span class="hint-item">Ctrl+H 收起/展开UI</span>
 </div>
 
 <script>
@@ -1100,16 +1119,19 @@ const pick = arr => arr[(Math.random() * arr.length) | 0];
 const cfg = {
   tool: 'place',
   shape: 'random',
-pSize: 30, pSizeVar: 0.55, pSpacing: 18, pJitter: 8,
-pEraserSize: 60,
-pAlpha: 0.85, pLw: 2, pMode: 'mix',
+  pSize: 30, pSizeVar: 0.55, pSpacing: 18, pJitter: 8,
+  pEraserSize: 60,
+  pAlphaScatter: 0.85, pLwScatter: 2, // 散布的透明度和线宽
+  pAlphaDrag: 0.85,    pLwDrag: 2,    // 拖拽的透明度和线宽
+  pMode: 'mix',
   placeSizePressure: false,
   placeAlphaPressure: false,
   paintSizePressure: false,
   paintAlphaPressure: false,
   ctrlMode: 'scatter',
   paintMode: 'line',
-  bWidth: 8, bSmooth: 0.35, bAlpha: 1.0, bSpacing: 0.15,
+  bWidth: 8, bSmooth: 0.35, bSpacing: 0.15,
+  bAlphaLine: 1.0, bAlphaLasso: 1.0,
 bEraserWidth: 16,
   paintTolerance: 30, // 油漆桶容差 0~100（映射到 0~255 通道差异）
   paintContiguous: true,   // 油漆桶：连续（true = 只填接壤区域；false = 全画布同色）
@@ -1122,8 +1144,38 @@ bEraserWidth: 16,
   blurMode: 'blur',        // 'blur' | 'smudge'
   smudgePickup: 0.55,      // 涂抹时从画布拾取颜色的比例
   baseColor: '#000000',
-  hueGradient: 0, hueRandom: false,
-  blend: 'source-over', bg: '#ffffff'
+  gradientReverse: true,      // 渐变画笔：反向（透明→不透明），默认开启
+  blend: 'source-over', bg: '#ffffff',
+  /* 每个绘制模式独立的颜色设置。
+     cfg.hueGradient / hueRandom / applyColorPerStroke 是当前活动模式的镜像，
+     由 syncColorUIFromMode() 在切换工具时写入。 */
+  colorModes: {
+    place:    { hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
+    line:     { hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
+    lasso:    { hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
+    gradient: { hueGradient: 0, hueRandom: false, applyColorPerStroke: false }
+  },
+  hueGradient: 0,
+  hueRandom: false,
+  applyColorPerStroke: false,
+  /* 渐变线独立笔刷参数（与普通画笔 / 套索互不影响） */
+  gradientWidth: 8,
+  gradientAlpha: 1.0,
+  gradientSpacing: 0.15,
+  /* 笔头硬度：1 = 最硬（默认），0 = 最软。三个绘画工具各自独立。 */
+  hardnessLine: 1.0,
+  hardnessLasso: 1.0,
+  hardnessGradient: 1.0,
+
+  /* 画笔（line）随机抖动 —— 角度范围 0~180°，大小/圆度 0~1 */
+  angleJitterLine: 0,
+  sizeJitterLine: 0,
+  roundnessJitterLine: 0,
+
+  /* 渐变线（gradient）随机抖动 —— 与画笔独立 */
+  angleJitterGradient: 0,
+  sizeJitterGradient: 0,
+  roundnessJitterGradient: 0
 };
 
 const cvs = document.getElementById('c');
@@ -1142,6 +1194,17 @@ const brushCursor = document.getElementById('brushCursor');
 const eraserBadge = document.getElementById('eraserBadge');
 const zoomBadge = document.getElementById('zoomBadge');
 const sizeBadge = document.getElementById('sizeBadge');
+
+function getCurPAlpha() {
+  return cfg.ctrlMode === 'scatter' ? cfg.pAlphaScatter : cfg.pAlphaDrag;
+}
+function getCurPLw() {
+  return cfg.ctrlMode === 'scatter' ? cfg.pLwScatter : cfg.pLwDrag;
+}
+function getCurBAlpha() {
+  const val = cfg.paintMode === 'line' ? cfg.bAlphaLine : cfg.bAlphaLasso;
+  return (val === undefined || isNaN(val)) ? 1.0 : val;
+}
 
 /* 显示 / 隐藏「X 滑动调大小」的数值标签
    value 是当前值（数字）；x/y 是鼠标的 CSS 坐标 */
@@ -1400,7 +1463,9 @@ function renderView() {
   let previewLayerId = -1;
   let previewCanvas  = null;
 
-  if (strokeActive && strokeBlend !== 'destination-out') {
+  /* 渐变画笔的橡皮需要预览：它走 strokeBuf + destination-out 合成，
+     不像放置拖拽橡皮那样直接画到 bctx，所以必须放行。 */
+  if (strokeActive && (strokeBlend !== 'destination-out' || strokePaintMode === 'gradient')) {
     const active = getActiveLayer();
     if (active) {
       previewCanvas = document.createElement('canvas');
@@ -1567,19 +1632,126 @@ function updateBaseHsl() {
   baseHsl.h = h; baseHsl.s = s; baseHsl.l = l;
 }
 
+/* 当前活动的颜色模式 key：place / line / lasso / gradient */
+function getActiveColorMode() {
+  if (cfg.tool === 'place') return 'place';
+  if (cfg.tool === 'paint') {
+    if (cfg.paintMode === 'line')     return 'line';
+    if (cfg.paintMode === 'lasso')    return 'lasso';
+    if (cfg.paintMode === 'gradient') return 'gradient';
+  }
+  return 'line';
+}
+
+/* 把当前模式的设置镜像到 cfg.hueGradient 等字段，并刷新 UI 控件。
+   在 applyTool / applyPaintMode 末尾调用。 */
+function syncColorUIFromMode() {
+  const s = cfg.colorModes[getActiveColorMode()];
+  cfg.hueGradient         = s.hueGradient;
+  cfg.hueRandom           = s.hueRandom;
+  cfg.applyColorPerStroke = s.applyColorPerStroke;
+
+  const gradEl = document.getElementById('hueGradient');
+  if (gradEl) {
+    gradEl.value = String(s.hueGradient);
+    const out = gradEl.nextElementSibling;
+    if (out) out.textContent = s.hueGradient + '%';
+  }
+  const randEl = document.getElementById('hueRandom');
+  if (randEl) randEl.checked = s.hueRandom;
+  const apsEl = document.getElementById('applyPerStroke');
+  if (apsEl) apsEl.checked = s.applyColorPerStroke;
+}
+
+/* 把当前画笔模式的笔宽 / 透明度 / 间隔写入 UI 滑块。
+   渐变线使用 cfg.gradientWidth / gradientAlpha / gradientSpacing，
+   普通画笔和套索使用原来的共享字段。 */
+function syncBrushUIFromMode() {
+  const isGrad = cfg.tool === 'paint' && cfg.paintMode === 'gradient';
+
+  const widthEl    = document.getElementById('bWidth');
+  const spacingEl  = document.getElementById('bSpacing');
+  const alphaEl    = document.getElementById('bAlpha');
+  const hardnessEl = document.getElementById('bHardness');
+
+  if (widthEl) {
+    const w = isGrad ? cfg.gradientWidth : cfg.bWidth;
+    widthEl.value = String(w);
+    const out = widthEl.nextElementSibling;
+    if (out) out.textContent = String(w);
+  }
+  if (spacingEl) {
+    const s = Math.round((isGrad ? cfg.gradientSpacing : cfg.bSpacing) * 100);
+    spacingEl.value = String(s);
+    const out = spacingEl.nextElementSibling;
+    if (out) out.textContent = s + '%';
+  }
+  if (alphaEl) {
+    let a;
+    if (isGrad)                        a = cfg.gradientAlpha;
+    else if (cfg.paintMode === 'line') a = cfg.bAlphaLine;
+    else                               a = cfg.bAlphaLasso;
+    const pct = Math.round((a == null ? 1 : a) * 100);
+    alphaEl.value = String(pct);
+    const out = alphaEl.nextElementSibling;
+    if (out) out.textContent = pct + '%';
+  }
+  if (hardnessEl) {
+    let h;
+    if (isGrad)                        h = cfg.hardnessGradient;
+    else if (cfg.paintMode === 'line') h = cfg.hardnessLine;
+    else                               h = cfg.hardnessLasso;
+    const pct = Math.round((h == null ? 1 : h) * 100);
+    hardnessEl.value = String(pct);
+    const out = hardnessEl.nextElementSibling;
+    if (out) out.textContent = pct + '%';
+  }
+
+  /* 角度 / 大小 / 圆度：画笔与渐变线各自独立，切模式时同步显示 */
+  const ajEl = document.getElementById('bAngleJitter');
+  const sjEl = document.getElementById('bSizeJitter');
+  const rjEl = document.getElementById('bRoundness');
+
+  if (ajEl) {
+    const v = Math.round(isGrad ? (cfg.angleJitterGradient || 0)
+                                : (cfg.angleJitterLine || 0));
+    ajEl.value = String(v);
+    const out = ajEl.nextElementSibling;
+    if (out) out.textContent = v + '°';
+  }
+  if (sjEl) {
+    const v = Math.round((isGrad ? (cfg.sizeJitterGradient || 0)
+                                 : (cfg.sizeJitterLine || 0)) * 100);
+    sjEl.value = String(v);
+    const out = sjEl.nextElementSibling;
+    if (out) out.textContent = v + '%';
+  }
+  if (rjEl) {
+    const v = Math.round((isGrad ? (cfg.roundnessJitterGradient || 0)
+                                 : (cfg.roundnessJitterLine || 0)) * 100);
+    rjEl.value = String(v);
+    const out = rjEl.nextElementSibling;
+    if (out) out.textContent = v + '%';
+  }
+}
+
 function hueRange() {
   return (cfg.hueGradient / 100) * 180;
 }
 
 let huePhase = 0;
 let hueDir   = 1;
+let strokeRandomHue = 0; // 新增：当前笔画的锁定随机值（-1 到 1）
 const HUE_CYCLE_STEPS = 24;
 
 function nextColor() {
   const r = hueRange();
   let h = baseHsl.h;
 
-  if (r > 0) {
+  if (cfg.applyColorPerStroke) {
+    /* 应用每笔：整笔同一随机色相。范围由 hueGradient 决定，0 时无效果。 */
+    h += strokeRandomHue * r;
+  } else if (r > 0) {
     if (cfg.hueRandom) {
       h += (Math.random() * 2 - 1) * r;
     } else {
@@ -1631,6 +1803,21 @@ const FILL_SECTORS = 72;
 let fillSectorColors = null;
 
 function initFillSectors() {
+  /* 应用每笔：整笔使用同一个随机色相（纯色）。
+     渐变 0% 时默认全色环（360°）随机，保证有可见效果。
+     套索每画一笔都会进入 startPaintStroke → 调用本函数，
+     所以 fillSectorColors 会随每一笔刷新。 */
+  if (cfg.applyColorPerStroke) {
+    const span = (cfg.hueGradient / 100) * 360;
+    let h = baseHsl.h + strokeRandomHue * span;
+    h = ((h % 360) + 360) % 360;
+    const rgb = hslToRgb(h / 360, baseHsl.s / 100, baseHsl.l / 100);
+    const colors = new Array(FILL_SECTORS);
+    for (let i = 0; i < FILL_SECTORS; i++) colors[i] = rgb;
+    fillSectorColors = colors;
+    return;
+  }
+
   const span = (cfg.hueGradient / 100) * 360;
   const step = span / FILL_SECTORS;
 
@@ -1864,7 +2051,7 @@ function buildUnitPath(type) {
 function makeShapeDecision(type, pressure) {
   const color = nextColor();
 
-  let a = cfg.pAlpha;
+  let a = getCurPAlpha();
   if (cfg.placeAlphaPressure && pressure != null && pressure > 0) {
     const p = pressure;
     /* 统一使用映射曲线系统 */
@@ -1874,7 +2061,7 @@ function makeShapeDecision(type, pressure) {
   }
   a = Math.min(1, Math.max(0.02, a));
 
-  const lw = Math.max(0.3, cfg.pLw * rnd(0.7, 1.3));
+  const lw = Math.max(0.3, getCurPLw() * rnd(0.7, 1.3));
 
   const canFill = !STROKE_ONLY.has(type);
   let useFill;
@@ -1933,11 +2120,14 @@ function updateUIState() {
     setDisabled(bAlphaRow, false);
 
   } else if (isPaint) {
-    const isLine    = cfg.paintMode === 'line';
-    const isNonLine = !isLine;   // lasso 不是画笔
+    const isLine     = cfg.paintMode === 'line';
+    const isLasso    = cfg.paintMode === 'lasso';
+    const isGradient = cfg.paintMode === 'gradient';
+    const isNonLine  = !isLine;   // lasso / gradient 不是普通画笔
 
-    const bWidthRow     = document.getElementById('bWidthRow');
-    const bAlphaPenWrap = document.getElementById('bAlphaPen').parentElement;
+    const bWidthRow       = document.getElementById('bWidthRow');
+    const bAlphaPenWrap   = document.getElementById('bAlphaPen').parentElement;
+    const bGradReverseRow = document.getElementById('bGradReverseRow');
 
     setDisabled(pModeSection, false);
     setDisabled(bSmoothRow, isNonLine);
@@ -1945,10 +2135,20 @@ function updateUIState() {
     setDisabled(paintColorGroup, eraser);
     setDisabled(blendRow, eraser);
 
-    setDisabled(bWidthRow, isNonLine);
+    /* 渐变画笔仍然需要笔宽；只有套索不用 */
+    setDisabled(bWidthRow, isLasso);
+    /* 角度 / 大小 / 圆度：只有套索不用（套索没有 dab 概念） */
+    setDisabled(document.getElementById('bAngleJitterRow'), isLasso);
+    setDisabled(document.getElementById('bSizeJitterRow'), isLasso);
+    setDisabled(document.getElementById('bRoundnessRow'), isLasso);
     setDisabled(bAlphaPenWrap, isNonLine);
-    setDisabled(document.getElementById('bSpacingRow'), isNonLine);
-    setDisabled(document.getElementById('customBrushSection'), !isLine);
+    /* 间距：只有套索不用；普通画笔和渐变画笔都要 */
+    setDisabled(document.getElementById('bSpacingRow'), isLasso);
+    /* 画笔 / 渐变线都可启用自定义画笔；只有套索不用 */
+    setDisabled(document.getElementById('customBrushSection'), !isLine && !isGradient);
+
+    /* 「反向」开关只在渐变画笔下显示 */
+    if (bGradReverseRow) bGradReverseRow.hidden = !isGradient;
   }
 }
 
@@ -4557,17 +4757,16 @@ function clearLayerDropHints() {
 }
 
 function startLayerDrag(e, item, layer) {
-  /* 从滑条 / 下拉 / 按钮上按下时不启动拖动 */
   const t = e.target;
   if (t && t.closest && t.closest('input, select, button')) return;
   if (e.pointerType === 'touch') return;
   if (e.pointerType !== 'pen' && e.button !== 0) return;
 
-  /* 若已有 layerDrag（例如笔重复 down / 上一次 pointerup 丢失），
-     先把旧状态清理干净，避免残留高亮和幽灵监听 */
   if (layerDrag) {
     clearLayerDropHints();
-    if (layerDrag.sourceItem) layerDrag.sourceItem.classList.remove('dragging');
+    if (layerDrag.sourceItems) {
+      layerDrag.sourceItems.forEach(el => el.classList.remove('dragging'));
+    }
     document.body.classList.remove('layer-dragging');
     window.removeEventListener('pointermove', onLayerDragMove, true);
     window.removeEventListener('pointerup', onLayerDragEnd, true);
@@ -4575,9 +4774,19 @@ function startLayerDrag(e, item, layer) {
     layerDrag = null;
   }
 
+  // 判断是否多选拖拽
+  let dragIds = [layer.id];
+  let sourceItems = [item];
+  if (selectedLayerIds.has(layer.id) && selectedLayerIds.size > 1) {
+    // 按原本顺序取
+    dragIds = layers.filter(l => selectedLayerIds.has(l.id)).map(l => l.id);
+    sourceItems = Array.from(layersListEl.querySelectorAll('.layer-item'))
+      .filter(el => dragIds.includes(parseInt(el.dataset.layerId, 10)));
+  }
+
   layerDrag = {
-    sourceId: layer.id,
-    sourceItem: item,
+    dragIds,
+    sourceItems,
     pointerId: e.pointerId,
     pointerType: e.pointerType || 'mouse',
     startX: e.clientX,
@@ -4595,20 +4804,17 @@ function onLayerDragMove(e) {
   if (!layerDrag) return;
   if (e.pointerType === 'touch') return;
 
-  /* 鼠标兜底：pointerup 丢失时，鼠标移动 event.buttons 会变 0。
-     笔不做这个检查（不同驱动的 buttons 字段不可靠）。 */
   if (e.pointerType === 'mouse' && e.buttons === 0) {
     onLayerDragEnd(e);
     return;
   }
 
-  /* 超过 4px 才认为是拖动，避免单击被误判 */
   if (!layerDrag.active) {
     const dx = e.clientX - layerDrag.startX;
     const dy = e.clientY - layerDrag.startY;
     if (dx * dx + dy * dy < 16) return;
     layerDrag.active = true;
-    layerDrag.sourceItem.classList.add('dragging');
+    layerDrag.sourceItems.forEach(el => el.classList.add('dragging'));
     document.body.classList.add('layer-dragging');
   }
 
@@ -4619,7 +4825,6 @@ function onLayerDragMove(e) {
   layerDrag.hover = null;
   if (!under) return;
 
-  /* 悬停在「新建图层」上 → 提示复制 */
   const addRow = under.closest('.layer-add-row');
   if (addRow) {
     addRow.classList.add('drop-copy');
@@ -4627,12 +4832,12 @@ function onLayerDragMove(e) {
     return;
   }
 
-  /* 悬停在另一个图层上 → 提示排序 */
   const targetItem = under.closest('.layer-item');
-  if (!targetItem || targetItem === layerDrag.sourceItem) return;
+  if (!targetItem) return;
 
   const tid = parseInt(targetItem.dataset.layerId, 10);
-  if (!tid || tid === layerDrag.sourceId) return;
+  // 如果悬停的是自己选中的图层，则不作为目标
+  if (!tid || layerDrag.dragIds.includes(tid)) return;
 
   const rect = targetItem.getBoundingClientRect();
   const above = e.clientY < rect.top + rect.height / 2;
@@ -4651,91 +4856,119 @@ function onLayerDragEnd(e) {
 
   const wasActive = layerDrag.active;
   const hover = layerDrag.hover;
-  const sourceId = layerDrag.sourceId;
-  const srcItem = layerDrag.sourceItem;
+  const dragIds = layerDrag.dragIds;
+  const sourceItems = layerDrag.sourceItems;
 
   clearLayerDropHints();
-  if (srcItem) srcItem.classList.remove('dragging');
+  sourceItems.forEach(el => el.classList.remove('dragging'));
   document.body.classList.remove('layer-dragging');
   layerDrag = null;
 
-  /* 只是单击，交给 click 事件 */
   if (!wasActive) return;
-
-  /* 阻止紧随而来的 click（否则会误选图层） */
   suppressNextLayerClick = true;
 
   if (!hover) return;
   if (hover.addRow) {
-    duplicateLayer(sourceId);
+    // 批量复制
+    if (dragIds.length === 1) {
+      duplicateLayer(dragIds[0]);
+    } else {
+      // 因为之前的duplicateLayer只传了单个id，如果传入的id属于多选，它会自动处理，我们只需传第一个
+      duplicateLayer(dragIds[0]);
+    }
   } else if (hover.targetId) {
-    reorderLayer(sourceId, hover.targetId, hover.above);
+    // 批量重排
+    reorderLayers(dragIds, hover.targetId, hover.above);
   }
 }
 
 /* 拖动重排：把 srcId 图层移到 dstId 图层的上方(before=true)或下方 */
-function reorderLayer(srcId, dstId, before) {
-  if (srcId === dstId) return;
-  const srcIdx = layers.findIndex(l => l.id === srcId);
-  const dstIdx = layers.findIndex(l => l.id === dstId);
-  if (srcIdx < 0 || dstIdx < 0) return;
+/* 拖动重排：把多个图层移到 dstId 图层的上方(before=true)或下方 */
+function reorderLayers(dragIds, dstId, before) {
+  if (dragIds.includes(dstId)) return;
 
   takeLayerSnapshot({ needPixels: false });
 
-  const [moved] = layers.splice(srcIdx, 1);
-  /* splice 后 dstIdx 可能左移，重新查找 */
-  const newDstIdx = layers.findIndex(l => l.id === dstId);
-  /* layers 数组是「从下到上」，UI 是「从上到下」：
-     - before=true（鼠标在目标视觉上方）→ 数组里插到 newDstIdx 之后 = 视觉上更靠上
-     - before=false（鼠标在目标视觉下方）→ 数组里插到 newDstIdx 之前 = 视觉上更靠下 */
-  const insertIdx = before ? newDstIdx + 1 : newDstIdx;
-  layers.splice(insertIdx, 0, moved);
+  // 1. 按原相对顺序提取所有要移动的图层对象
+  const movingLayers = layers.filter(l => dragIds.includes(l.id));
 
-  /* activeLayerId 不变（同一个图层对象），只是顺序变了 */
+  // 2. 从原数组中剔除它们
+  layers = layers.filter(l => !dragIds.includes(l.id));
+
+  // 3. 在剩余数组中找到目标图层的新位置
+  const newDstIdx = layers.findIndex(l => l.id === dstId);
+  if (newDstIdx < 0) return;
+
+  // 4. 计算插入索引
+  // layers 数组是「从下到上」，UI 是「从上到下」。
+  // before=true (鼠标在上面) -> 数组里插到后面 (newDstIdx + 1)
+  // before=false (鼠标在下面) -> 数组里插到前面 (newDstIdx)
+  const insertIdx = before ? newDstIdx + 1 : newDstIdx;
+  layers.splice(insertIdx, 0, ...movingLayers);
+
   updateLayersUI();
   renderView();
 }
 
 /* 复制图层：在源图层上方插入一个完全相同的副本 */
+/* 复制图层：支持多选批量复制 */
 function duplicateLayer(srcId) {
-  if (layers.length >= MAX_LAYERS) {
-    showToast('图层数已达上限（' + MAX_LAYERS + '）');
+  let idsToCopy = [srcId];
+  // 如果触发的图层在多选中，且多选数量大于1，则批量复制
+  if (selectedLayerIds.has(srcId) && selectedLayerIds.size > 1) {
+    idsToCopy = Array.from(selectedLayerIds);
+  }
+
+  if (layers.length + idsToCopy.length > MAX_LAYERS) {
+    showToast('图层数将超过上限（' + MAX_LAYERS + '）');
     return;
   }
-  const src = layers.find(l => l.id === srcId);
-  if (!src) return;
 
-  takeLayerSnapshot({ needPixels: false });
+  takeLayerSnapshot({ needPixels: true });
 
-  /* 先把活动图层内容落地，保证副本拿到的是最新像素 */
+  // 先把活动图层内容落地
   const curActive = getActiveLayer();
   if (curActive) saveBaseToLayer(curActive);
 
-  const newL = newLayerData();
-  newL.name = src.name + ' 副本';
+  const newLayersData = [];
+  
+  // 按原有的层级顺序获取源图层
+  const srcLayers = layers.filter(l => idsToCopy.includes(l.id));
 
-  newL.ctx.save();
-  newL.ctx.setTransform(1, 0, 0, 1, 0, 0);
-  newL.ctx.globalCompositeOperation = 'source-over';
-  newL.ctx.globalAlpha = 1;
-  newL.ctx.clearRect(0, 0, newL.canvas.width, newL.canvas.height);
-  newL.ctx.drawImage(src.canvas, 0, 0);
-  newL.ctx.restore();
+  for (const src of srcLayers) {
+    const newL = newLayerData();
+    newL.name = src.name + ' 副本';
 
-  newL.visible   = src.visible;
-  newL.clip      = src.clip;
-  newL.blendMode = src.blendMode;
-  newL.opacity   = src.opacity ?? 1;
+    newL.ctx.save();
+    newL.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    newL.ctx.globalCompositeOperation = 'source-over';
+    newL.ctx.globalAlpha = 1;
+    newL.ctx.clearRect(0, 0, newL.canvas.width, newL.canvas.height);
+    newL.ctx.drawImage(src.canvas, 0, 0);
+    newL.ctx.restore();
 
-  const srcIdx = layers.findIndex(l => l.id === srcId);
-  layers.splice(srcIdx + 1, 0, newL);
+    newL.visible   = src.visible;
+    newL.clip      = src.clip;
+    newL.blendMode = src.blendMode;
+    newL.opacity   = src.opacity ?? 1;
+    
+    newLayersData.push(newL);
+  }
 
-  activeLayerId = newL.id;
-  selectedLayerIds = new Set([newL.id]);
-  loadLayerToBase(newL);
+  // 统一插入到当前活动图层的最上方
+  let insertIdx = layers.findIndex(l => l.id === activeLayerId) + 1;
+  for (let i = 0; i < newLayersData.length; i++) {
+    layers.splice(insertIdx + i, 0, newLayersData[i]);
+  }
+
+  // 新复制的图层成为选中状态
+  activeLayerId = newLayersData[newLayersData.length - 1].id;
+  selectedLayerIds = new Set(newLayersData.map(l => l.id));
+  
+  loadLayerToBase(getActiveLayer());
   updateLayersUI();
   renderView();
-  showToast('已复制为「' + newL.name + '」');
+  showToast(`已复制 ${newLayersData.length} 个图层`);
 }
 
 function createLayerCanvas() {
@@ -4922,24 +5155,48 @@ function addLayer() {
 }
 
 function deleteLayer(id) {
-  if (layers.length <= 1) { showToast('至少保留一个图层'); return; }
-  const idx = layers.findIndex(l => l.id === id);
-  if (idx < 0) return;
-  takeLayerSnapshot({ needPixels: true });
-  layers.splice(idx, 1);
-  selectedLayerIds.delete(id);
+  // 判断是否处于多选状态，且点击的图层在选中集合中
+  let idsToDelete = [id];
+  if (selectedLayerIds.has(id) && selectedLayerIds.size > 1) {
+    idsToDelete = Array.from(selectedLayerIds);
+  }
 
-  if (activeLayerId === id) {
-    const newIdx = Math.min(idx, layers.length - 1);
-    activeLayerId = layers[newIdx].id;
-    loadLayerToBase(layers[newIdx]);
-    selectedLayerIds = new Set([activeLayerId]);
-  } else if (!selectedLayerIds.has(activeLayerId)) {
+  if (layers.length - idsToDelete.length < 1) {
+    showToast('至少保留一个图层');
+    return;
+  }
+
+  takeLayerSnapshot({ needPixels: true });
+
+  // 找出所有要删除的索引，从大到小排序，防止 splice 改变索引位置
+  const indices = idsToDelete
+    .map(did => layers.findIndex(l => l.id === did))
+    .filter(idx => idx >= 0)
+    .sort((a, b) => b - a);
+
+  for (const idx of indices) {
+    layers.splice(idx, 1);
+  }
+
+  // 清理选中集合
+  for (const did of idsToDelete) {
+    selectedLayerIds.delete(did);
+  }
+
+  // 如果当前活动图层被删除了，重新选中最顶层的图层
+  if (!layers.find(l => l.id === activeLayerId)) {
+    activeLayerId = layers[layers.length - 1].id;
+    loadLayerToBase(getActiveLayer());
+  }
+
+  // 如果选中集合空了，保证至少选中当前活动层
+  if (selectedLayerIds.size === 0) {
     selectedLayerIds.add(activeLayerId);
   }
 
   updateLayersUI();
   renderView();
+  showToast(`已删除 ${idsToDelete.length} 个图层`);
 }
 
 /* =========================================================
@@ -5213,6 +5470,7 @@ function clipStrokeBufByLockMask() {
   if (!active || !active.lockPixels || !active.lockMask) return;
   sctx.save();
   sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.filter = 'none'; /* 锁定像素裁剪必须是硬边 */
   sctx.globalCompositeOperation = 'destination-in';
   sctx.globalAlpha = 1;
   sctx.drawImage(active.lockMask, 0, 0);
@@ -5973,8 +6231,8 @@ function stampCustomShape(x, y, pressure, cs) {
   const maxDim = Math.max(cs.w, cs.h);
   const s = targetSize / maxDim;
 
-  let a = cfg.pAlpha * alphaFactor(pressure);
-  if (!cfg.placeAlphaPressure && cfg.pAlpha < 0.999) a *= rnd(0.75, 1);
+  let a = getCurPAlpha() * alphaFactor(pressure);
+  if (!cfg.placeAlphaPressure && getCurPAlpha() < 0.999) a *= rnd(0.75, 1);
   a = Math.min(1, Math.max(0.02, a));
 
   const rot = Math.random() * TAU;
@@ -6084,7 +6342,7 @@ function startDragShape(x, y) {
   if (type === 'custom') {
     const cs = pickWeightedCustomShape();
     if (!cs) return;
-    let a = cfg.pAlpha;
+    let a = getCurPAlpha();
     if (a >= 0.999) a = 1;
     else a *= rnd(0.75, 1);
     a = Math.min(1, Math.max(0.02, a));
@@ -6138,7 +6396,7 @@ function renderDragShape(x, y) {
     g.save();
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.globalCompositeOperation = 'destination-out';
-    g.globalAlpha = 1;
+    g.globalAlpha = ds.alpha; // ← 修改：应用拖拽形状的透明度
     g.translate(ds.ox, ds.oy);
     g.rotate(rot);
 
@@ -6170,7 +6428,7 @@ function renderDragShape(x, y) {
   g.save();
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.globalCompositeOperation = 'source-over';
-  g.globalAlpha = 1;
+  g.globalAlpha = ds.alpha; // ← 修改：应用拖拽形状的透明度
   g.translate(ds.ox, ds.oy);
   g.rotate(rot);
 
@@ -6229,8 +6487,9 @@ function clearStrokeBuf() {
   sctx.setTransform(1, 0, 0, 1, 0, 0);
   sctx.clearRect(0, 0, strokeBuf.width, strokeBuf.height);
   sctx.restore();
+  /* 清空后重置 filter，避免上一次套索软边留下的 blur 泄漏到下一次绘制 */
+  sctx.filter = 'none';
 }
-
 /* =========================================================
    压感映射系统（参照 libmypaint 的 mapping 架构）
    =========================================================
@@ -6358,6 +6617,15 @@ function prepStrokeCtx(p) {
 function updateDabColor() {
   const r = hueRange();
 
+  if (cfg.applyColorPerStroke) {
+    /* 应用每笔：整笔同一随机色相。范围由 hueGradient 决定，0 时无效果。 */
+    h += strokeRandomHue * r;
+  } else if (r > 0) {
+    h = ((h % 360) + 360) % 360;
+    strokeColor = `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
+    return;
+  }
+
   if (cfg.hueRandom) {
     let h = baseHsl.h + (Math.random() * 2 - 1) * r;
     h = ((h % 360) + 360) % 360;
@@ -6417,7 +6685,7 @@ function paintDab(x, y, pressure) {
   lineProgress += step;
   if (!strokeErasing) updateDabColor();
 
-  let targetA = cfg.bAlpha;
+  let targetA = getCurBAlpha();
   if (cfg.paintAlphaPressure) {
     const p = (pressure > 0) ? pressure : 0.5;
 
@@ -6438,6 +6706,19 @@ function paintDab(x, y, pressure) {
 
   const useBrush = useCustomBrush && customBrushShape && customBrushShape.canvas;
 
+  const hardness = Math.max(0, Math.min(1, cfg.hardnessLine));
+  const soft = hardness < 0.999;
+
+  /* ===== 随机抖动：角度 / 大小 / 圆度（画笔独立字段） ===== */
+  const aj = (cfg.angleJitterLine || 0) * Math.PI / 180;
+  const sj = cfg.sizeJitterLine || 0;
+  const rj = cfg.roundnessJitterLine || 0;
+  const rot = (Math.random() * 2 - 1) * aj;
+  const scale2 = Math.max(0.05, 1 + (Math.random() * 2 - 1) * sj);
+  const roundness = Math.max(0.05, 1 - Math.random() * rj);
+  const rx = radius * scale2;
+  const ry = rx * roundness;
+
   if (strokeErasing) {
     const g = bctx;
     g.save();
@@ -6446,26 +6727,67 @@ function paintDab(x, y, pressure) {
     g.globalAlpha = dabA;
 
     if (useBrush) {
-      drawBrushDab(g, x, y, radius, null);
+      g.save();
+      g.translate(x, y);
+      g.rotate(rot);
+      g.scale(1, roundness);
+      drawBrushDab(g, 0, 0, rx, null);
+      g.restore();
+    } else if (soft) {
+      /* 软边橡皮：径向渐变，中心 → 边缘 alpha 从 1 衰减到 0 */
+      g.save();
+      g.translate(x, y);
+      g.rotate(rot);
+      g.scale(rx, ry);
+      const grad = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+      grad.addColorStop(0, 'rgba(255,255,255,1)');
+      if (hardness > 0) grad.addColorStop(hardness, 'rgba(255,255,255,1)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grad;
+      g.beginPath();
+      g.arc(0, 0, 1, 0, TAU);
+      g.fill();
+      g.restore();
     } else {
       g.fillStyle = '#fff';
       g.beginPath();
-      g.arc(x, y, radius, 0, TAU);
+      g.ellipse(x, y, rx, ry, rot, 0, TAU);
       g.fill();
     }
     g.restore();
     return;
   }
-
   sctx.globalAlpha = dabA;
   sctx.globalCompositeOperation = 'source-over';
 
   if (useBrush) {
-    drawBrushDab(sctx, x, y, radius, strokeColor);
+    sctx.save();
+    sctx.translate(x, y);
+    sctx.rotate(rot);
+    sctx.scale(1, roundness);
+    drawBrushDab(sctx, 0, 0, rx, strokeColor);
+    sctx.restore();
+  } else if (soft) {
+    /* 软边画笔：径向渐变，中心到 hardness 半径是实色，之后渐变到透明 */
+    const c1 = hslStrToHsla(strokeColor, 1);
+    const c0 = hslStrToHsla(strokeColor, 0);
+    sctx.save();
+    sctx.translate(x, y);
+    sctx.rotate(rot);
+    sctx.scale(rx, ry);
+    const grad = sctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    grad.addColorStop(0, c1);
+    if (hardness > 0) grad.addColorStop(hardness, c1);
+    grad.addColorStop(1, c0);
+    sctx.fillStyle = grad;
+    sctx.beginPath();
+    sctx.arc(0, 0, 1, 0, TAU);
+    sctx.fill();
+    sctx.restore();
   } else {
     sctx.fillStyle = strokeColor;
     sctx.beginPath();
-    sctx.arc(x, y, radius, 0, TAU);
+    sctx.ellipse(x, y, rx, ry, rot, 0, TAU);
     sctx.fill();
   }
 }
@@ -6514,6 +6836,34 @@ function redrawLasso() {
   clearStrokeBuf();
   prepStrokeCtx(curPressure);
 
+  /* 套索软边：
+     - 先在「无 clip」的临时画布上完整绘制套索形状（填充或路径）
+     - 然后整体带 blur 复制到 strokeBuf
+     这样内外边缘都会柔化；之前直接对 sctx 加 filter 再 clip()，
+     模糊后的外沿会被裁剪路径切平 → 视觉上仍是硬边。
+     - 橡皮不在这里用临时画布（它需要 sctx 里有内容给
+       applyLassoEraseToBase 读）；橡皮的柔化交给
+       applyLassoEraseToBase 内部处理。 */
+  const softness = 1 - Math.max(0, Math.min(1, cfg.hardnessLasso));
+  const useBlur = softness > 0.001 && !strokeErasing;
+
+  let g = sctx;
+  let tmpCvs = null;
+  if (useBlur) {
+    tmpCvs = document.createElement('canvas');
+    tmpCvs.width  = strokeBuf.width;
+    tmpCvs.height = strokeBuf.height;
+    g = tmpCvs.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.strokeStyle = strokeColor;
+    g.fillStyle = strokeColor;
+    g.lineWidth = sctx.lineWidth;
+  }
+
   const pts = strokePts;
   const n = pts.length;
   const rad = Math.max(0.5, sctx.lineWidth / 2);
@@ -6524,49 +6874,57 @@ function redrawLasso() {
 
   if (n === 1) {
     const col = isErase ? '#ffffff' : strokeColor;
-    sctx.beginPath();
-    sctx.arc(pts[0].x, pts[0].y, rad, 0, TAU);
-    sctx.fillStyle = col;
-    sctx.fill();
-    if (isErase) applyLassoEraseToBase();
+    g.beginPath();
+    g.arc(pts[0].x, pts[0].y, rad, 0, TAU);
+    g.fillStyle = col;
+    g.fill();
+    if (isErase) {
+      applyLassoEraseToBase();
+    } else if (useBlur) {
+      flushLassoBlur(tmpCvs, softness);
+    }
     return;
   }
 
   if (n === 2) {
     const col = isErase ? '#ffffff' : strokeColor;
-    sctx.beginPath();
-    sctx.moveTo(pts[0].x, pts[0].y);
-    sctx.lineTo(pts[1].x, pts[1].y);
-    sctx.strokeStyle = col;
-    sctx.lineCap = 'round';
-    sctx.stroke();
-    if (isErase) applyLassoEraseToBase();
+    g.beginPath();
+    g.moveTo(pts[0].x, pts[0].y);
+    g.lineTo(pts[1].x, pts[1].y);
+    g.strokeStyle = col;
+    g.lineCap = 'round';
+    g.stroke();
+    if (isErase) {
+      applyLassoEraseToBase();
+    } else if (useBlur) {
+      flushLassoBlur(tmpCvs, softness);
+    }
     return;
   }
 
-  sctx.beginPath();
+  g.beginPath();
   const mx0 = (pts[0].x + pts[1].x) / 2;
   const my0 = (pts[0].y + pts[1].y) / 2;
-  sctx.moveTo(mx0, my0);
+  g.moveTo(mx0, my0);
 
   for (let i = 1; i < n - 1; i++) {
     const cur  = pts[i];
     const next = pts[i + 1];
     const mx = (cur.x + next.x) / 2;
     const my = (cur.y + next.y) / 2;
-    sctx.quadraticCurveTo(cur.x, cur.y, mx, my);
+    g.quadraticCurveTo(cur.x, cur.y, mx, my);
   }
   const last = pts[n - 1];
-  sctx.quadraticCurveTo(last.x, last.y, mx0, my0);
-  sctx.closePath();
+  g.quadraticCurveTo(last.x, last.y, mx0, my0);
+  g.closePath();
 
   if (isErase) {
-    sctx.fillStyle = '#ffffff';
-    sctx.strokeStyle = '#ffffff';
-    sctx.lineJoin = 'round';
-    sctx.lineCap = 'round';
-    sctx.fill();
-    sctx.stroke();
+    g.fillStyle = '#ffffff';
+    g.strokeStyle = '#ffffff';
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    g.fill();
+    g.stroke();
     applyLassoEraseToBase();
     return;
   }
@@ -6585,17 +6943,31 @@ function redrawLasso() {
 
     const sectorCanvas = buildSectorCanvas(maxR);
 
-    sctx.save();
-    sctx.clip();
-    sctx.drawImage(sectorCanvas, cx - maxR, cy - maxR, maxR * 2, maxR * 2);
-    sctx.restore();
-    return;
+    g.save();
+    g.clip();
+    g.drawImage(sectorCanvas, cx - maxR, cy - maxR, maxR * 2, maxR * 2);
+    g.restore();
+  } else {
+    g.fillStyle = strokeColor;
+    g.strokeStyle = strokeColor;
+    g.fill();
+    g.stroke();
   }
 
-  sctx.fillStyle = strokeColor;
-  sctx.strokeStyle = strokeColor;
-  sctx.fill();
-  sctx.stroke();
+  if (useBlur) flushLassoBlur(tmpCvs, softness);
+}
+
+/* 把临时画布带 blur 复制到 strokeBuf。
+   重置 transform 让 blur 半径是物理像素 —— 这样在高 dpr 下视觉
+   宽度也一致（CSS 视觉半径 ≈ blurR / dpr）。 */
+function flushLassoBlur(tmpCvs, softness) {
+  const blurR = Math.max(0.5, softness * 8);
+  sctx.save();
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.filter = `blur(${blurR}px)`;
+  sctx.drawImage(tmpCvs, 0, 0);
+  sctx.filter = 'none';
+  sctx.restore();
 }
 
 function applyLassoEraseToBase() {
@@ -6606,6 +6978,7 @@ function applyLassoEraseToBase() {
     if (mask) {
       sctx.save();
       sctx.setTransform(1, 0, 0, 1, 0, 0);
+      sctx.filter = 'none'; /* 选区限制必须是硬边 */
       sctx.globalCompositeOperation = 'destination-in';
       sctx.globalAlpha = 1;
       sctx.drawImage(mask, 0, 0);
@@ -6614,11 +6987,29 @@ function applyLassoEraseToBase() {
     }
   }
 
+  /* 套索软边橡皮：把 strokeBuf 先带 blur 复制到临时画布，
+     再从 bctx 用 destination-out 擦除 → 擦除边缘变柔。 */
+  const softness = 1 - Math.max(0, Math.min(1, cfg.hardnessLasso));
+  const useBlur = softness > 0.001;
+
   bctx.save();
   bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.globalCompositeOperation = 'destination-out';
   bctx.globalAlpha = strokeAlpha;
-  bctx.drawImage(strokeBuf, 0, 0);
+
+  if (useBlur) {
+    const tmp = document.createElement('canvas');
+    tmp.width  = strokeBuf.width;
+    tmp.height = strokeBuf.height;
+    const tctx = tmp.getContext('2d');
+    tctx.setTransform(1, 0, 0, 1, 0, 0);
+    tctx.filter = `blur(${Math.max(0.5, softness * 8)}px)`;
+    tctx.drawImage(strokeBuf, 0, 0);
+    tctx.filter = 'none';
+    bctx.drawImage(tmp, 0, 0);
+  } else {
+    bctx.drawImage(strokeBuf, 0, 0);
+  }
   bctx.restore();
   clearStrokeBuf();
 }
@@ -6786,11 +7177,257 @@ function applyBucketFill(cssX, cssY, erase) {
   bctx.save();
   bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.globalCompositeOperation = erase ? 'destination-out' : cfg.blend;
-  bctx.globalAlpha = cfg.bAlpha;
+  bctx.globalAlpha = getCurBAlpha();
   bctx.drawImage(fillCvs, 0, 0);
   bctx.restore();
 
   renderView();
+}
+
+/* =========================================================
+   渐变直线画笔
+   =========================================================
+   设计要点：
+   - 「平头」方形 dab，沿直线方向旋转对齐路径
+   - 间距 = bWidth × bSpacing，沿直线按此步进放置 dab
+   - 每个 dab 的 alpha 从 baseAlpha 渐变到 0（反向则 0 → baseAlpha）
+   - 颜色逻辑与普通画笔一致：应用每笔 / 随机颜色 / 颜色渐变 / 基色
+   - 「随机颜色」用 i 索引做确定性伪随机，保证拖动重绘时颜色不闪烁
+   ========================================================= */
+
+let gradientSeed = 0;
+
+/* 确定性伪随机：同一 seed 永远返回同一 0..1 值 */
+function gradientPseudoRandom(seed) {
+  const s = Math.sin(seed * 12.9898) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/* 计算直线在归一化位置 t 处、第 i 个 dab 的颜色 */
+function gradientDabColor(t, i) {
+  const r = hueRange();
+  let h = baseHsl.h;
+
+  if (cfg.applyColorPerStroke) {
+    h += strokeRandomHue * r;
+  } else if (cfg.hueRandom) {
+    const rand = gradientPseudoRandom(gradientSeed + i * 7.13);
+    h += (rand * 2 - 1) * r;
+  } else if (r > 0) {
+    /* 颜色渐变：沿直线 t=0 → h-r，t=1 → h+r */
+    h += (t * 2 - 1) * r;
+  }
+
+  h = ((h % 360) + 360) % 360;
+  return `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
+}
+
+/* 把 "hsl(H S% L%)" 字符串转成带 alpha 的 "hsla(H, S%, L%, a)" */
+function hslStrToHsla(hslStr, alpha) {
+  const m = hslStr.match(/hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*\)/);
+  if (!m) return `hsla(0,0%,0%,${alpha})`;
+  return `hsla(${m[1]}, ${m[2]}%, ${m[3]}%, ${alpha})`;
+}
+
+function drawGradientLine(x, y) {
+  clearStrokeBuf();
+
+  const x0 = strokeOriginX;
+  const y0 = strokeOriginY;
+  const dx = x - x0;
+  const dy = y - y0;
+  const dist = Math.hypot(dx, dy);
+
+  /* 渐变线独立笔宽 / 透明度（橡皮仍用 bEraserWidth） */
+  const bw = Math.max(1, strokeErasing ? cfg.bEraserWidth : cfg.gradientWidth);
+  const baseAlpha = Math.max(0.01, Math.min(1, cfg.gradientAlpha));
+  const hardness = Math.max(0, Math.min(1, cfg.hardnessGradient));
+  const softness = 1 - hardness;
+  const blurR = softness > 0.001 ? Math.max(0.5, bw * softness * 0.4) : 0;
+
+  /* 是否启用自定义画笔：启用时整条线走「自定义笔头 dab」方案，
+     忽略硬度（自定义笔头本身有形状，不需要额外柔化）。 */
+  const useCustomDab = !!(useCustomBrush && customBrushShape && customBrushShape.canvas);
+
+  /* ===== 随机抖动：角度 / 大小 / 圆度（渐变线独立字段） ===== */
+  const aj = (cfg.angleJitterGradient || 0) * Math.PI / 180;
+  const sj = cfg.sizeJitterGradient || 0;
+  const rj = cfg.roundnessJitterGradient || 0;
+  const hasJitter = aj > 0 || sj > 0 || rj > 0;
+
+  sctx.save();
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  sctx.globalCompositeOperation = 'source-over';
+  sctx.globalAlpha = 1;
+  sctx.filter = 'none';
+
+  /* ===== 起点=终点：单点 ===== */
+  if (dist < 0.5) {
+    const col = gradientDabColor(0, 0);
+    const rot = (Math.random() * 2 - 1) * aj;
+    const scale2 = Math.max(0.05, 1 + (Math.random() * 2 - 1) * sj);
+    const roundness = Math.max(0.05, 1 - Math.random() * rj);
+    const rx = (bw / 2) * scale2;
+    const ry = rx * roundness;
+
+    if (useCustomDab) {
+      sctx.globalAlpha = baseAlpha;
+      sctx.save();
+      sctx.translate(x0, y0);
+      sctx.rotate(rot);
+      sctx.scale(1, roundness);
+      drawBrushDab(sctx, 0, 0, rx, strokeErasing ? null : col);
+      sctx.restore();
+    } else if (blurR > 0) {
+      sctx.save();
+      sctx.translate(x0, y0);
+      sctx.rotate(rot);
+      sctx.scale(rx, ry);
+      const grad = sctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      grad.addColorStop(0, hslStrToHsla(col, baseAlpha));
+      if (hardness > 0) grad.addColorStop(hardness, hslStrToHsla(col, baseAlpha));
+      grad.addColorStop(1, hslStrToHsla(col, 0));
+      sctx.fillStyle = grad;
+      sctx.beginPath();
+      sctx.arc(0, 0, 1, 0, TAU);
+      sctx.fill();
+      sctx.restore();
+    } else {
+      sctx.globalAlpha = baseAlpha;
+      sctx.fillStyle = col;
+      sctx.save();
+      sctx.translate(x0, y0);
+      sctx.rotate(rot);
+      sctx.scale(rx, ry);
+      sctx.beginPath();
+      sctx.arc(0, 0, 1, 0, TAU);
+      sctx.fill();
+      sctx.restore();
+    }
+    sctx.globalAlpha = 1;
+    sctx.restore();
+    return;
+  }
+
+  /* ===== dab 模式：自定义画笔 / 有抖动 / 随机颜色 =====
+     三种条件任意满足一个，就走逐 dab 绘制。 */
+  if (useCustomDab || hasJitter || (cfg.hueRandom && !cfg.applyColorPerStroke)) {
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const tGapDab = Math.max(0, Math.min(1, (cfg.gradientSpacing - 0.01) / 0.99));
+    const step = Math.max(0.5, bw * (0.5 + tGapDab * 3));
+    const n = Math.floor(dist / step);
+    const baseR = bw / 2;
+
+    if (blurR > 0 && !useCustomDab) sctx.filter = `blur(${blurR}px)`;
+
+    for (let i = 0; i <= n; i++) {
+      const d = i * step;
+      if (d > dist) break;
+      const t = d / dist;
+      const a = cfg.gradientReverse ? baseAlpha * t : baseAlpha * (1 - t);
+      if (a < 0.003) continue;
+
+      const col = gradientDabColor(t, i);
+      const rot = (Math.random() * 2 - 1) * aj;
+      const scale2 = Math.max(0.05, 1 + (Math.random() * 2 - 1) * sj);
+      const roundness = Math.max(0.05, 1 - Math.random() * rj);
+      const rx = baseR * scale2;
+      const ry = rx * roundness;
+
+      sctx.globalAlpha = a;
+
+      if (useCustomDab) {
+        sctx.save();
+        sctx.translate(x0 + ux * d, y0 + uy * d);
+        sctx.rotate(rot);
+        sctx.scale(1, roundness);
+        drawBrushDab(sctx, 0, 0, rx, strokeErasing ? null : col);
+        sctx.restore();
+      } else {
+        sctx.save();
+        sctx.translate(x0 + ux * d, y0 + uy * d);
+        sctx.rotate(rot);
+        sctx.scale(rx, ry);
+        sctx.fillStyle = col;
+        sctx.beginPath();
+        sctx.arc(0, 0, 1, 0, TAU);
+        sctx.fill();
+        sctx.restore();
+      }
+    }
+
+    /* 起点到终点如果不是 step 的整数倍，末尾补一个 dab 让线尾完整 */
+    const lastD = n * step;
+    if (dist - lastD > 0.5) {
+      const a = cfg.gradientReverse ? baseAlpha : 0;
+      if (a >= 0.003) {
+        const col = gradientDabColor(1, n + 1);
+        const rot = (Math.random() * 2 - 1) * aj;
+        const scale2 = Math.max(0.05, 1 + (Math.random() * 2 - 1) * sj);
+        const roundness = Math.max(0.05, 1 - Math.random() * rj);
+        const rx = baseR * scale2;
+        const ry = rx * roundness;
+
+        sctx.globalAlpha = a;
+        if (useCustomDab) {
+          sctx.save();
+          sctx.translate(x, y);
+          sctx.rotate(rot);
+          sctx.scale(1, roundness);
+          drawBrushDab(sctx, 0, 0, rx, strokeErasing ? null : col);
+          sctx.restore();
+        } else {
+          sctx.save();
+          sctx.translate(x, y);
+          sctx.rotate(rot);
+          sctx.scale(rx, ry);
+          sctx.fillStyle = col;
+          sctx.beginPath();
+          sctx.arc(0, 0, 1, 0, TAU);
+          sctx.fill();
+          sctx.restore();
+        }
+      }
+    }
+
+    sctx.globalAlpha = 1;
+    sctx.filter = 'none';
+    sctx.restore();
+    return;
+  }
+
+  /* ===== 平滑模式（无抖动、无自定义画笔、非随机颜色）：原样保留 =====
+     一整条连续描边 + 线性渐变 strokeStyle。 */
+
+  sctx.lineCap  = 'butt';
+  sctx.lineJoin = 'miter';
+  sctx.lineWidth = bw;
+
+  if (blurR > 0) sctx.filter = `blur(${blurR}px)`;
+
+  const grad = sctx.createLinearGradient(x0, y0, x, y);
+
+  const STOPS = 16;
+  for (let i = 0; i <= STOPS; i++) {
+    const t = i / STOPS;
+    const color = gradientDabColor(t, i);
+    const a = cfg.gradientReverse ? baseAlpha * t : baseAlpha * (1 - t);
+    grad.addColorStop(t, hslStrToHsla(color, a));
+  }
+  sctx.strokeStyle = grad;
+
+  const tGap = Math.max(0, Math.min(1, (cfg.gradientSpacing - 0.01) / 0.99));
+  const gap = bw * tGap * 3;
+  if (gap >= 0.5) sctx.setLineDash([bw, gap]);
+
+  sctx.beginPath();
+  sctx.moveTo(x0, y0);
+  sctx.lineTo(x, y);
+  sctx.stroke();
+  sctx.setLineDash([]);
+
+  sctx.restore();
 }
 
 function startPaintStroke(x, y, pressure) {
@@ -6800,6 +7437,25 @@ function startPaintStroke(x, y, pressure) {
 
   strokePaintMode = cfg.paintMode;
   strokeErasing   = false;
+
+  /* 渐变直线画笔：
+     - 支持 E 橡皮（走 destination-out 擦除）
+     - 支持间距、颜色渐变、随机颜色、应用每笔
+     - 忽略平滑、压感、自定义画笔 */
+  if (strokePaintMode === 'gradient') {
+    strokeErasing = eraserHeld;
+    strokeBlend = strokeErasing ? 'destination-out' : cfg.blend;
+    strokeAlpha = 1;             // alpha 已烘焙进 strokeBuf
+    strokeIsPaint = true;
+
+    /* 每笔一个种子：用于「随机颜色」模式下让沿直线的每个 dab 稳定取随机色 */
+    gradientSeed = Math.random() * 1000;
+
+    drawGradientLine(x, y);      // 起点先画一个 dab
+    strokeActive = true;
+    scheduleRender();
+    return;
+  }
 
   if (eraserHeld) {
     strokeErasing = true;
@@ -6819,7 +7475,7 @@ function startPaintStroke(x, y, pressure) {
   }
 
   strokeBlend = strokeErasing ? 'destination-out' : cfg.blend;
-  strokeAlpha = strokePaintMode === 'line' ? 1 : Math.max(0.02, cfg.bAlpha);
+  strokeAlpha = strokePaintMode === 'line' ? 1 : Math.max(0.02, getCurBAlpha());
 
   strokeIsPaint = true;
 
@@ -6859,6 +7515,13 @@ function startPaintStroke(x, y, pressure) {
 function continuePaintStroke(x, y, pressure) {
   if (!strokeActive) return;
   curPressure = pressure;
+
+  /* 渐变直线画笔：每帧仅更新预览，直线由起点和当前位置决定 */
+  if (strokePaintMode === 'gradient') {
+    drawGradientLine(x, y);
+    scheduleRender();
+    return;
+  }
 
   if (strokePaintMode === 'line') {
     const dxS = x - smoothPt.x;
@@ -6957,7 +7620,10 @@ function continuePaintStroke(x, y, pressure) {
 function commitStroke() {
   if (!strokeActive) return;
 
-  if (strokeBlend === 'destination-out') {
+  /* 放置拖拽的橡皮：stampShape / renderDragShape 已直接画进 bctx，
+     strokeBuf 为空，直接跳过合成。
+     渐变画笔的橡皮：走 strokeBuf + destination-out 合成路径，不能短路。 */
+  if (strokeBlend === 'destination-out' && strokePaintMode !== 'gradient') {
     clearStrokeBuf();
     strokeActive = false;
     strokeIsPaint = false;
@@ -6966,14 +7632,17 @@ function commitStroke() {
     return;
   }
 
-  if (strokeIsPaint && strokePaintMode !== 'line') {
-    strokeAlpha = Math.max(0.02, cfg.bAlpha);
+  /* 仅套索需要在提交时把整体 alpha 应用到合成上；
+     画笔 / 渐变画笔的 alpha 已经烘焙在 strokeBuf 里。 */
+  if (strokeIsPaint && strokePaintMode === 'lasso') {
+    strokeAlpha = Math.max(0.02, getCurBAlpha());
   }
 
   const activeMask = getActiveMaskCvs();
   if (activeMask) {
     sctx.save();
     sctx.setTransform(1, 0, 0, 1, 0, 0);
+    sctx.filter = 'none'; /* 选区裁剪必须是硬边，不受套索软边影响 */
     sctx.globalCompositeOperation = 'destination-in';
     sctx.globalAlpha = 1;
     sctx.drawImage(activeMask, 0, 0);
@@ -7280,7 +7949,8 @@ function updateBrushCursor(x, y, e) {
   if (gHeld) { brushCursor.style.display = 'none'; return; }
 
   const isPlace = cfg.tool === 'place' && cfg.ctrlMode !== 'drag';
-  const isPaint = cfg.tool === 'paint' && cfg.paintMode === 'line';
+  const isPaint = cfg.tool === 'paint' &&
+                  (cfg.paintMode === 'line' || cfg.paintMode === 'gradient');
   if (!isPlace && !isPaint) { brushCursor.style.display = 'none'; return; }
 
   if (e && (e.altKey || e.ctrlKey || e.metaKey || (e.buttons & 4))) {
@@ -7290,9 +7960,16 @@ function updateBrushCursor(x, y, e) {
   if (e && e.shiftKey) { brushCursor.style.display = 'none'; return; }
 
   const erasing = isEraserTool();
-  const rawSize = isPlace
-    ? (erasing ? cfg.pEraserSize : cfg.pSize)
-    : (erasing ? cfg.bEraserWidth : cfg.bWidth);
+  let rawSize;
+  if (isPlace) {
+    rawSize = erasing ? cfg.pEraserSize : cfg.pSize;
+  } else if (erasing) {
+    rawSize = cfg.bEraserWidth;
+  } else if (cfg.paintMode === 'gradient') {
+    rawSize = cfg.gradientWidth;
+  } else {
+    rawSize = cfg.bWidth;
+  }
   const size = Math.max(4, Math.min(500, rawSize * viewScale));
 
   brushCursor.style.display = 'block';
@@ -7765,7 +8442,8 @@ document.addEventListener('pointerdown', e => {
 function canAdjustSize() {
   if (cfg.tool === 'place') return cfg.ctrlMode !== 'drag';
   if (cfg.tool === 'liquify') return true;
-  if (cfg.tool === 'paint' && cfg.paintMode === 'line') return true;
+  if (cfg.tool === 'paint' &&
+      (cfg.paintMode === 'line' || cfg.paintMode === 'gradient')) return true;
   return false;
 }
 /* ---- 同步 UI 滑块 ---- */
@@ -8060,8 +8738,16 @@ cvs.addEventListener('pointerdown', e => {
       sizeAdjustStartValue = cfg.lqSize;
       sizeAdjustTarget = 'lqSize';
     } else {
-      if (eraserHeld) { sizeAdjustStartValue = cfg.bEraserWidth; sizeAdjustTarget = 'bEraserWidth'; }
-      else            { sizeAdjustStartValue = cfg.bWidth;       sizeAdjustTarget = 'bWidth'; }
+      if (eraserHeld) {
+        sizeAdjustStartValue = cfg.bEraserWidth;
+        sizeAdjustTarget = 'bEraserWidth';
+      } else if (cfg.paintMode === 'gradient') {
+        sizeAdjustStartValue = cfg.gradientWidth;
+        sizeAdjustTarget = 'gradientWidth';
+      } else {
+        sizeAdjustStartValue = cfg.bWidth;
+        sizeAdjustTarget = 'bWidth';
+      }
     }
     try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
     cvs.style.cursor = 'ew-resize';
@@ -8261,6 +8947,11 @@ if (e.altKey && e.button !== 1 && !sHeld && !e.shiftKey) {
   ptrId = e.pointerId;
   cvs.setPointerCapture(e.pointerId);
 
+  // 每笔都刷新随机色相种子（不再依赖“随机颜色”开关）
+  if (cfg.applyColorPerStroke) {
+    strokeRandomHue = Math.random() * 2 - 1;
+  }
+  
   takeSnapshot();
 
   if (cfg.tool === 'place') {
@@ -8362,14 +9053,27 @@ cvs.addEventListener('pointermove', e => {
       setBlurSizeValue(newVal);
       /* 让模糊/涂抹的圆形光标跟随新尺寸 */
       updateLqCursor(e.clientX, e.clientY, e);
-      } else if (sizeAdjustTarget === 'bWidth' || sizeAdjustTarget === 'bEraserWidth') {
+    } else if (sizeAdjustTarget === 'bWidth' ||
+               sizeAdjustTarget === 'bEraserWidth' ||
+               sizeAdjustTarget === 'gradientWidth') {
       const minV = 1, maxV = 120;
       const rate = (maxV - minV) / 400;
       let v = sizeAdjustStartValue + dx * rate;
       v = Math.max(minV, Math.min(maxV, v));
       newVal = Math.round(v);
-      if (sizeAdjustTarget === 'bWidth') setBWidthValue(newVal);
-      else                               setBEraserWidthValue(newVal);
+      if (sizeAdjustTarget === 'bWidth') {
+        setBWidthValue(newVal);
+      } else if (sizeAdjustTarget === 'bEraserWidth') {
+        setBEraserWidthValue(newVal);
+      } else {
+        cfg.gradientWidth = newVal;
+        const el = document.getElementById('bWidth');
+        if (el) {
+          el.value = String(newVal);
+          const out = el.nextElementSibling;
+          if (out) out.textContent = String(newVal);
+        }
+      }
     }
     showSizeBadge(e.clientX, e.clientY, newVal);
     updateBrushCursor(e.clientX, e.clientY, e);
@@ -9682,17 +10386,71 @@ bindRange('pSize', (v, o) => {
 bindRange('pSizeVar', (v, o) => { cfg.pSizeVar = v/100;  o.textContent = v + '%'; });
 bindRange('pSpacing', (v, o) => { cfg.pSpacing = v;      o.textContent = v; });
 bindRange('pJitter',  (v, o) => { cfg.pJitter = v;       o.textContent = v; });
-bindRange('pAlpha',   (v, o) => { cfg.pAlpha = v/100;    o.textContent = v + '%'; });
-bindRange('pLw',      (v, o) => { cfg.pLw = v/10;        o.textContent = (v/10).toFixed(1); });
+
+// 👇 修改了这里：将 pAlpha 和 pLw 根据 ctrlMode 分开存储
+bindRange('pAlpha', (v, o) => { 
+  if (cfg.ctrlMode === 'scatter') cfg.pAlphaScatter = v/100;
+  else                            cfg.pAlphaDrag = v/100;
+  o.textContent = v + '%'; 
+});
+bindRange('pLw', (v, o) => { 
+  if (cfg.ctrlMode === 'scatter') cfg.pLwScatter = v/10;
+  else                            cfg.pLwDrag = v/10;
+  o.textContent = (v/10).toFixed(1); 
+});
 
 bindRange('bWidth', (v, o) => {
   if (isEraserTool() && cfg.tool === 'paint') cfg.bEraserWidth = v;
+  else if (cfg.paintMode === 'gradient')      cfg.gradientWidth = v;
   else                                        cfg.bWidth = v;
   o.textContent = v;
 });
 bindRange('bSmooth', (v, o) => { cfg.bSmooth = v/100;     o.textContent = v + '%'; });
-bindRange('bAlpha',  (v, o) => { cfg.bAlpha = v/100;      o.textContent = v + '%'; });
-bindRange('bSpacing', (v, o) => { cfg.bSpacing = v/100; o.textContent = v + '%'; });
+
+// 👇 修改了这里：将 bAlpha 根据 paintMode 分开存储
+bindRange('bAlpha', (v, o) => { 
+  if (cfg.paintMode === 'line')          cfg.bAlphaLine = v/100;
+  else if (cfg.paintMode === 'gradient') cfg.gradientAlpha = v/100;
+  else                                   cfg.bAlphaLasso = v/100;
+  o.textContent = v + '%'; 
+});
+
+bindRange('bSpacing', (v, o) => {
+  if (cfg.paintMode === 'gradient') cfg.gradientSpacing = v/100;
+  else                              cfg.bSpacing = v/100;
+  o.textContent = v + '%';
+});
+
+bindRange('bHardness', (v, o) => {
+  const h = v / 100;
+  if (cfg.paintMode === 'gradient')      cfg.hardnessGradient = h;
+  else if (cfg.paintMode === 'line')     cfg.hardnessLine = h;
+  else                                   cfg.hardnessLasso = h;
+  o.textContent = v + '%';
+});
+
+/* 角度：0~180°，画笔与渐变线各自独立 */
+bindRange('bAngleJitter', (v, o) => {
+  if (cfg.paintMode === 'gradient') cfg.angleJitterGradient = v;
+  else                              cfg.angleJitterLine = v;
+  o.textContent = v + '°';
+});
+
+/* 大小抖动：0~100 → 0~1 */
+bindRange('bSizeJitter', (v, o) => {
+  const f = v / 100;
+  if (cfg.paintMode === 'gradient') cfg.sizeJitterGradient = f;
+  else                              cfg.sizeJitterLine = f;
+  o.textContent = v + '%';
+});
+
+/* 圆度抖动：0~100 → 0~1 */
+bindRange('bRoundness', (v, o) => {
+  const f = v / 100;
+  if (cfg.paintMode === 'gradient') cfg.roundnessJitterGradient = f;
+  else                              cfg.roundnessJitterLine = f;
+  o.textContent = v + '%';
+});
 
 bindRange('lqSize',     (v, o) => { cfg.lqSize = v;              o.textContent = v; });
 
@@ -9736,6 +10494,8 @@ bindRange('lqStrength', (v, o) => { cfg.lqStrength = v/100;      o.textContent =
 
 bindRange('hueGradient', (v, o) => {
   cfg.hueGradient = v;
+  const key = getActiveColorMode();
+  if (cfg.colorModes[key]) cfg.colorModes[key].hueGradient = v;
   o.textContent = v + '%';
 });
 
@@ -9745,13 +10505,45 @@ colorInputEl.addEventListener('input', () => {
 
 const hueRandomEl = document.getElementById('hueRandom');
 hueRandomEl.addEventListener('change', () => {
+  const key = getActiveColorMode();
   cfg.hueRandom = hueRandomEl.checked;
+  if (cfg.colorModes[key]) cfg.colorModes[key].hueRandom = hueRandomEl.checked;
+
+  /* 与「应用每笔」互斥：勾选随机颜色时，取消应用每笔 */
+  if (hueRandomEl.checked && applyPerStrokeEl) {
+    applyPerStrokeEl.checked = false;
+    cfg.applyColorPerStroke = false;
+    if (cfg.colorModes[key]) cfg.colorModes[key].applyColorPerStroke = false;
+  }
 });
 
 const pSizePenEl  = document.getElementById('pSizePen');
 const pAlphaPenEl = document.getElementById('pAlphaPen');
 const bSizePenEl  = document.getElementById('bSizePen');
 const bAlphaPenEl = document.getElementById('bAlphaPen');
+
+/* 渐变画笔「反向」开关 */
+const bGradReverseEl = document.getElementById('bGradReverse');
+if (bGradReverseEl) {
+  bGradReverseEl.addEventListener('change', () => {
+    cfg.gradientReverse = bGradReverseEl.checked;
+  });
+}
+const applyPerStrokeEl = document.getElementById('applyPerStroke');
+if (applyPerStrokeEl) {
+  applyPerStrokeEl.addEventListener('change', () => {
+    const key = getActiveColorMode();
+    cfg.applyColorPerStroke = applyPerStrokeEl.checked;
+    if (cfg.colorModes[key]) cfg.colorModes[key].applyColorPerStroke = applyPerStrokeEl.checked;
+
+    /* 与「随机颜色」互斥：勾选应用每笔时，取消随机颜色 */
+    if (applyPerStrokeEl.checked && hueRandomEl) {
+      hueRandomEl.checked = false;
+      cfg.hueRandom = false;
+      if (cfg.colorModes[key]) cfg.colorModes[key].hueRandom = false;
+    }
+  });
+}
 
 pSizePenEl.addEventListener('change', () => {
   cfg.placeSizePressure = pSizePenEl.checked;
@@ -9796,6 +10588,8 @@ function applyTool(tool) {
   updateCustomPanelVisibility();
   updateUIState();
   updateEraserBadge();
+  syncColorUIFromMode();
+  syncBrushUIFromMode();
 }
 
 toolBox.addEventListener('click', e => {
@@ -9829,6 +10623,8 @@ function applyCtrlMode(mode) {
   ctrlBox.querySelectorAll('button').forEach(b =>
     b.classList.toggle('on', b.dataset.v === mode));
   ctrlHint.textContent = CTRL_TIPS[mode] || '';
+  setRangeDisplay('pAlpha', Math.round(getCurPAlpha() * 100));
+setRangeDisplay('pLw', Math.round(getCurPLw() * 10));
   updateUIState();
   if (sizeHeld && !canAdjustSize()) {
     sizeHeld = false;
@@ -9871,21 +10667,26 @@ pModeBox.addEventListener('click', e => {
 const paintModeBox = document.getElementById('paintModes');
 const paintHint    = document.getElementById('paintHint');
 const PAINT_TIPS = {
-  line:   '自由画笔，颜色由拾色器和渐变共同决定',
-  lasso:  '柳叶笔套索，以起点为圆心 72 扇区填色'
+  line:     '自由画笔，颜色由拾色器和渐变共同决定',
+  lasso:    '柳叶笔套索，以起点为圆心 72 扇区填色',
+  gradient: '按住拖动画直线：从实到透（勾反向则透到实），抬起确定'
 };
 function applyPaintMode(mode) {
   cfg.paintMode = mode;
   paintModeBox.querySelectorAll('button').forEach(b =>
     b.classList.toggle('on', b.dataset.v === mode));
   paintHint.textContent = PAINT_TIPS[mode] || '';
+  setRangeDisplay('bAlpha', Math.round(getCurBAlpha() * 100));
   updateUIState();
 
-  /* 画笔 ↔ 填充/套索 切换时，重判 X 是否还有效 */
+  /* 画笔 ↔ 填充/套索/渐变线 切换时，重判 X 是否还有效 */
   if (sizeHeld && !canAdjustSize()) {
     sizeHeld = false;
     cvs.style.cursor = '';
   }
+
+  syncColorUIFromMode();
+  syncBrushUIFromMode();
 }
 paintModeBox.addEventListener('click', e => {
   const btn = e.target.closest('button');
@@ -10027,6 +10828,26 @@ window.addEventListener('keydown', e => {
     e.preventDefault();
     return;
   }
+    /* ---- Ctrl+H / Cmd+H：收起 / 展开除快捷键提示外的所有常驻 UI ---- */
+  if ((e.ctrlKey || e.metaKey) && k === 'h') {
+    e.preventDefault();
+    document.body.classList.toggle('ui-hidden');
+    return;
+  }
+
+    // 👇 ================= 把 H 键的代码加在这里 ================= 👇
+
+  /* ---- H 键：切换底部提示面板显示/隐藏 ---- */
+  if (e.code === 'KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // 避免在输入框内触发
+    const tgt = e.target;
+    if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.tagName === 'SELECT')) return;
+    const hintEl = document.getElementById('hint');
+    if (hintEl) {
+      hintEl.style.display = (hintEl.style.display === 'none') ? 'flex' : 'none';
+    }
+    return;
+  }
 
   /* ---- 空格：Ctrl+空格 → 缩放；单独空格 → 平移/复位 ---- */
   if (e.code === 'Space' && !e.repeat) {
@@ -10156,6 +10977,12 @@ window.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && k === 's') {
     e.preventDefault();
     exportPSD();
+    return;
+  }
+    /* ---- Ctrl+J：复制图层（支持多选） ---- */
+  if ((e.ctrlKey || e.metaKey) && k === 'j') {
+    e.preventDefault();
+    duplicateLayer(activeLayerId);
     return;
   }
 
@@ -10458,8 +11285,9 @@ const RADIAL_DEFS = {
   '2': {
     label: '绘画',
     items: [
-      { value: 'line',   label: '画笔' },
-      { value: 'lasso',  label: '套索' }
+      { value: 'line',     label: '画笔' },
+      { value: 'lasso',    label: '套索' },
+      { value: 'gradient', label: '渐变线' }
     ],
     apply(item) {
       /* 关键：若当前不是「绘画」工具，先切过去 */
