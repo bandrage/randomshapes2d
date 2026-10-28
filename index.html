@@ -14,7 +14,25 @@
     --txt:#e9e9f0;
     --dim:#8b8b9a;
   }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  *{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+    /* 全局禁止文字选中：双击 / 拖拽 / Shift+点击 都不会再把 UI 文字刷成蓝色 */
+    -webkit-user-select:none;
+    -moz-user-select:none;
+    -ms-user-select:none;
+    user-select:none;
+    /* 移动端 / WebView 长按不弹系统菜单 */
+    -webkit-touch-callout:none;
+  }
+  /* 需要输入 / 选中文字的控件恢复默认行为 */
+  input, textarea, select, [contenteditable="true"]{
+    -webkit-user-select:text;
+    -moz-user-select:text;
+    -ms-user-select:text;
+    user-select:text;
+    -webkit-touch-callout:default;
+  }
   html,body{
     margin:0;height:100%;overflow:hidden;background:#000;color:var(--txt);
     font-family:ui-sans-serif,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
@@ -954,7 +972,7 @@
 
       <section>
         <div class="lbl">笔刷</div>
-        <div class="row" id="bWidthRow"><span>笔宽</span><input id="bWidth" type="range" min="1" max="120" value="8"><i>8</i><label class="sw row-sw" title="大小压感"><input id="bSizePen" type="checkbox"><span></span></label></div>
+        <div class="row" id="bWidthRow"><span>笔宽</span><input id="bWidth" type="range" min="1" max="120" value="2"><i>2</i><label class="sw row-sw" title="大小压感"><input id="bSizePen" type="checkbox"><span></span></label></div>
         <div class="row" id="bHardnessRow"><span>硬度</span><input id="bHardness" type="range" min="0" max="100" value="100"><i>100%</i></div>
         <div class="row" id="bAngleJitterRow"><span>角度</span><input id="bAngleJitter" type="range" min="0" max="180" value="0"><i>0°</i></div>
         <div class="row" id="bSizeJitterRow"><span>大小</span><input id="bSizeJitter" type="range" min="0" max="100" value="0"><i>0%</i></div>
@@ -962,7 +980,8 @@
         <div class="row" id="bSpacingRow"><span>间隔</span><input id="bSpacing" type="range" min="1" max="100" value="15"><i>15%</i></div>
         <div class="row" id="bSmoothRow"><span>平滑</span><input id="bSmooth" type="range" min="0" max="90" value="35"><i>35%</i></div>
         <div class="row" id="bAlphaRow"><span>透明度</span><input id="bAlpha" type="range" min="5" max="100" value="100"><i>100%</i><label class="sw row-sw" title="透明度压感"><input id="bAlphaPen" type="checkbox"><span></span></label></div>
-        <div class="row" id="bGradReverseRow" hidden><span>反向</span><label class="sw"><input id="bGradReverse" type="checkbox" checked><span></span></label></div>
+        <div class="row" id="bLinearRow"><span>线性</span><label class="sw"><input id="bLinear" type="checkbox"><span></span></label></div>
+        <div class="row" id="bLinearReverseRow" hidden><span>反向</span><label class="sw"><input id="bLinearReverse" type="checkbox" checked><span></span></label></div>
 
       </section>
 
@@ -1129,8 +1148,14 @@ const cfg = {
   paintSizePressure: false,
   paintAlphaPressure: false,
   ctrlMode: 'scatter',
-  paintMode: 'line',
-  bWidth: 8, bSmooth: 0.35, bSpacing: 0.15,
+  paintMode: 'line',           // 绘画子模式：'line' | 'lasso' | 'gradient'
+  _lastPaintMode: 'line',      // 绘画工具记忆（'line' | 'lasso' | 'gradient'）
+
+  /* 绘画的「线性」开关（画笔 / 套索各自独立） */
+  paintLinearLine: false,
+  paintLinearLasso: false,
+  linearReverse: true,         // 线性渐变的反向（独立于渐变线的反向）
+  bWidth: 2, bSmooth: 0.35, bSpacing: 0.15,
   bAlphaLine: 1.0, bAlphaLasso: 1.0,
 bEraserWidth: 16,
   paintTolerance: 30, // 油漆桶容差 0~100（映射到 0~255 通道差异）
@@ -1150,10 +1175,10 @@ bEraserWidth: 16,
      cfg.hueGradient / hueRandom / applyColorPerStroke 是当前活动模式的镜像，
      由 syncColorUIFromMode() 在切换工具时写入。 */
   colorModes: {
-    place:    { hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
-    line:     { hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
-    lasso:    { hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
-    gradient: { hueGradient: 0, hueRandom: false, applyColorPerStroke: false }
+    place:    { baseColor: '#000000', hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
+    line:     { baseColor: '#000000', hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
+    lasso:    { baseColor: '#000000', hueGradient: 0, hueRandom: false, applyColorPerStroke: false },
+    gradient: { baseColor: '#000000', hueGradient: 0, hueRandom: false, applyColorPerStroke: false }
   },
   hueGradient: 0,
   hueRandom: false,
@@ -1184,6 +1209,118 @@ const vctx = cvs.getContext('2d', { alpha: false });
 const baseCvs   = document.createElement('canvas');
 const bctx      = baseCvs.getContext('2d');
 const strokeBuf = document.createElement('canvas');
+/* =========================================================
+   性能优化：复用预分配画布 + 图层合成缓存
+   ── 旧代码每帧新建 3840×1890 canvas，是"画笔卡成线段"的元凶。
+   ========================================================= */
+const previewCvs        = document.createElement('canvas');
+const previewCtx        = previewCvs.getContext('2d');
+const clippedStrokeCvs  = document.createElement('canvas');
+const clippedStrokeCtx  = clippedStrokeCvs.getContext('2d');
+const lassoTmpCvs       = document.createElement('canvas');
+const lassoTmpCtx       = lassoTmpCvs.getContext('2d');
+
+/* 线性渐变：临时缓冲 + 画笔路径点 + 当前终点 */
+const fadeTmpCvs = document.createElement('canvas');
+const fadeTmpCtx = fadeTmpCvs.getContext('2d');
+let brushPts = [];
+let strokeEndX = 0;
+let strokeEndY = 0;
+
+/* 图层合成缓存：绘制期间跳过完整合成 */
+let layerCacheValid    = false;
+let layerCacheActiveId = -1;
+let layerCacheDisabled = false;
+const layerBelowCvs    = document.createElement('canvas');
+const layerAboveCvs    = document.createElement('canvas');
+
+/* =========================================================
+   场景合成缓存（套索 / 选区虚线 / 平移缩放 专用）
+   ── 套索、选区跑马灯、平移缩放时，图层内容不变，
+      每帧完整合成 5 层是纯浪费，也是"套索卡成线段"的元凶。
+      用一个场景缓存把 5 层合成结果保存下来，每帧只 drawImage 一次。
+   ========================================================= */
+let sceneCacheValid = false;
+const sceneCacheCvs = document.createElement('canvas');
+const sceneCacheCtx = sceneCacheCvs.getContext('2d');
+
+function invalidateSceneCache() {
+  sceneCacheValid = false;
+}
+
+function rebuildSceneCache() {
+  const W = baseCvs.width, H = baseCvs.height;
+  if (W < 1 || H < 1) return;
+  if (sceneCacheCvs.width !== W || sceneCacheCvs.height !== H) {
+    sceneCacheCvs.width  = W;
+    sceneCacheCvs.height = H;
+  }
+  sceneCacheCtx.setTransform(1, 0, 0, 1, 0, 0);
+  sceneCacheCtx.globalCompositeOperation = 'source-over';
+  sceneCacheCtx.globalAlpha = 1;
+  sceneCacheCtx.clearRect(0, 0, W, H);
+  composeLayersTo(sceneCacheCtx, W, H);
+  sceneCacheValid = true;
+}
+
+function invalidateLayerCache() {
+  layerCacheValid = false;
+}
+
+function rebuildLayerCache(active) {
+  const W = baseCvs.width, H = baseCvs.height;
+  if (W < 1 || H < 1 || !active) { layerCacheValid = false; return; }
+
+  /* clip 层不能缓存（clip 依赖下方层内容） */
+  if (layers.some(l => l.visible && l.clip)) {
+    layerCacheDisabled = true; layerCacheValid = false; return;
+  }
+
+  const activeIdx = layers.findIndex(l => l.id === active.id);
+  if (activeIdx < 0) { layerCacheValid = false; return; }
+
+  /* 上方层有非 source-over 混合模式 → 不能缓存（快速路径不适用） */
+  for (let i = activeIdx + 1; i < layers.length; i++) {
+    const l = layers[i];
+    if (l.visible && (l.blendMode && l.blendMode !== 'source-over')) {
+      layerCacheDisabled = true; layerCacheValid = false; return;
+    }
+  }
+  layerCacheDisabled = false;
+
+  if (layerBelowCvs.width !== W || layerBelowCvs.height !== H) {
+    layerBelowCvs.width = W; layerBelowCvs.height = H;
+  }
+  if (layerAboveCvs.width !== W || layerAboveCvs.height !== H) {
+    layerAboveCvs.width = W; layerAboveCvs.height = H;
+  }
+  const bctx2 = layerBelowCvs.getContext('2d');
+  const actx2 = layerAboveCvs.getContext('2d');
+  bctx2.setTransform(1, 0, 0, 1, 0, 0);
+  actx2.setTransform(1, 0, 0, 1, 0, 0);
+  bctx2.globalCompositeOperation = 'source-over';
+  actx2.globalCompositeOperation = 'source-over';
+  bctx2.globalAlpha = 1;
+  actx2.globalAlpha = 1;
+  bctx2.clearRect(0, 0, W, H);
+  actx2.clearRect(0, 0, W, H);
+
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i];
+    if (!layer.visible || layer.id === active.id) continue;
+    const dst = (i < activeIdx) ? bctx2 : actx2;
+    const src = getLayerCanvas(layer);
+    if (!src) continue;
+    dst.globalCompositeOperation = layer.blendMode || 'source-over';
+    dst.globalAlpha = layer.opacity ?? 1;
+    dst.drawImage(src, 0, 0);
+    dst.globalCompositeOperation = 'source-over';
+    dst.globalAlpha = 1;
+  }
+
+  layerCacheActiveId = active.id;
+  layerCacheValid = true;
+}
 const sctx      = strokeBuf.getContext('2d');
 
 const conicCvs = document.createElement('canvas');
@@ -1202,7 +1339,10 @@ function getCurPLw() {
   return cfg.ctrlMode === 'scatter' ? cfg.pLwScatter : cfg.pLwDrag;
 }
 function getCurBAlpha() {
-  const val = cfg.paintMode === 'line' ? cfg.bAlphaLine : cfg.bAlphaLasso;
+  let val;
+  if (cfg.paintMode === 'line')          val = cfg.bAlphaLine;
+  else if (cfg.paintMode === 'lasso')    val = cfg.bAlphaLasso;
+  else if (cfg.paintMode === 'gradient') val = cfg.gradientAlpha;
   return (val === undefined || isNaN(val)) ? 1.0 : val;
 }
 
@@ -1280,11 +1420,17 @@ function updateZoomBadge() {
 }
 
 function resetView() {
-  viewScale = 1;
+  /* 复位视图：让画布完整显示在窗口内（含 40px 边距），
+     画布小于窗口时保持 1:1，大于窗口时自动缩小。
+     —— 这样无论是 PSD 还是大画布，按空格复位都能看到全貌。 */
   const cw = baseCvs.width / dpr;
   const ch = baseCvs.height / dpr;
-  viewOffsetX = (window.innerWidth  / 2) - cw / 2;
-  viewOffsetY = (window.innerHeight / 2) - ch / 2;
+  const fitPad = 40;
+  const availW = Math.max(100, window.innerWidth  - fitPad);
+  const availH = Math.max(100, window.innerHeight - fitPad);
+  viewScale = Math.min(availW / cw, availH / ch, 1);
+  viewOffsetX = (window.innerWidth  - cw * viewScale) / 2;
+  viewOffsetY = (window.innerHeight - ch * viewScale) / 2;
   renderView();
   updateZoomBadge();
 }
@@ -1307,7 +1453,11 @@ function updateEraserBadge() {
     setRangeDisplay('pSize', eraserHeld ? cfg.pEraserSize : cfg.pSize);
   }
   if (cfg.tool === 'paint') {
-    setRangeDisplay('bWidth', eraserHeld ? cfg.bEraserWidth : cfg.bWidth);
+    if (cfg.paintMode === 'gradient') {
+      setRangeDisplay('bWidth', eraserHeld ? cfg.bEraserWidth : cfg.gradientWidth);
+    } else {
+      setRangeDisplay('bWidth', eraserHeld ? cfg.bEraserWidth : cfg.bWidth);
+    }
   }
 }
 
@@ -1428,7 +1578,7 @@ function startDashAnim() {
       return;
     }
     dashOffset = (dashOffset + 0.35) % 10;
-    renderView();
+    renderViewCached();   /* ★ 虚线动画用缓存，避免每帧完整合成 */
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
@@ -1438,6 +1588,18 @@ function startDashAnim() {
    视图渲染
    ========================================================= */
 function renderView() {
+  /* 普通调用：失效缓存后重新渲染（保证正确性） */
+  invalidateSceneCache();
+  _renderViewImpl();
+}
+
+function renderViewCached() {
+  /* 高频调用（pointermove / dash 动画 / 平移缩放）：
+     不清缓存，直接用有效的场景缓存 → 1 次 drawImage */
+  _renderViewImpl();
+}
+
+function _renderViewImpl() {
   vctx.setTransform(1, 0, 0, 1, 0, 0);
   vctx.globalCompositeOperation = 'source-over';
   vctx.globalAlpha = 1;
@@ -1446,7 +1608,7 @@ function renderView() {
   vctx.fillRect(0, 0, cvs.width, cvs.height);
 
   vctx.setTransform(
-    viewScale, 0, 0, viewScale,
+    viewScale * dpr, 0, 0, viewScale * dpr,
     viewOffsetX * dpr, viewOffsetY * dpr
   );
   vctx.imageSmoothingEnabled = true;
@@ -1455,51 +1617,74 @@ function renderView() {
   vctx.fillStyle = cfg.bg;
   vctx.fillRect(0, 0, baseCvs.width, baseCvs.height);
 
-  /* 合成所有可见图层（含剪贴蒙版）。
-     ── 笔触预览：把活动图层的显示替换为「baseCvs + strokeBuf」
-        用 strokeBlend 混合后的副本。
-        这样预览和提交走完全相同的路径，
-        依赖底层的混合模式（hue / color / overlay / …）也能实时正确显示。 */
+  /* 是否可以使用场景缓存：套索/选区/虚线动画 + 图层静止 */
+  const canUseSceneCache = sceneCacheValid &&
+    !strokeActive && !moveActive && !tfActive &&
+    (lassoActive || hasSelection());
+
+  /* 画笔笔触预览（渐变线橡皮等） */
   let previewLayerId = -1;
   let previewCanvas  = null;
 
-  /* 渐变画笔的橡皮需要预览：它走 strokeBuf + destination-out 合成，
-     不像放置拖拽橡皮那样直接画到 bctx，所以必须放行。 */
-  if (strokeActive && (strokeBlend !== 'destination-out' || strokePaintMode === 'gradient')) {
+  if (strokeActive && (strokeBlend !== 'destination-out'
+      || strokePaintMode === 'gradient')) {
     const active = getActiveLayer();
     if (active) {
-      previewCanvas = document.createElement('canvas');
-      previewCanvas.width  = baseCvs.width;
-      previewCanvas.height = baseCvs.height;
-      const pc = previewCanvas.getContext('2d');
-      pc.setTransform(1, 0, 0, 1, 0, 0);
-      pc.globalCompositeOperation = 'source-over';
-      pc.globalAlpha = 1;
-      pc.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-      pc.drawImage(baseCvs, 0, 0);
+      if (previewCvs.width !== baseCvs.width || previewCvs.height !== baseCvs.height) {
+        previewCvs.width  = baseCvs.width;
+        previewCvs.height = baseCvs.height;
+      }
+      previewCtx.setTransform(1, 0, 0, 1, 0, 0);
+      previewCtx.globalCompositeOperation = 'source-over';
+      previewCtx.globalAlpha = 1;
+      previewCtx.clearRect(0, 0, previewCvs.width, previewCvs.height);
+      previewCtx.drawImage(baseCvs, 0, 0);
 
-      /* 用「与提交完全一致的裁剪链」处理 strokeBuf：
-         选区（含反选）+ 锁定像素。
-         否则预览会画到选区外，抬笔才被裁掉 → 视觉跳变。 */
       const clippedStroke = getPreviewStrokeBuf(active);
 
-      pc.globalCompositeOperation = strokeBlend;
-      pc.globalAlpha = strokeAlpha;
-      pc.drawImage(clippedStroke, 0, 0);
-      pc.globalCompositeOperation = 'source-over';
-      pc.globalAlpha = 1;
+      previewCtx.globalCompositeOperation = strokeBlend;
+      previewCtx.globalAlpha = strokeAlpha;
+      previewCtx.drawImage(clippedStroke, 0, 0);
+      previewCtx.globalCompositeOperation = 'source-over';
+      previewCtx.globalAlpha = 1;
 
       previewLayerId = active.id;
+      previewCanvas  = previewCvs;
     }
   }
 
-  composeLayersTo(vctx, baseCvs.width, baseCvs.height, {
-    overrideLayerId: previewLayerId,
-    overrideCanvas: previewCanvas
-  });
+  if (canUseSceneCache) {
+    /* ★ 快速路径 A：套索 / 选区虚线 → 1 次 drawImage */
+    vctx.drawImage(sceneCacheCvs, 0, 0);
+  } else if (previewCanvas && layerCacheValid && !layerCacheDisabled &&
+             layerCacheActiveId === previewLayerId) {
+    /* ★ 快速路径 B：画笔绘制 → below + 活动层 + above */
+    const active = getActiveLayer();
+    vctx.drawImage(layerBelowCvs, 0, 0);
+    if (active) {
+      vctx.globalCompositeOperation = active.blendMode || 'source-over';
+      vctx.globalAlpha = active.opacity ?? 1;
+      vctx.drawImage(previewCanvas, 0, 0);
+      vctx.globalCompositeOperation = 'source-over';
+      vctx.globalAlpha = 1;
+    }
+    vctx.drawImage(layerAboveCvs, 0, 0);
+  } else {
+    /* 完整合成 */
+    composeLayersTo(vctx, baseCvs.width, baseCvs.height, {
+      overrideLayerId: previewLayerId,
+      overrideCanvas: previewCanvas
+    });
+
+    /* 空闲时：如果接下来可能有高频渲染（选区/套索），顺便重建缓存 */
+    if (!strokeActive && !moveActive && !tfActive && (lassoActive || hasSelection())) {
+      rebuildSceneCache();
+    }
+  }
 
   vctx.setTransform(1, 0, 0, 1, 0, 0);
 
+  /* 套索虚线 */
   if (lassoActive && lassoPoints.length > 1) {
     vctx.setTransform(
       viewScale * dpr, 0, 0, viewScale * dpr,
@@ -1510,29 +1695,23 @@ function renderView() {
     vctx.lineJoin = 'round';
     vctx.lineCap = 'round';
     vctx.setLineDash([6, 4]);
-
     vctx.beginPath();
     vctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
     for (let i = 1; i < lassoPoints.length; i++) {
       vctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
     }
-
     vctx.strokeStyle = 'rgba(0,0,0,0.85)';
     vctx.lineDashOffset = dashOffset + 5;
     vctx.stroke();
-
     vctx.strokeStyle = lassoColor;
     vctx.lineDashOffset = dashOffset;
     vctx.stroke();
-
     vctx.restore();
     vctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   if (!tfActive && hasSelection()) drawSelection();
-
   if (tfActive) drawTransformUI();
-
   if (!tfActive && (hasSelection() || lassoActive) && !dashAnimRunning) startDashAnim();
 }
 
@@ -1651,6 +1830,13 @@ function syncColorUIFromMode() {
   cfg.hueRandom           = s.hueRandom;
   cfg.applyColorPerStroke = s.applyColorPerStroke;
 
+  /* 颜色：每个模式独立存储 → 切模式时同步回 cfg + 输入框 */
+  if (s.baseColor) {
+    cfg.baseColor = s.baseColor;
+    updateBaseHsl();
+    if (colorInputEl) colorInputEl.value = s.baseColor;
+  }
+
   const gradEl = document.getElementById('hueGradient');
   if (gradEl) {
     gradEl.value = String(s.hueGradient);
@@ -1667,7 +1853,7 @@ function syncColorUIFromMode() {
    渐变线使用 cfg.gradientWidth / gradientAlpha / gradientSpacing，
    普通画笔和套索使用原来的共享字段。 */
 function syncBrushUIFromMode() {
-  const isGrad = cfg.tool === 'paint' && cfg.paintMode === 'gradient';
+  const isGrad = cfg.paintMode === 'gradient';
 
   const widthEl    = document.getElementById('bWidth');
   const spacingEl  = document.getElementById('bSpacing');
@@ -1734,6 +1920,7 @@ function syncBrushUIFromMode() {
     if (out) out.textContent = v + '%';
   }
 }
+
 
 function hueRange() {
   return (cfg.hueGradient / 100) * 180;
@@ -2147,9 +2334,30 @@ function updateUIState() {
     /* 画笔 / 渐变线都可启用自定义画笔；只有套索不用 */
     setDisabled(document.getElementById('customBrushSection'), !isLine && !isGradient);
 
-    /* 「反向」开关只在渐变画笔下显示 */
-    if (bGradReverseRow) bGradReverseRow.hidden = !isGradient;
+    /* 线性开关：画笔 / 套索都显示（各自独立存储） */
+    syncLinearUI();
   }
+}
+
+/* 线性开关 UI 同步：切换画笔/套索时刷新勾选状态 */
+function syncLinearUI() {
+  const isLine  = cfg.paintMode === 'line';
+  const isLasso = cfg.paintMode === 'lasso';
+
+  const bLinearEl         = document.getElementById('bLinear');
+  const bLinearRowEl      = document.getElementById('bLinearRow');
+  const bLinearRevEl      = document.getElementById('bLinearReverse');
+  const bLinearRevRowEl   = document.getElementById('bLinearReverseRow');
+  if (!bLinearEl || !bLinearRowEl) return;
+
+  bLinearRowEl.hidden = !(isLine || isLasso);
+
+  if (isLine)       bLinearEl.checked = !!cfg.paintLinearLine;
+  else if (isLasso) bLinearEl.checked = !!cfg.paintLinearLasso;
+  else              bLinearEl.checked = false;
+
+  if (bLinearRevRowEl) bLinearRevRowEl.hidden = !bLinearEl.checked;
+  if (bLinearRevEl)    bLinearRevEl.checked = !!cfg.linearReverse;
 }
 
 /* =========================================================
@@ -3639,6 +3847,10 @@ let cpSnapshot = null;
 let cpChannel = 'rgb';
 let cpDrag = null;
 
+/* ★ 曲线应用缓存：cpOpen 时读一次，拖动曲线滑块时复用，避免每帧读 7M 像素 */
+let cpOrigData  = null;   // Uint8ClampedArray：cpOpen 时 cpSnapshot 的原始像素
+let cpMaskAlpha = null;   // Uint8Array：cpOpen 时选区 mask 的 alpha（0~255）
+
 const cpCurves = {
   rgb: [{ x: 0, y: 0 }, { x: 255, y: 255 }],
   r:   [{ x: 0, y: 0 }, { x: 255, y: 255 }],
@@ -3783,8 +3995,22 @@ function cpRender() {
 function cpApply() {
   const W = baseCvs.width, H = baseCvs.height;
 
-  const srcCtx = cpSnapshot ? cpSnapshot.getContext('2d') : bctx;
-  const img = srcCtx.getImageData(0, 0, W, H);
+  /* 原图像素在 cpOpen 时已缓存，直接拷贝一份用作本次处理；
+     若缓存丢失（异常情况），从 cpSnapshot 现读一次 */
+  let orig;
+  if (cpOrigData && cpOrigData.length === W * H * 4) {
+    orig = cpOrigData;
+  } else {
+    const srcCtx = cpSnapshot ? cpSnapshot.getContext('2d') : bctx;
+    try {
+      orig = srcCtx.getImageData(0, 0, W, H).data;
+    } catch (e) {
+      return;
+    }
+  }
+
+  /* 拷贝到 ImageData（原地处理，不污染缓存） */
+  const img = new ImageData(new Uint8ClampedArray(orig), W, H);
   const d = img.data;
 
   const lutRgb = cpBuildLUT(cpCurves.rgb);
@@ -3792,10 +4018,40 @@ function cpApply() {
   const lutG = cpBuildLUT(cpCurves.g);
   const lutB = cpBuildLUT(cpCurves.b);
 
-  for (let i = 0; i < d.length; i += 4) {
-    d[i]     = lutR[lutRgb[d[i]]];
-    d[i + 1] = lutG[lutRgb[d[i + 1]]];
-    d[i + 2] = lutB[lutRgb[d[i + 2]]];
+  /* ★ 关键修复：有选区时只对选区内像素应用曲线，边缘按 mask alpha 混合。
+     ── 原代码直接对全画布应用 → 选区外也被改。
+     ── 现在用 mask 的 alpha 通道：
+        · alpha=255（完全在选区内）→ 完全应用曲线
+        · alpha=0  （完全在选区外）→ 保留原始像素（跳过）
+        · 0<alpha<255（选区边缘）→ 按 alpha 比例混合 */
+  if (cpMaskAlpha && cpMaskAlpha.length === W * H) {
+    const total = W * H;
+    for (let i = 0; i < total; i++) {
+      const a = cpMaskAlpha[i];
+      if (a === 0) continue;
+      const o = i * 4;
+      const r = d[o], g = d[o + 1], b = d[o + 2];
+      const nr = lutR[lutRgb[r]];
+      const ng = lutG[lutRgb[g]];
+      const nb = lutB[lutRgb[b]];
+      if (a === 255) {
+        d[o]     = nr;
+        d[o + 1] = ng;
+        d[o + 2] = nb;
+      } else {
+        const t = a / 255;
+        d[o]     = nr * t + r * (1 - t);
+        d[o + 1] = ng * t + g * (1 - t);
+        d[o + 2] = nb * t + b * (1 - t);
+      }
+    }
+  } else {
+    /* 无选区：全画布应用 */
+    for (let i = 0; i < d.length; i += 4) {
+      d[i]     = lutR[lutRgb[d[i]]];
+      d[i + 1] = lutG[lutRgb[d[i + 1]]];
+      d[i + 2] = lutB[lutRgb[d[i + 2]]];
+    }
   }
 
   /* 每次应用曲线前抓快照，应用后用遮罩还原锁区外的像素 */
@@ -3840,6 +4096,32 @@ function cpOpen() {
   cpSnapshot.height = baseCvs.height;
   cpSnapshot.getContext('2d').drawImage(baseCvs, 0, 0);
 
+  /* ★ 缓存原图像素（曲线应用时复用，避免每帧 getImageData 28MB） */
+  const _W = baseCvs.width, _H = baseCvs.height;
+  try {
+    const _snapImg = cpSnapshot.getContext('2d').getImageData(0, 0, _W, _H);
+    cpOrigData = new Uint8ClampedArray(_snapImg.data);
+  } catch (e) {
+    cpOrigData = null;
+  }
+
+  /* ★ 缓存选区 mask 的 alpha（读取一次，拖动曲线滑块时直接用） */
+  cpMaskAlpha = null;
+  if (hasSelection()) {
+    const _mask = getActiveMaskCvs();
+    if (_mask) {
+      try {
+        const _mdata = _mask.getContext('2d').getImageData(0, 0, _W, _H).data;
+        cpMaskAlpha = new Uint8Array(_W * _H);
+        for (let i = 0; i < _W * _H; i++) {
+          cpMaskAlpha[i] = _mdata[i * 4 + 3];
+        }
+      } catch (e) {
+        cpMaskAlpha = null;
+      }
+    }
+  }
+
   /* 每次打开都复位曲线工具本身（控制点恢复默认对角线），
      只重置曲线数据，不动画面 —— 画面由 cpSnapshot 保护，
      用户取消会回滚，用户确定则保留。 */
@@ -3867,6 +4149,8 @@ function cpCancel() {
     bctx.restore();
   }
   cpSnapshot = null;
+  cpOrigData = null;
+  cpMaskAlpha = null;
   cpSetActive(false);
   renderView();
 }
@@ -3874,6 +4158,8 @@ function cpCancel() {
 function cpConfirm() {
   if (!cpActive) return;
   cpSnapshot = null;
+  cpOrigData = null;
+  cpMaskAlpha = null;
   cpSetActive(false);
   renderView();
 }
@@ -5222,14 +5508,24 @@ function compositeCanvases(layerList, width, height) {
   tmp.height = height;
   const tctx = tmp.getContext('2d');
   tctx.setTransform(1, 0, 0, 1, 0, 0);
+  tctx.globalCompositeOperation = 'source-over';
+  tctx.globalAlpha = 1;
 
-  for (const l of layerList) {
-    tctx.globalCompositeOperation = 'source-over';
-    tctx.globalAlpha = l.opacity ?? 1;
-    /* 用 getLayerCanvas 而不是 l.canvas：
-       活动图层的最新内容实时存在 baseCvs 上，
-       直接读 l.canvas 可能拿到过时的副本。 */
+  for (let i = 0; i < layerList.length; i++) {
+    const l = layerList[i];
     const src = getLayerCanvas(l) || l.canvas;
+    if (i === 0) {
+      /* ★ 最底层：用 source-over 绘制，opacity 烘焙进像素
+         （最底层的 blendMode 不在这里烘焙 —— 它会保留到结果图层上，
+          保证结果图层与组外下方图层的混合关系不变） */
+      tctx.globalCompositeOperation = 'source-over';
+      tctx.globalAlpha = l.opacity ?? 1;
+    } else {
+      /* ★ 上方图层：按各自的 blendMode + opacity 混合到已绘制的
+         "下方图层合成结果" 上 —— 与真实渲染顺序一致 */
+      tctx.globalCompositeOperation = l.blendMode || 'source-over';
+      tctx.globalAlpha = l.opacity ?? 1;
+    }
     tctx.drawImage(src, 0, 0);
   }
   tctx.globalCompositeOperation = 'source-over';
@@ -5289,11 +5585,11 @@ function mergeLayers(ids) {
 
   /* 合并后新图层强制可见，避免出现"合并完却看不见"的困惑 */
   topLayer.visible = true;
-  /* 混合模式重置为正常 —— 因为像素已经"烤"在一起了，
-     再保留原来的混合模式会让结果显得莫名其妙 */
-  topLayer.blendMode = 'source-over';
-  /* 不透明度重置为 100% —— 每层的不透明度已经烘焙进像素，
-     整体再乘一次会双重衰减。 */
+  /* ★ 保留组内最底层的原混合模式 ——
+     这样结果图层与组外下方图层的混合关系保持不变，视觉与合并前一致。
+     组内上方图层的混合模式已在 compositeCanvases 里烘焙进像素。 */
+  topLayer.blendMode = layers[indices[0]].blendMode || 'source-over';
+  /* 不透明度重置为 100% —— 像素已烘焙 */
   topLayer.opacity = 1;
 
   /* 删除其余选中图层。
@@ -5361,11 +5657,10 @@ function mergeDown() {
 
   /* 合并后新图层强制可见 */
   below.visible = true;
-  /* 混合模式重置为正常 */
-  below.blendMode = 'source-over';
-  /* 不透明度重置为 100%（像素里已经含了，避免双重衰减） */
-  below.opacity = 1;
-  /* 不透明度重置为 100% */
+  /* ★ 保留 below 原有的混合模式 —— 它还要跟"下方图层"正确混合
+     （下方图层就是 below 原本的下层，位置不变，所以 blendMode 保持即可） */
+  /* below.blendMode 保持不变 —— 不改 */
+  /* 不透明度重置为 100% —— 像素已烘焙（原 below.opacity 在 compositeCanvases 里已生效） */
   below.opacity = 1;
 
   /* 删除上面的图层 */
@@ -5485,30 +5780,35 @@ function getPreviewStrokeBuf(active) {
   const activeMask = getActiveMaskCvs();
   const needLock = active && active.lockPixels && active.lockMask;
 
-  if (!activeMask && !needLock) return strokeBuf;
+  /* 先应用线性渐变（需要时） */
+  const src = getStrokeBufWithFade();
 
-  const tmp = document.createElement('canvas');
-  tmp.width  = strokeBuf.width;
-  tmp.height = strokeBuf.height;
-  const tc = tmp.getContext('2d');
-  tc.setTransform(1, 0, 0, 1, 0, 0);
-  tc.globalCompositeOperation = 'source-over';
-  tc.globalAlpha = 1;
-  tc.drawImage(strokeBuf, 0, 0);
+  if (!activeMask && !needLock) return src;
+
+  /* ★ 复用 clippedStrokeCvs，避免每帧新建 */
+  if (clippedStrokeCvs.width !== src.width || clippedStrokeCvs.height !== src.height) {
+    clippedStrokeCvs.width  = src.width;
+    clippedStrokeCvs.height = src.height;
+  }
+  clippedStrokeCtx.setTransform(1, 0, 0, 1, 0, 0);
+  clippedStrokeCtx.globalCompositeOperation = 'source-over';
+  clippedStrokeCtx.globalAlpha = 1;
+  clippedStrokeCtx.clearRect(0, 0, clippedStrokeCvs.width, clippedStrokeCvs.height);
+  clippedStrokeCtx.drawImage(src, 0, 0);
 
   if (activeMask) {
-    tc.globalCompositeOperation = 'destination-in';
-    tc.globalAlpha = 1;
-    tc.drawImage(activeMask, 0, 0);
+    clippedStrokeCtx.globalCompositeOperation = 'destination-in';
+    clippedStrokeCtx.globalAlpha = 1;
+    clippedStrokeCtx.drawImage(activeMask, 0, 0);
   }
   if (needLock) {
-    tc.globalCompositeOperation = 'destination-in';
-    tc.globalAlpha = 1;
-    tc.drawImage(active.lockMask, 0, 0);
+    clippedStrokeCtx.globalCompositeOperation = 'destination-in';
+    clippedStrokeCtx.globalAlpha = 1;
+    clippedStrokeCtx.drawImage(active.lockMask, 0, 0);
   }
-  tc.globalCompositeOperation = 'source-over';
+  clippedStrokeCtx.globalCompositeOperation = 'source-over';
 
-  return tmp;
+  return clippedStrokeCvs;
 }
 
 /* B. 对直接修改 baseCvs 的操作（模糊 / 液化 / 曲线 / 变换 / 粘贴）
@@ -6490,6 +6790,98 @@ function clearStrokeBuf() {
   /* 清空后重置 filter，避免上一次套索软边留下的 blur 泄漏到下一次绘制 */
   sctx.filter = 'none';
 }
+
+/* =========================================================
+   线性渐变（绘画的画笔 / 套索）
+   ========================================================= */
+
+/* 当前绘制模式是否启用了「线性」 */
+function isLinearActive() {
+  if (strokePaintMode === 'line')  return !!cfg.paintLinearLine;
+  if (strokePaintMode === 'lasso') return !!cfg.paintLinearLasso;
+  return false;
+}
+
+/* 取当前绘制模式的路径点集 */
+function getLinearPts() {
+  if (strokePaintMode === 'line')  return brushPts;
+  if (strokePaintMode === 'lasso') return strokePts;
+  return null;
+}
+
+/* 直接对传入的 canvas 应用线性渐变（source-in，乘以 alpha） */
+function applyLinearFadeToBuf(buf) {
+  const pts = getLinearPts();
+  if (!pts || pts.length === 0) return;
+
+  const endX = strokeEndX;
+  const endY = strokeEndY;
+
+  /* 方向轴：从"最远投影点" → 当前终点（endX, endY） */
+  let farX = pts[0].x;
+  let farY = pts[0].y;
+  if (pts.length > 1) {
+    const ddx = endX - pts[0].x;
+    const ddy = endY - pts[0].y;
+    const dl = Math.hypot(ddx, ddy);
+    if (dl > 0.5) {
+      const nx = ddx / dl;
+      const ny = ddy / dl;
+      let minProj = Infinity;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        const proj = (p.x - endX) * nx + (p.y - endY) * ny;
+        if (proj < minProj) {
+          minProj = proj;
+          farX = p.x;
+          farY = p.y;
+        }
+      }
+    }
+  }
+
+  /* 渐变轴太短：不处理（单击不会把整笔变透明） */
+  if (Math.hypot(endX - farX, endY - farY) < 0.5) return;
+
+  const ctx = buf.getContext('2d');
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.globalAlpha = 1;
+  const grad = ctx.createLinearGradient(farX, farY, endX, endY);
+  const startA = cfg.linearReverse ? 0 : 1;
+  const endA   = cfg.linearReverse ? 1 : 0;
+  for (let i = 0; i <= 16; i++) {
+    const t = i / 16;
+    const a = startA + (endA - startA) * t;
+    grad.addColorStop(t, 'rgba(255,255,255,' + a + ')');
+  }
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, buf.width / dpr, buf.height / dpr);
+  ctx.restore();
+}
+
+/* 返回「已应用线性渐变」的笔触缓冲区（预览用）；
+   未启用线性时直接返回原始 strokeBuf（零开销）。 */
+function getStrokeBufWithFade() {
+  if (!strokeActive) return strokeBuf;
+  if (!isLinearActive()) return strokeBuf;
+
+  if (fadeTmpCvs.width  !== strokeBuf.width ||
+      fadeTmpCvs.height !== strokeBuf.height) {
+    fadeTmpCvs.width  = strokeBuf.width;
+    fadeTmpCvs.height = strokeBuf.height;
+  }
+  fadeTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
+  fadeTmpCtx.globalCompositeOperation = 'source-over';
+  fadeTmpCtx.globalAlpha = 1;
+  fadeTmpCtx.clearRect(0, 0, fadeTmpCvs.width, fadeTmpCvs.height);
+  fadeTmpCtx.drawImage(strokeBuf, 0, 0);
+
+  applyLinearFadeToBuf(fadeTmpCvs);
+
+  return fadeTmpCvs;
+}
 /* =========================================================
    压感映射系统（参照 libmypaint 的 mapping 架构）
    =========================================================
@@ -6616,28 +7008,23 @@ function prepStrokeCtx(p) {
 
 function updateDabColor() {
   const r = hueRange();
+  let h = baseHsl.h;
 
+  /* 1. 应用每笔：整笔固定一个随机色相（范围由 hueGradient 决定） */
   if (cfg.applyColorPerStroke) {
-    /* 应用每笔：整笔同一随机色相。范围由 hueGradient 决定，0 时无效果。 */
-    h += strokeRandomHue * r;
-  } else if (r > 0) {
-    h = ((h % 360) + 360) % 360;
-    strokeColor = `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
-    return;
+    h = baseHsl.h + strokeRandomHue * r;
   }
+  /* 2. 随机颜色：每个 dab 各自随机 */
+  else if (cfg.hueRandom && r > 0) {
+    h = baseHsl.h + (Math.random() * 2 - 1) * r;
+  }
+  /* 3. 颜色渐变：沿笔画（lineProgress）方向变化 */
+  else if (r > 0) {
+    const t = (lineProgress / LINE_GRADIENT_LENGTH) % 1;
+    h = baseHsl.h - r + 2 * r * t;
+  }
+  /* 4. 纯色：直接用 baseHsl.h（无修改） */
 
-  if (cfg.hueRandom) {
-    let h = baseHsl.h + (Math.random() * 2 - 1) * r;
-    h = ((h % 360) + 360) % 360;
-    strokeColor = `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
-    return;
-  }
-  if (r <= 0) {
-    strokeColor = `hsl(${baseHsl.h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
-    return;
-  }
-  const t = (lineProgress / LINE_GRADIENT_LENGTH) % 1;
-  let h = baseHsl.h - r + 2 * r * t;
   h = ((h % 360) + 360) % 360;
   strokeColor = `hsl(${h.toFixed(1)} ${baseHsl.s.toFixed(1)}% ${baseHsl.l.toFixed(1)}%)`;
 }
@@ -6850,10 +7237,18 @@ function redrawLasso() {
   let g = sctx;
   let tmpCvs = null;
   if (useBlur) {
-    tmpCvs = document.createElement('canvas');
-    tmpCvs.width  = strokeBuf.width;
-    tmpCvs.height = strokeBuf.height;
-    g = tmpCvs.getContext('2d');
+    /* ★ 复用 lassoTmpCvs，避免每次 pointermove 新建 */
+    if (lassoTmpCvs.width !== strokeBuf.width || lassoTmpCvs.height !== strokeBuf.height) {
+      lassoTmpCvs.width  = strokeBuf.width;
+      lassoTmpCvs.height = strokeBuf.height;
+    }
+    lassoTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
+    lassoTmpCtx.globalCompositeOperation = 'source-over';
+    lassoTmpCtx.globalAlpha = 1;
+    lassoTmpCtx.clearRect(0, 0, lassoTmpCvs.width, lassoTmpCvs.height);
+
+    tmpCvs = lassoTmpCvs;
+    g = lassoTmpCtx;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
@@ -7430,9 +7825,22 @@ function drawGradientLine(x, y) {
   sctx.restore();
 }
 
+/* =========================================================
+   渐变画笔 / 渐变套索
+   ── 交互：起点 = 下笔位置（不透明端），终点 = 抬笔/当前鼠标位置（透明端）
+      沿「起点 → 终点」方向做线性渐变
+      反向：起点透明、终点不透明
+   ── 实现：
+      1. 用白色笔触沿路径画（fillMode=false：描边；fillMode=true：填充闭合多边形）
+      2. source-in 把「起点→终点 线性渐变」贴到笔触上
+   ========================================================= */
+
+
 function startPaintStroke(x, y, pressure) {
   strokeOriginX = x;
   strokeOriginY = y;
+  strokeEndX = x;
+  strokeEndY = y;
   curPressure = pressure;
 
   strokePaintMode = cfg.paintMode;
@@ -7456,6 +7864,8 @@ function startPaintStroke(x, y, pressure) {
     scheduleRender();
     return;
   }
+
+
 
   if (eraserHeld) {
     strokeErasing = true;
@@ -7487,6 +7897,7 @@ function startPaintStroke(x, y, pressure) {
   strokePts = [{ x, y }];
 
   if (strokePaintMode === 'line') {
+    brushPts = [{ x, y }];              // ← 新增：路径点
     lineProgress = 0;
     dabPhase = 0;
     prevSmoothX = x;
@@ -7515,6 +7926,8 @@ function startPaintStroke(x, y, pressure) {
 function continuePaintStroke(x, y, pressure) {
   if (!strokeActive) return;
   curPressure = pressure;
+  strokeEndX = x;
+  strokeEndY = y;
 
   /* 渐变直线画笔：每帧仅更新预览，直线由起点和当前位置决定 */
   if (strokePaintMode === 'gradient') {
@@ -7523,17 +7936,30 @@ function continuePaintStroke(x, y, pressure) {
     return;
   }
 
+
+
   if (strokePaintMode === 'line') {
     const dxS = x - smoothPt.x;
     const dyS = y - smoothPt.y;
     const dS  = Math.hypot(dxS, dyS);
 
     const baseK  = 1 - cfg.bSmooth;
-    const speedT = Math.min(1, dS / 35);
+    /* ★ 用屏幕速度代替世界速度：缩小时世界 dS 被放大 1/viewScale 倍，
+       原来会让 speedT 过早饱和（感觉"太快"），跟手不稳。
+       改用屏幕速度后，手感与 viewScale 无关。 */
+    const screenDS = dS * viewScale;
+    const speedT = Math.min(1, screenDS / 35);
     const k = baseK + (1 - baseK) * speedT * 0.75;
 
     smoothPt.x += dxS * k;
     smoothPt.y += dyS * k;
+
+    /* 采样画笔路径点（5px 阈值，用于线性渐变找最远投影） */
+    if (brushPts.length === 0 ||
+        Math.hypot(smoothPt.x - brushPts[brushPts.length - 1].x,
+                   smoothPt.y - brushPts[brushPts.length - 1].y) > 5) {
+      brushPts.push({ x: smoothPt.x, y: smoothPt.y });
+    }
 
     const prevPressure = smoothPressure;
 
@@ -7606,7 +8032,11 @@ function continuePaintStroke(x, y, pressure) {
 
   } else {
     const dx = x - lastPt.x, dy = y - lastPt.y;
-    if (dx * dx + dy * dy < 1.44) return;
+    /* ★ 关键修复：用「屏幕距离」判断（原代码用世界距离 1.2，
+       viewScale 缩小时等价屏幕距离 = 1.2*viewScale，几乎每帧都记录）。
+       改后屏幕距离 < 1.2 像素才跳过，点数与 viewScale 解耦。 */
+    const screenDist2 = (dx * dx + dy * dy) * viewScale * viewScale;
+    if (screenDist2 < 1.44) return;   // 1.2 屏幕像素
     strokePts.push({ x, y });
     if (strokePts.length > 4000) strokePts.shift();
     lastPt.x = x;
@@ -7620,10 +8050,17 @@ function continuePaintStroke(x, y, pressure) {
 function commitStroke() {
   if (!strokeActive) return;
 
+  /* ★ 若启用了线性渐变：直接在 strokeBuf 上应用渐变，
+       之后选区裁剪 / 提交逻辑无需改动（strokeBuf 提交完会被清空）。 */
+  if (isLinearActive()) {
+    applyLinearFadeToBuf(strokeBuf);
+  }
+
   /* 放置拖拽的橡皮：stampShape / renderDragShape 已直接画进 bctx，
      strokeBuf 为空，直接跳过合成。
      渐变画笔的橡皮：走 strokeBuf + destination-out 合成路径，不能短路。 */
-  if (strokeBlend === 'destination-out' && strokePaintMode !== 'gradient') {
+  if (strokeBlend === 'destination-out'
+      && strokePaintMode !== 'gradient') {
     clearStrokeBuf();
     strokeActive = false;
     strokeIsPaint = false;
@@ -7950,7 +8387,7 @@ function updateBrushCursor(x, y, e) {
 
   const isPlace = cfg.tool === 'place' && cfg.ctrlMode !== 'drag';
   const isPaint = cfg.tool === 'paint' &&
-                  (cfg.paintMode === 'line' || cfg.paintMode === 'gradient');
+    (cfg.paintMode === 'line' || cfg.paintMode === 'gradient');
   if (!isPlace && !isPaint) { brushCursor.style.display = 'none'; return; }
 
   if (e && (e.altKey || e.ctrlKey || e.metaKey || (e.buttons & 4))) {
@@ -7963,10 +8400,10 @@ function updateBrushCursor(x, y, e) {
   let rawSize;
   if (isPlace) {
     rawSize = erasing ? cfg.pEraserSize : cfg.pSize;
+  } else if (cfg.paintMode === 'gradient') {
+    rawSize = erasing ? cfg.bEraserWidth : cfg.gradientWidth;
   } else if (erasing) {
     rawSize = cfg.bEraserWidth;
-  } else if (cfg.paintMode === 'gradient') {
-    rawSize = cfg.gradientWidth;
   } else {
     rawSize = cfg.bWidth;
   }
@@ -8090,7 +8527,9 @@ function pickColorAt(cssX, cssY) {
 
   /* 从「所有可见图层的合成结果」取样，
      而不是只从当前活动图层取样。
-     合成画布上该像素如果是透明的，才回退到背景色。 */
+     ★ 所见即所得：合成结果如果是半透明的（alpha < 255），
+       必须和背景色 cfg.bg 做 alpha 混合，得到屏幕上实际显示的颜色。
+       否则「黑色 50% 透明」吸出来会是纯黑，而用户看到的是灰色。 */
   const comp = document.createElement('canvas');
   comp.width  = baseCvs.width;
   comp.height = baseCvs.height;
@@ -8098,12 +8537,12 @@ function pickColorAt(cssX, cssY) {
   composeLayersTo(cctx, comp.width, comp.height);
 
   const d = cctx.getImageData(px, py, 1, 1).data;
-  let hex;
-  if (d[3] < 10) {
-    hex = cfg.bg;
-  } else {
-    hex = rgbToHex(d[0], d[1], d[2]);
-  }
+  const a = d[3] / 255;
+  const bgRgb = hexToRgb(cfg.bg);
+  const r = Math.round(d[0] * a + bgRgb[0] * (1 - a));
+  const g = Math.round(d[1] * a + bgRgb[1] * (1 - a));
+  const b = Math.round(d[2] * a + bgRgb[2] * (1 - a));
+  const hex = rgbToHex(r, g, b);
   applyNewBaseColor(hex);
 }
 
@@ -8121,6 +8560,10 @@ function applyNewBaseColor(hex) {
   cfg.baseColor = hex;
   updateBaseHsl();
   colorInputEl.value = hex;
+
+  /* 把颜色写入当前模式的独立存储 —— 保证切换工具时不会被串色 */
+  const key = getActiveColorMode();
+  if (cfg.colorModes[key]) cfg.colorModes[key].baseColor = hex;
 
   /* 短暂高亮色块，作为"吸到了"的视觉反馈（替代 toast） */
   colorInputEl.style.transition = 'box-shadow .12s';
@@ -8442,8 +8885,9 @@ document.addEventListener('pointerdown', e => {
 function canAdjustSize() {
   if (cfg.tool === 'place') return cfg.ctrlMode !== 'drag';
   if (cfg.tool === 'liquify') return true;
-  if (cfg.tool === 'paint' &&
-      (cfg.paintMode === 'line' || cfg.paintMode === 'gradient')) return true;
+  if (cfg.tool === 'paint') {
+    return cfg.paintMode === 'line' || cfg.paintMode === 'gradient';
+  }
   return false;
 }
 /* ---- 同步 UI 滑块 ---- */
@@ -8943,16 +9387,20 @@ if (e.altKey && e.button !== 1 && !sHeld && !e.shiftKey) {
     return;
   }
 
-  drawing = true;
+    drawing = true;
   ptrId = e.pointerId;
   cvs.setPointerCapture(e.pointerId);
 
-  // 每笔都刷新随机色相种子（不再依赖“随机颜色”开关）
+  // 每笔都刷新随机色相种子（不再依赖"随机颜色"开关）
   if (cfg.applyColorPerStroke) {
     strokeRandomHue = Math.random() * 2 - 1;
   }
   
   takeSnapshot();
+
+  /* ★ 开始绘制：重建图层缓存，pointermove 期间用缓存快速渲染 */
+  invalidateLayerCache();
+  rebuildLayerCache(getActiveLayer());
 
   if (cfg.tool === 'place') {
     strokeBlend = eraserHeld ? 'destination-out' : cfg.blend;
@@ -8993,7 +9441,7 @@ cvs.addEventListener('pointermove', e => {
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) spaceDragged = true;
     viewOffsetX = panStartOffsetX + dx;
     viewOffsetY = panStartOffsetY + dy;
-    renderView();
+    renderViewCached();   /* ★ 平移时图层不变，用缓存 */
     return;
   }
 
@@ -9007,7 +9455,7 @@ cvs.addEventListener('pointermove', e => {
     viewOffsetX = zoomStartX - zoomAnchorWX * viewScale;
     viewOffsetY = zoomStartY - zoomAnchorWY * viewScale;
     updateZoomBadge();
-    renderView();
+    renderViewCached();   /* ★ 缩放时图层不变，用缓存 */
     return;
   }
 
@@ -9102,15 +9550,18 @@ cvs.addEventListener('pointermove', e => {
         if (!sPointerMoved) {
       const mdx = e.clientX - sPointerDownX;
       const mdy = e.clientY - sPointerDownY;
-      if (mdx * mdx + mdy * mdy > 25) {   // 5px 阈值
+      if (mdx * mdx + mdy * mdy > 25) {
         sPointerMoved = true;
       }
     }
     const x = evtX(e), y = evtY(e);
     const last = lassoPoints[lassoPoints.length - 1];
-    if (Math.hypot(x - last.x, y - last.y) < 2) return;
+    /* 屏幕距离阈值：与 viewScale 解耦 */
+    const dx = x - last.x, dy = y - last.y;
+    const screenDist2 = (dx * dx + dy * dy) * viewScale * viewScale;
+    if (screenDist2 < 4) return;
     lassoPoints.push({ x, y });
-    renderView();
+    renderViewCached();   /* ★ 用缓存渲染，避免每帧完整合成 */
     return;
   }
 
@@ -9360,6 +9811,9 @@ function endStroke(e) {
     commitStroke();
   }
   strokeBaseSnapshot = null;
+
+  /* ★ 绘制结束：失效缓存，下次绘制重新构建 */
+  invalidateLayerCache();
 }
 cvs.addEventListener('pointerup', endStroke);
 cvs.addEventListener('pointercancel', endStroke);
@@ -9466,13 +9920,21 @@ function pasteImageToCanvas(img) {
   const drawW = img.width  * scale;
   const drawH = img.height * scale;
 
+  /* 粘贴位置：优先用当前鼠标位置，但必须落在画布逻辑范围内；
+     打开 PSD 后画布尺寸会变化，之前记录的鼠标坐标可能已经超出画布，
+     这时退回画布中心，避免粘贴到看不见的地方。 */
+  const cw = baseCvs.width  / dpr;
+  const ch = baseCvs.height / dpr;
+
   let cx, cy;
-  if (lastPointerPos.x > 0 && lastPointerPos.y > 0) {
-    cx = lastPointerPos.x;
-    cy = lastPointerPos.y;
+  const mx = lastPointerPos.x;
+  const my = lastPointerPos.y;
+  if (mx > 0 && my > 0 && mx < cw && my < ch) {
+    cx = mx;
+    cy = my;
   } else {
-    cx = (baseCvs.width / dpr) / 2;
-    cy = (baseCvs.height / dpr) / 2;
+    cx = cw / 2;
+    cy = ch / 2;
   }
 
   const dx = cx - drawW / 2;
@@ -10008,8 +10470,22 @@ const PSD_BLEND_TO_CANVAS_GCO = (() => {
    打开 PSD（ag-psd readPsd）
    ========================================================= */
 function openPSDFile() {
+  /* 若 window.agPsd 尚未加载，尝试动态加载一次 */
   if (!window.agPsd || typeof window.agPsd.readPsd !== 'function') {
-    showToast('PSD 库未加载\n请检查 ag-psd.bundle.js 是否存在');
+    console.log('[PSD] window.agPsd 未加载，尝试重新引入 ag-psd.bundle.js');
+    const s = document.createElement('script');
+    s.src = './ag-psd.bundle.js';
+    s.onload = () => {
+      if (window.agPsd && typeof window.agPsd.readPsd === 'function') {
+        setTimeout(openPSDFile, 100);
+      } else {
+        showToast('PSD 库加载失败\n请检查 ag-psd.bundle.js 是否存在');
+      }
+    };
+    s.onerror = () => {
+      showToast('PSD 库加载失败\n请检查 ag-psd.bundle.js 文件路径');
+    };
+    document.head.appendChild(s);
     return;
   }
 
@@ -10024,22 +10500,101 @@ function openPSDFile() {
     input.remove();
     if (!file) return;
 
-    let psd;
+    let buf;
     try {
-      const buf = await file.arrayBuffer();
-      psd = window.agPsd.readPsd(buf);
+      buf = await file.arrayBuffer();
     } catch (err) {
-      console.error('[openPSD]', err);
-      showToast('打开 PSD 失败：' + (err && err.message ? err.message : '未知错误'));
+      showToast('读取文件失败：' + (err.message || err));
       return;
     }
 
+    /* ===== 第一步：尝试默认模式（canvas） ===== */
+    let psd = null;
+    let mode = '';
+    try {
+      psd = window.agPsd.readPsd(buf);
+      mode = 'default(canvas)';
+    } catch (err) {
+      console.warn('[PSD] 默认模式失败:', err);
+    }
+
+    /* 检测是否有任何像素数据 */
+    function hasAnyPixel(psdObj) {
+      if (!psdObj) return false;
+      if (psdObj.canvas || psdObj.imageData) return true;
+      const check = (list) => {
+        for (const c of list || []) {
+          if (c.canvas || c.imageData) return true;
+          if (c.children && c.children.length > 0) {
+            if (check(c.children)) return true;
+          }
+        }
+        return false;
+      };
+      return check(psdObj.children);
+    }
+
+    /* ===== 第二步：默认模式无像素 → 尝试 useImageData 模式 ===== */
+    if (!psd || !hasAnyPixel(psd)) {
+      console.warn('[PSD] 默认模式无像素数据，尝试 useImageData: true');
+      try {
+        const psd2 = window.agPsd.readPsd(buf, { useImageData: true });
+        if (hasAnyPixel(psd2)) {
+          psd = psd2;
+          mode = 'useImageData';
+        } else if (!psd) {
+          psd = psd2;
+          mode = 'useImageData(空)';
+        }
+      } catch (err) {
+        console.warn('[PSD] useImageData 模式失败:', err);
+      }
+    }
+
+    /* ===== 第三步：仍无像素 → 提示 bundle 版本问题 ===== */
+    if (!psd || !hasAnyPixel(psd)) {
+      console.error('[PSD] 无法从 PSD 中提取任何像素数据');
+      showToast(
+        'PSD 中没有可读取的像素\n\n' +
+        '可能原因：\n' +
+        '1. ag-psd.bundle.js 是 Node 版（需要 node-canvas）\n' +
+        '2. PSD 只含调整层/文字层，无光栅数据\n' +
+        '3. 文件损坏或加密\n\n' +
+        '请用浏览器版 bundle:\n' +
+        'https://unpkg.com/ag-psd/dist/bundle.js'
+      );
+      return;
+    }
+
+    /* ===== 诊断日志 ===== */
+    console.log('[PSD] 读取模式:', mode, '结构:', {
+      width: psd.width,
+      height: psd.height,
+      childrenCount: (psd.children || []).length,
+      hasCompositeCanvas: !!psd.canvas,
+      hasCompositeImageData: !!psd.imageData
+    });
+    (psd.children || []).slice(0, 5).forEach((c, i) => {
+      console.log(`[PSD child ${i}]`, {
+        name: c.name,
+        hasCanvas: !!c.canvas,
+        canvasSize: c.canvas ? `${c.canvas.width}×${c.canvas.height}` : null,
+        hasImageData: !!c.imageData,
+        imageDataSize: c.imageData ? `${c.imageData.width}×${c.imageData.height}` : null,
+        hidden: c.hidden,
+        left: c.left, top: c.top,
+        opacity: c.opacity,
+        hasChildren: !!(c.children && c.children.length)
+      });
+    });
+
+    /* ===== 应用到工作区 ===== */
     try {
       applyPSDToWorkspace(psd);
       showToast('已打开 PSD：' + file.name);
     } catch (err) {
       console.error('[applyPSD]', err);
-      showToast('解析 PSD 失败：' + (err && err.message ? err.message : '未知错误'));
+      showToast('应用 PSD 失败：' + (err && err.message ? err.message : '未知错误'));
     }
   };
 
@@ -10047,132 +10602,204 @@ function openPSDFile() {
 }
 
 function applyPSDToWorkspace(psd) {
-  const newW = psd.width  | 0;
-  const newH = psd.height | 0;
-  if (newW < 1 || newH < 1) {
-    showToast('PSD 尺寸无效');
-    return;
+  const cssW = Math.max(1, psd.width  | 0);
+  const cssH = Math.max(1, psd.height | 0);
+
+  /* ★★★ 性能保护：画布降采样 ★★★
+     ── 每次 renderView 要对画布执行 3~5 次全画布 drawImage。
+        PSD 常见尺寸（3840×1890）远超普通屏幕，每帧 15~30ms 渲染，
+        浏览器会把同帧内多次 pointermove 合并 → "画笔/套索卡成线段"。
+        把内部画布降到屏幕 1.5 倍以内，性能提升 4 倍，视觉几乎无差异。 */
+  const maxCSSW = Math.round(Math.max(1600, window.innerWidth  * 1.5));
+  const maxCSSH = Math.round(Math.max(1000, window.innerHeight * 1.5));
+  let ds = 1;
+  if (cssW > maxCSSW || cssH > maxCSSH) {
+    ds = Math.min(maxCSSW / cssW, maxCSSH / cssH);
+    console.log(`[PSD] 画布降采样 ×${ds.toFixed(3)}: ` +
+                `${cssW}×${cssH} → ${Math.round(cssW*ds)}×${Math.round(cssH*ds)}`);
   }
 
-  /* 先把当前活动图层内容落地（避免丢失未提交编辑） */
+  const cssWF = cssW * ds;   // 缩放后的逻辑宽度
+  const cssHF = cssH * ds;
+  const physW = Math.max(1, Math.round(cssWF * dpr));
+  const physH = Math.max(1, Math.round(cssHF * dpr));
+
   const curActive = getActiveLayer();
   if (curActive) saveBaseToLayer(curActive);
 
-  /* 逐层转换。
-     ag-psd 的 children 数组顺序与内部 layers 一致：从下到上。 */
-  const newLayers = [];
-  const children = psd.children || [];
+  function isBlank(cv) {
+    if (!cv || cv.width < 1 || cv.height < 1) return true;
+    try {
+      const d = cv.getContext('2d', { willReadFrequently: true })
+                  .getImageData(0, 0, cv.width, cv.height).data;
+      const total = cv.width * cv.height;
+      const step = Math.max(1, Math.floor(total / 5000));
+      for (let i = 3; i < d.length; i += 4 * step) {
+        if (d[i] > 8) return false;
+      }
+      return true;
+    } catch (e) { return false; }
+  }
 
-  for (const child of children) {
-    let srcCanvas = child.canvas;
-
-    /* ag-psd 有时把像素放在 imageData 而不是 canvas，做兼容处理 */
-    if (!srcCanvas && child.imageData) {
-      srcCanvas = document.createElement('canvas');
-      srcCanvas.width  = child.imageData.width;
-      srcCanvas.height = child.imageData.height;
-      srcCanvas.getContext('2d').putImageData(child.imageData, 0, 0);
+  const list = [];
+  function walk(child) {
+    if (child.children && child.children.length > 0) {
+      for (const sub of child.children) walk(sub);
     }
-    if (!srcCanvas) continue;
+    let src = null;
+    if (child.canvas && child.canvas.width > 0) {
+      src = child.canvas;
+    } else if (child.imageData && child.imageData.width > 0) {
+      try {
+        src = document.createElement('canvas');
+        src.width  = child.imageData.width;
+        src.height = child.imageData.height;
+        src.getContext('2d').putImageData(child.imageData, 0, 0);
+      } catch (e) {}
+    }
+    if (!src) return;
+    if (isBlank(src)) {
+      console.log('[PSD] 跳过空白层:', child.name);
+      return;
+    }
 
-    const c = document.createElement('canvas');
-    c.width  = newW;
-    c.height = newH;
-    const cctx = c.getContext('2d');
-    cctx.setTransform(1, 0, 0, 1, 0, 0);
-    cctx.globalCompositeOperation = 'source-over';
-    cctx.globalAlpha = 1;
-    cctx.clearRect(0, 0, newW, newH);
-    cctx.drawImage(srcCanvas, 0, 0, newW, newH);
+    /* opacity 保护 */
+    let op = 1;
+    if (typeof child.opacity === 'number') {
+      const raw = child.opacity / 255;
+      op = (raw > 0.05) ? raw : 1;
+    }
 
-    const psdBlend = child.blendMode || 'normal';
-    const canvasBlend = PSD_BLEND_TO_CANVAS_GCO[psdBlend] || 'source-over';
+    /* blendMode 保护 */
+    const psdBlendName = child.blendMode || 'normal';
+    const mappedBlend = PSD_BLEND_TO_CANVAS_GCO[psdBlendName];
+    const blend = mappedBlend || 'source-over';
 
-    newLayers.push({
-      id: nextLayerId++,
-      name: child.name || ('图层 ' + (layerNameCounter++)),
-      canvas: c,
-      ctx: cctx,
-      visible: !child.hidden,
-      locked: false,
-      clip: !!child.clipping,
-      lockPixels: false,
-      lockMask: null,
-      blendMode: canvasBlend,
-      opacity: (child.opacity != null) ? (child.opacity / 255) : 1
+    list.push({
+      name: child.name || '图层',
+      src:  src,
+      left: (typeof child.left === 'number' && isFinite(child.left)) ? child.left : 0,
+      top:  (typeof child.top  === 'number' && isFinite(child.top))  ? child.top  : 0,
+      blendMode: blend,
+      opacity: op
     });
   }
+  for (const child of psd.children || []) walk(child);
 
-  /* 无子图层的 PSD（单图层图像） → 用 psd.canvas 合成图当唯一图层 */
-  if (newLayers.length === 0) {
-    let srcCanvas = psd.canvas;
-    if (!srcCanvas && psd.imageData) {
-      srcCanvas = document.createElement('canvas');
-      srcCanvas.width  = psd.imageData.width;
-      srcCanvas.height = psd.imageData.height;
-      srcCanvas.getContext('2d').putImageData(psd.imageData, 0, 0);
+  if (list.length === 0) {
+    let comp = psd.canvas;
+    if (!comp && psd.imageData) {
+      try {
+        comp = document.createElement('canvas');
+        comp.width  = psd.imageData.width;
+        comp.height = psd.imageData.height;
+        comp.getContext('2d').putImageData(psd.imageData, 0, 0);
+      } catch (e) {}
     }
-    if (srcCanvas) {
-      const c = document.createElement('canvas');
-      c.width  = newW;
-      c.height = newH;
-      const cctx = c.getContext('2d');
-      cctx.drawImage(srcCanvas, 0, 0, newW, newH);
-      newLayers.push({
-        id: nextLayerId++,
-        name: '图层 ' + (layerNameCounter++),
-        canvas: c, ctx: cctx,
-        visible: true, locked: false, clip: false,
-        lockPixels: false, lockMask: null,
-        blendMode: 'source-over', opacity: 1
-      });
+    if (comp && comp.width > 0 && !isBlank(comp)) {
+      list.push({ name: '合成图', src: comp, left: 0, top: 0, blendMode: 'source-over', opacity: 1 });
     }
   }
 
-  if (newLayers.length === 0) {
-    showToast('PSD 里没有可用的图层');
+  if (list.length === 0) {
+    showToast('PSD 里没有可显示的像素\n详情看 F12 控制台');
     return;
   }
 
-  /* 应用 */
+  /* 构建内部图层（★ drawImage 套用 ds 缩放） */
+  const newLayers = [];
+  for (const item of list) {
+    const c = document.createElement('canvas');
+    c.width  = physW;
+    c.height = physH;
+    const cctx = c.getContext('2d');
+    /* 用 transform(dpr * ds) 绘制：
+       item.src 是 PSD 原始逻辑尺寸（cssW × cssH），
+       item.left/top 是 PSD 逻辑偏移，
+       transform 会自动缩放 + 定位到目标画布（cssWF × cssHF）。 */
+    cctx.setTransform(dpr * ds, 0, 0, dpr * ds, 0, 0);
+    cctx.drawImage(item.src, item.left, item.top);
+
+    if (!isBlank(c)) {
+      newLayers.push({
+        id: nextLayerId++,
+        name: item.name,
+        canvas: c, ctx: cctx,
+        visible: true,
+        locked: false,
+        clip: false,
+        lockPixels: false,
+        lockMask: null,
+        blendMode: item.blendMode,
+        opacity: item.opacity
+      });
+    } else {
+      console.warn('[PSD] 重绘后图层为空:', item.name);
+    }
+  }
+
+  if (newLayers.length === 0) {
+    showToast('PSD 图层重绘后全部为空，请按 F12 看日志');
+    return;
+  }
+
   layers = newLayers;
-  activeLayerId = layers[layers.length - 1].id;   // 顶层
+  let pickIdx = newLayers.length - 1;
+  for (let i = newLayers.length - 1; i >= 0; i--) {
+    if (newLayers[i].visible) { pickIdx = i; break; }
+  }
+  activeLayerId = newLayers[pickIdx].id;
   selectedLayerIds = new Set([activeLayerId]);
 
-  /* 更新画布物理尺寸 */
-  baseCvs.width  = newW;
-  baseCvs.height = newH;
+  baseCvs.width  = physW;
+  baseCvs.height = physH;
   bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  strokeBuf.width  = newW;
-  strokeBuf.height = newH;
+  strokeBuf.width  = physW;
+  strokeBuf.height = physH;
   sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  fixedBw = newW;
-  fixedBh = newH;
+  fixedBw = physW;
+  fixedBh = physH;
 
   loadLayerToBase(getActiveLayer());
 
-  /* 视图重置：100% 缩放 + 居中 */
-  viewScale = 1;
-  const cw = newW / dpr;
-  const ch = newH / dpr;
-  viewOffsetX = (window.innerWidth  / 2) - cw / 2;
-  viewOffsetY = (window.innerHeight / 2) - ch / 2;
+  /* fit-to-view（基于缩放后的逻辑尺寸） */
+  const cw = physW / dpr;
+  const ch = physH / dpr;
+  const fitPad = 40;
+  const availW = Math.max(100, window.innerWidth  - fitPad);
+  const availH = Math.max(100, window.innerHeight - fitPad);
+  viewScale = Math.min(availW / cw, availH / ch, 1);
+  viewOffsetX = (window.innerWidth  - cw * viewScale) / 2;
+  viewOffsetY = (window.innerHeight - ch * viewScale) / 2;
 
-  /* 清空选区 */
   selectionOps = [];
   selectionInverted = false;
   selectionMaskCvs = null;
   selectionInvMaskCvs = null;
   selectionContours = [];
-
-  /* 清空历史（旧快照尺寸不匹配） */
   history.length = 0;
   redoStack.length = 0;
 
   updateLayersUI();
   renderView();
+
+  console.log('[PSD] 打开完成:', {
+    'PSD 原始尺寸': `${cssW}×${cssH}`,
+    '内部逻辑尺寸': `${Math.round(cssWF)}×${Math.round(cssHF)}`,
+    '物理尺寸': `${physW}×${physH}`,
+    '降采样倍率': ds.toFixed(3),
+    'dpr': dpr,
+    'viewScale': viewScale.toFixed(3),
+    '图层数': layers.length
+  });
+
+  if (ds < 0.99) {
+    showToast(`已打开 PSD\n原尺寸 ${cssW}×${cssH}，为流畅已降至 ${Math.round(cssWF)}×${Math.round(cssHF)}`);
+  } else {
+    showToast(`已打开 PSD\n${layers.length} 图层 | ${cssW}×${cssH}`);
+  }
 }
 
 /* =========================================================
@@ -10429,6 +11056,11 @@ bindRange('bHardness', (v, o) => {
   o.textContent = v + '%';
 });
 
+
+
+
+
+
 /* 角度：0~180°，画笔与渐变线各自独立 */
 bindRange('bAngleJitter', (v, o) => {
   if (cfg.paintMode === 'gradient') cfg.angleJitterGradient = v;
@@ -10522,7 +11154,7 @@ const pAlphaPenEl = document.getElementById('pAlphaPen');
 const bSizePenEl  = document.getElementById('bSizePen');
 const bAlphaPenEl = document.getElementById('bAlphaPen');
 
-/* 渐变画笔「反向」开关 */
+/* 渐变线「反向」开关 */
 const bGradReverseEl = document.getElementById('bGradReverse');
 if (bGradReverseEl) {
   bGradReverseEl.addEventListener('change', () => {
@@ -10545,6 +11177,27 @@ if (applyPerStrokeEl) {
   });
 }
 
+/* 线性渐变 —— 画笔 / 套索 各自独立开关，反向独立存储 */
+const bLinearEl = document.getElementById('bLinear');
+const bLinearReverseEl = document.getElementById('bLinearReverse');
+
+if (bLinearEl) {
+  bLinearEl.addEventListener('change', () => {
+    const v = bLinearEl.checked;
+    if (cfg.paintMode === 'line')       cfg.paintLinearLine  = v;
+    else if (cfg.paintMode === 'lasso') cfg.paintLinearLasso = v;
+
+    const row = document.getElementById('bLinearReverseRow');
+    if (row) row.hidden = !v;
+  });
+}
+
+if (bLinearReverseEl) {
+  bLinearReverseEl.addEventListener('change', () => {
+    cfg.linearReverse = bLinearReverseEl.checked;
+  });
+}
+
 pSizePenEl.addEventListener('change', () => {
   cfg.placeSizePressure = pSizePenEl.checked;
 });
@@ -10564,12 +11217,25 @@ const paintPanel = document.getElementById('paintPanel');
 const lqPanel    = document.getElementById('liquifyPanel');
 
 function applyTool(tool) {
+  /* 保存当前工具的模式 */
+  const prevTool = cfg.tool;
+  if (prevTool === 'paint' &&
+      (cfg.paintMode === 'line' ||
+       cfg.paintMode === 'lasso' ||
+       cfg.paintMode === 'gradient')) {
+    cfg._lastPaintMode = cfg.paintMode;
+  }
+
   cfg.tool = tool;
+
+  /* 恢复绘画子模式 */
+  if (tool === 'paint') {
+    cfg.paintMode = cfg._lastPaintMode || 'line';
+  }
+
   toolBox.querySelectorAll('button').forEach(b =>
     b.classList.toggle('on', b.dataset.v === tool));
 
-  /* 若新工具不支持 X 调大小，且 X 键还按着，主动解除，
-     免得光标一直显示 ew-resize 但松手拖动没反应 */
   if (sizeHeld && !canAdjustSize()) {
     sizeHeld = false;
     cvs.style.cursor = '';
@@ -10590,6 +11256,17 @@ function applyTool(tool) {
   updateEraserBadge();
   syncColorUIFromMode();
   syncBrushUIFromMode();
+
+  if (isPaint) {
+    /* 同步绘画面板的子模式按钮高亮 + 提示文本 */
+    const paintBox = document.getElementById('paintModes');
+    if (paintBox) {
+      paintBox.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('on', b.dataset.v === cfg.paintMode));
+    }
+    const hintEl = document.getElementById('paintHint');
+    if (hintEl) hintEl.textContent = PAINT_TIPS[cfg.paintMode] || '';
+  }
 }
 
 toolBox.addEventListener('click', e => {
