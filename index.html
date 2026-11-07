@@ -6602,14 +6602,332 @@ let tfActive   = false;
 let tfSnapshot = null;
 let tfBase     = null;
 let tfContent  = null;
+let tfContentPad = 0;   // tfContent 的 padding 大小（物理像素），clamp-to-edge 用
+let tfContentOriginX = 0;  // ★ tfContent 内层像素(0,0) 对应的世界 CSS X
+let tfContentOriginY = 0;  // ★ tfContent 内层像素(0,0) 对应的世界 CSS Y
 let tfCSSW     = 0, tfCSSH = 0;
 let tfVertices = null;      // 网格顶点 [行][列] = {x, y}（CSS 世界坐标）
 let tfHadSelectionAtEnter = false;   // 进入 T 时是否本来就有选区
-let tfGridRows = 4;         // 网格行数（单元数），越大越平滑
-let tfGridCols = 4;         // 网格列数（单元数）
+let tfGridRows = 3;         // 网格行数（单元数）
+let tfGridCols = 3;         // 网格列数（单元数）
 let tfDrag     = null;
 const TF_SCALE_PAD = 16;    // 缩放框相对包围盒向外偏移（CSS 像素）
+/* =========================================================
+   线性 / 样条 双模式（双击锚点切换）
+   ── linear：默认，网格单元拆 2 三角形做仿射映射（当前行为）
+   ── spline：用 Catmull-Rom 双三次插值把控制网格细分成更密的网格，
+              然后再走同一套三角形仿射渲染 → 视觉上 C1 连续、无折痕
+   ========================================================= */
+let tfWarpMode = 'linear';          // 'linear' | 'spline'
+const TF_SPLINE_SUBDIV = 6;         // 每个控制单元细分 6×6 子单元（3×3 → 18×18，消除三角形肌理）
+let tfLastClickTime = 0;
+let tfLastClickR = -1, tfLastClickC = -1;
 
+/* 当前投影变换的 homography（null = 无）；透视细分渲染专用 */
+let tfPerspectiveH  = null;
+/* 拖拽开始时的控制网格快照，用作透视细分的源空间 */
+let tfPerspectiveOq = null;
+/* ★ 每个 4×4 单元 2 个三角形的"初始朝向"参考符号（进入 T 时全 +1）
+   ── 拖顶点钳制时直接用这个绝对值判断，不依赖 orig 位置的合法性，
+      避免"两次拖拽后 orig 变非法 → 钳制跳过"的问题。 */
+let tfCellAreaSigns = null;
+/* 一维 Catmull-Rom 插值：经过 p1..p2，p0/p3 只影响切线
+   ★ 防 overshoot：结果 clamp 到 [min(p1, p2), max(p1, p2)]
+   ── 标准 Catmull-Rom 在相邻控制点间距悬殊时会大幅 overshoot：
+      · 样条曲线被拉出 4×4 单元范围
+      · 甚至越过 4×4 单元的对角线
+      → 相邻 12×12 子单元变成凹四边形
+      → drawGridImage 拆的 2 三角形必然有一侧反折（"对折"）
+   ── clamp 后曲线"贴边"但不穿越，从根本上阻止样条越过
+      相邻控制点的范围 → 12×12 子单元保持凸 → 无折叠
+   ── clamp 仅在 overshoot 的区域生效（正常区域完全不变），
+      曲线经过控制点的插值性质保持（t=0 → p1，t=1 → p2） */
+function catmullRom1D(p0, p1, p2, p3, t) {
+  const t2 = t * t, t3 = t2 * t;
+  let v = 0.5 * (
+    2 * p1 +
+    (-p0 + p2) * t +
+    (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+    (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+  );
+  const lo = Math.min(p1, p2);
+  const hi = Math.max(p1, p2);
+  if (v < lo) v = lo;
+  else if (v > hi) v = hi;
+  return v;
+}
+
+/* 从控制网格 verts（(rows+1)×(cols+1)）在归一化坐标 (u,v) ∈ [0,1]²
+   处求插值点的位置。u 沿列方向，v 沿行方向。 */
+function catmullRomGridAt(verts, rows, cols, u, v) {
+  const fx = u * cols;
+  const fy = v * rows;
+  const cx = Math.min(cols - 1, Math.max(0, Math.floor(fx)));
+  const cy = Math.min(rows - 1, Math.max(0, Math.floor(fy)));
+  const tx = fx - cx;
+  const ty = fy - cy;
+
+  const get = (r, c) => verts[
+    Math.max(0, Math.min(rows, r))
+  ][
+    Math.max(0, Math.min(cols, c))
+  ];
+
+  /* 先沿 x 方向插值 4 行，再沿 y 方向做最终插值 */
+  const rowPts = [];
+  for (let i = -1; i <= 2; i++) {
+    const r = cy + i;
+    const p0 = get(r, cx - 1);
+    const p1 = get(r, cx);
+    const p2 = get(r, cx + 1);
+    const p3 = get(r, cx + 2);
+    rowPts.push({
+      x: catmullRom1D(p0.x, p1.x, p2.x, p3.x, tx),
+      y: catmullRom1D(p0.y, p1.y, p2.y, p3.y, tx)
+    });
+  }
+  return {
+    x: catmullRom1D(rowPts[0].x, rowPts[1].x, rowPts[2].x, rowPts[3].x, ty),
+    y: catmullRom1D(rowPts[0].y, rowPts[1].y, rowPts[2].y, rowPts[3].y, ty)
+  };
+}
+
+/* 返回用于渲染的顶点网格：
+   ── linear：直接返回 tfVertices（4×4 顶点，3×3 单元）
+   ── spline：把 tfVertices 细分到 (3*SUB)×(3*SUB) 单元 */
+function getRenderVerts() {
+  if (tfWarpMode === 'linear') {
+    /* =========================================================
+       ★ 统一 12×12 三角形仿射细分（无论有无透视）
+       ── 无透视：从 tfVertices 按 4×4 单元 2 三角形仿射细分
+       ── 有透视：从 tfPerspectiveOq 细分后逐顶点用 H 变换
+       ── 关键：子顶点位置由"4×4 单元的 2 三角形仿射"决定，
+          与 drawGridImage 的拆法完全一致 → H=I 时与 4×4 直接
+          渲染数学上逐像素一致 → 无跳变。
+       ── 双线性插值会引入 xy 交叉项，与仿射不等价，
+          必须用仿射重心插值，才能保证"无透视 → 有透视"
+          第一帧没有任何视觉变化。
+       ── 每个子三角形都属于同一个 4×4 单元的同一三角形内，
+          单元即使凹四边形，12×12 后每个子三角形也接近凸 →
+          消除"对角线折叠"。
+       ========================================================= */
+    const oq = tfPerspectiveOq || tfVertices;
+    const H  = tfPerspectiveH;
+    const rows = tfGridRows, cols = tfGridCols;
+    const SUB  = 4;
+    const subRows = rows * SUB;
+    const subCols = cols * SUB;
+    const verts = [];
+
+    for (let i = 0; i <= subRows; i++) {
+      const row = [];
+      const r  = i / SUB;
+      const r0 = Math.min(rows - 1, Math.max(0, Math.floor(r)));
+      const fr = r - r0;
+
+      for (let j = 0; j <= subCols; j++) {
+        const c  = j / SUB;
+        const c0 = Math.min(cols - 1, Math.max(0, Math.floor(c)));
+        const fc = c - c0;
+
+        const A = oq[r0][c0];         /* 左上 (fr=0, fc=0) */
+        const B = oq[r0][c0 + 1];     /* 右上 (fr=0, fc=1) */
+        const C = oq[r0 + 1][c0];     /* 左下 (fr=1, fc=0) */
+        const D = oq[r0 + 1][c0 + 1]; /* 右下 (fr=1, fc=1) */
+
+        /* 与 drawGridImage 的 2 三角形拆法完全一致：
+           三角形1 (p00, p10, p11) = (A, B, D) 覆盖 fc >= fr
+           三角形2 (p00, p11, p01) = (A, D, C) 覆盖 fr >= fc
+           在该三角形内用重心坐标做仿射插值。 */
+        let sx, sy;
+        if (fc >= fr) {
+          /* 三角形1 (A, B, D)：重心 (1-fc, fc-fr, fr) */
+          const wA = 1 - fc;
+          const wB = fc - fr;
+          const wD = fr;
+          sx = wA * A.x + wB * B.x + wD * D.x;
+          sy = wA * A.y + wB * B.y + wD * D.y;
+        } else {
+          /* 三角形2 (A, D, C)：重心 (1-fr, fc, fr-fc) */
+          const wA = 1 - fr;
+          const wD = fc;
+          const wC = fr - fc;
+          sx = wA * A.x + wD * D.x + wC * C.x;
+          sy = wA * A.y + wD * D.y + wC * C.y;
+        }
+
+        let px = sx, py = sy;
+        if (H) {
+          const p = applyHomography(H, sx, sy);
+          if (p) { px = p.x; py = p.y; }
+        }
+        row.push({ x: px, y: py });
+      }
+      verts.push(row);
+    }
+    return verts;
+  }
+
+   const rows = tfGridRows, cols = tfGridCols;
+  const SUB = TF_SPLINE_SUBDIV;
+  const subRows = rows * SUB;
+  const subCols = cols * SUB;
+
+  /* =========================================================
+     步骤 1：逐 4×4 单元采样，判断"样条安全"
+     ── 用 catmullRomGridAt 采样该单元内所有 12×12 子单元的 4 角，
+        检查 2 个三角形有向面积是否都 > 0。
+     ── 全部 > 0 → 该单元内部用样条不会折叠
+     ── 任一 ≤ 0 → 该单元内部样条会折叠
+     ========================================================= */
+  const cellSafe = [];
+  for (let ur = 0; ur < rows; ur++) {
+    const safeRow = [];
+    for (let uc = 0; uc < cols; uc++) {
+      let safe = true;
+      for (let si = 0; si < SUB && safe; si++) {
+        for (let sj = 0; sj < SUB && safe; sj++) {
+          const v0 = (ur + si / SUB) / rows;
+          const v1 = (ur + (si + 1) / SUB) / rows;
+          const u0 = (uc + sj / SUB) / cols;
+          const u1 = (uc + (sj + 1) / SUB) / cols;
+          const p00 = catmullRomGridAt(tfVertices, rows, cols, u0, v0);
+          const p01 = catmullRomGridAt(tfVertices, rows, cols, u1, v0);
+          const p10 = catmullRomGridAt(tfVertices, rows, cols, u0, v1);
+          const p11 = catmullRomGridAt(tfVertices, rows, cols, u1, v1);
+          const s1 = (p01.x - p00.x) * (p11.y - p00.y) - (p01.y - p00.y) * (p11.x - p00.x);
+          const s2 = (p11.x - p00.x) * (p10.y - p00.y) - (p11.y - p00.y) * (p10.x - p00.x);
+          if (s1 < 1e-3 || s2 < 1e-3) { safe = false; break; }
+        }
+      }
+      safeRow.push(safe);
+    }
+    cellSafe.push(safeRow);
+  }
+
+  /* =========================================================
+     步骤 2：为每个 12×12 顶点预先算好"样条坐标"和"双线性坐标"
+     ========================================================= */
+  const splineVerts   = [];
+  const bilinearVerts = [];
+
+  for (let i = 0; i <= subRows; i++) {
+    const v  = i / subRows;
+    const fy = v * rows;
+    const rIdx = Math.min(rows - 1, Math.max(0, Math.floor(fy)));
+    const fr   = Math.max(0, Math.min(1, fy - rIdx));
+    const rowSp = [], rowBl = [];
+
+    for (let j = 0; j <= subCols; j++) {
+      const u  = j / subCols;
+      const fx = u * cols;
+      const cIdx = Math.min(cols - 1, Math.max(0, Math.floor(fx)));
+      const fc   = Math.max(0, Math.min(1, fx - cIdx));
+
+      /* 样条坐标 */
+      rowSp.push(catmullRomGridAt(tfVertices, rows, cols, u, v));
+
+      /* 双线性坐标（用所在 4×4 单元 4 角做 2 三角形插值） */
+      const A = tfVertices[rIdx][cIdx];
+      const B = tfVertices[rIdx][cIdx + 1];
+      const D = tfVertices[rIdx + 1][cIdx + 1];
+      const C = tfVertices[rIdx + 1][cIdx];
+      let px, py;
+      if (fc >= fr) {
+        px = (1 - fc) * A.x + (fc - fr) * B.x + fr * D.x;
+        py = (1 - fc) * A.y + (fc - fr) * B.y + fr * D.y;
+      } else {
+        px = (1 - fr) * A.x + fc * D.x + (fr - fc) * C.x;
+        py = (1 - fr) * A.y + fc * D.y + (fr - fc) * C.y;
+      }
+      rowBl.push({ x: px, y: py });
+    }
+    splineVerts.push(rowSp);
+    bilinearVerts.push(rowBl);
+  }
+
+  /* =========================================================
+     步骤 3：每个 12×12 顶点的"初步归属"
+     ── 该顶点关联的 4×4 单元（1 / 2 / 4 个）全部 safe → true（样条）
+     ── 否则 → false（双线性）
+     ========================================================= */
+  const vSpline = [];
+  for (let i = 0; i <= subRows; i++) {
+    const row = [];
+    const v  = i / subRows;
+    const fy = v * rows;
+    const rIdx = Math.floor(fy);
+    const isRowBoundary = Math.abs(fy - rIdx) < 1e-9;
+    const rowCells = isRowBoundary
+      ? [rIdx - 1, rIdx].filter(r => r >= 0 && r < rows)
+      : [Math.min(rows - 1, Math.max(0, rIdx))];
+
+    for (let j = 0; j <= subCols; j++) {
+      const u  = j / subCols;
+      const fx = u * cols;
+      const cIdx = Math.floor(fx);
+      const isColBoundary = Math.abs(fx - cIdx) < 1e-9;
+      const colCells = isColBoundary
+        ? [cIdx - 1, cIdx].filter(c => c >= 0 && c < cols)
+        : [Math.min(cols - 1, Math.max(0, cIdx))];
+
+      let allSafe = rowCells.length > 0 && colCells.length > 0;
+      for (const r of rowCells) {
+        for (const c of colCells) {
+          if (!cellSafe[r] || cellSafe[r][c] !== true) { allSafe = false; break; }
+        }
+        if (!allSafe) break;
+      }
+      row.push(allSafe);
+    }
+    vSpline.push(row);
+  }
+
+  /* =========================================================
+     步骤 4：传播 —— 消除所有"混合子单元"
+     ── 扫描所有 12×12 子单元，如果 4 角 vSpline 不一致（混合），
+        就把 4 角全部改为 false（双线性）。
+     ── 修改 vSpline 会影响相邻子单元，因此反复扫描直到稳定。
+     ── 传播保证最终：每个 12×12 子单元 4 角 vSpline 一致，
+        要么全样条（cellSafe 保证凸），要么全双线性（双线性保凸）。
+        数学上不可能出现"混合子单元凹" → 不可能折叠。
+     ── 代价：not safe 区域周围 1~2 圈子单元会被"侵蚀"为双线性，
+        但这是必要的代价，因为混合子单元是折叠的唯一来源。
+     ========================================================= */
+  let vChanged = true;
+  let vGuard = 0;
+  const vMaxIter = subRows * subCols;
+  while (vChanged && vGuard++ < vMaxIter) {
+    vChanged = false;
+    for (let r = 0; r < subRows; r++) {
+      for (let c = 0; c < subCols; c++) {
+        const c0 = vSpline[r][c];
+        const c1 = vSpline[r][c + 1];
+        const c2 = vSpline[r + 1][c];
+        const c3 = vSpline[r + 1][c + 1];
+        if (c0 === c1 && c1 === c2 && c2 === c3) continue;
+        /* 混合 → 全部改为双线性 */
+        if (c0) { vSpline[r][c] = false; vChanged = true; }
+        if (c1) { vSpline[r][c + 1] = false; vChanged = true; }
+        if (c2) { vSpline[r + 1][c] = false; vChanged = true; }
+        if (c3) { vSpline[r + 1][c + 1] = false; vChanged = true; }
+      }
+    }
+  }
+
+  /* =========================================================
+     步骤 5：生成最终顶点
+     ========================================================= */
+  const result = [];
+  for (let i = 0; i <= subRows; i++) {
+    const row = [];
+    for (let j = 0; j <= subCols; j++) {
+      row.push(vSpline[i][j] ? splineVerts[i][j] : bilinearVerts[i][j]);
+    }
+    result.push(row);
+  }
+  return result;
+}
 /* =========================================================
    自由变换 · 网格变形（Mesh Warp）
    参考 Krita 网格变形 / Photoshop Warp：将图像细分为网格，
@@ -6679,7 +6997,120 @@ function tfGetScaleHandles() {
     ]
   };
 }
+/* =========================================================
+   四边形 → 四边形的投影变换（homography）
+   ── 用于 Ctrl + 拖 4 个角锚点时，把网格按透视关系重映射
+   ── 参考 Heckbert, "Fundamentals of Texture Mapping and Image Warping"
+   ── 四边形顶点顺序：[左上, 右上, 右下, 左下]（顺时针）
+   ========================================================= */
 
+function unitToQuadMatrix(p0, p1, p2, p3) {
+  const dx1 = p1.x - p2.x, dx2 = p3.x - p2.x;
+  const dx3 = p0.x - p1.x + p2.x - p3.x;
+  const dy1 = p1.y - p2.y, dy2 = p3.y - p2.y;
+  const dy3 = p0.y - p1.y + p2.y - p3.y;
+
+  /* 平行四边形 → 仿射特例（无透视项） */
+  if (Math.abs(dx3) < 1e-9 && Math.abs(dy3) < 1e-9) {
+    return [
+      p1.x - p0.x, p3.x - p0.x, p0.x,
+      p1.y - p0.y, p3.y - p0.y, p0.y,
+      0, 0, 1
+    ];
+  }
+
+  const det = dx1 * dy2 - dx2 * dy1;
+  if (Math.abs(det) < 1e-12) return null;
+
+  const h31 = (dx3 * dy2 - dx2 * dy3) / det;
+  const h32 = (dx1 * dy3 - dx3 * dy1) / det;
+
+  return [
+    p1.x - p0.x + h31 * p1.x, p3.x - p0.x + h32 * p3.x, p0.x,
+    p1.y - p0.y + h31 * p1.y, p3.y - p0.y + h32 * p3.y, p0.y,
+    h31, h32, 1
+  ];
+}
+
+function mat3Mul(A, B) {
+  const C = new Array(9);
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      C[i * 3 + j] = A[i * 3]     * B[j]
+                   + A[i * 3 + 1] * B[3 + j]
+                   + A[i * 3 + 2] * B[6 + j];
+    }
+  }
+  return C;
+}
+
+function mat3Inv(M) {
+  const a = M[0], b = M[1], c = M[2];
+  const d = M[3], e = M[4], f = M[5];
+  const g = M[6], h = M[7], i = M[8];
+
+  const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  if (Math.abs(det) < 1e-12) return null;
+  const inv = 1 / det;
+
+  return [
+    (e * i - f * h) * inv, (c * h - b * i) * inv, (b * f - c * e) * inv,
+    (f * g - d * i) * inv, (a * i - c * g) * inv, (c * d - a * f) * inv,
+    (d * h - e * g) * inv, (b * g - a * h) * inv, (a * e - b * d) * inv
+  ];
+}
+
+function quadToQuadMatrix(src, dst) {
+  const Hs = unitToQuadMatrix(src[0], src[1], src[2], src[3]);
+  const Hd = unitToQuadMatrix(dst[0], dst[1], dst[2], dst[3]);
+  if (!Hs || !Hd) return null;
+  const HsInv = mat3Inv(Hs);
+  if (!HsInv) return null;
+  return mat3Mul(Hd, HsInv);
+}
+
+function applyHomography(M, x, y) {
+  const w = M[6] * x + M[7] * y + M[8];
+  if (Math.abs(w) < 1e-12) return null;
+  return {
+    x: (M[0] * x + M[1] * y + M[2]) / w,
+    y: (M[3] * x + M[4] * y + M[5]) / w
+  };
+}
+/* =========================================================
+   由 3 对对应点求 2D 仿射变换
+   ── x' = a*x + c*y + e
+      y' = b*x + d*y + f
+   ── s0/s1/s2 → d0/d1/d2，要求 s0/s1/s2 不共线
+   ── 返回 { a, b, c, d, e, f }（与 Canvas transform() 参数一致）或 null
+   ========================================================= */
+function affineFromTriplets(s0, s1, s2, d0, d1, d2) {
+  /* 源三角形两条边向量 */
+  const sx1 = s1.x - s0.x, sy1 = s1.y - s0.y;
+  const sx2 = s2.x - s0.x, sy2 = s2.y - s0.y;
+  const det = sx1 * sy2 - sx2 * sy1;
+  if (Math.abs(det) < 1e-12) return null;
+
+  const inv = 1 / det;
+  /* 源基矩阵 S = [sx1 sx2; sy1 sy2] 的逆 */
+  const i00 =  sy2 * inv, i01 = -sx2 * inv;
+  const i10 = -sy1 * inv, i11 =  sx1 * inv;
+
+  /* 目标边向量 */
+  const dx1 = d1.x - d0.x, dy1 = d1.y - d0.y;
+  const dx2 = d2.x - d0.x, dy2 = d2.y - d0.y;
+
+  /* M = D * S^{-1}，D = [dx1 dx2; dy1 dy2] */
+  const a = dx1 * i00 + dx2 * i10;
+  const c = dx1 * i01 + dx2 * i11;
+  const b = dy1 * i00 + dy2 * i10;
+  const dd = dy1 * i01 + dy2 * i11;
+
+  const e = d0.x - a * s0.x - c * s0.y;
+  const f = d0.y - b * s0.x - dd * s0.y;
+
+  return { a, b, c, d: dd, e, f };
+}
 function tfOutlinePoints() {
   const rows = tfGridRows, cols = tfGridCols;
   const pts = [];
@@ -6853,14 +7284,40 @@ function enterTransform() {
   tfSnapshot.height = H;
   tfSnapshot.getContext('2d').drawImage(baseCvs, 0, 0);
 
+  /* ★ 构造 tfContent，加 2px padding（clamp-to-edge）
+     ── 原因：drawWarpTri 里三角形外扩 0.6px 后，采样会超出 bw×bh 范围，
+        如果不 padding，会采到图像外部（透明）→ 画到 baseCvs 时 alpha < 1
+        → 露出背景（白/黑）→ 视觉上像是"三角形网格变白或变黑"。
+     ── 解决：把 tfContent 的边缘像素复制到 padding 区（clamp-to-edge），
+        外扩采样时就会采到边缘颜色而不是透明。 */
+  const PAD = 2;
+  const tmpContent = document.createElement('canvas');
+  tmpContent.width = bw;
+  tmpContent.height = bh;
+  const tcc = tmpContent.getContext('2d');
+  tcc.drawImage(baseCvs, minX, minY, bw, bh, 0, 0, bw, bh);
+  tcc.globalCompositeOperation = 'destination-in';
+  tcc.drawImage(mask, minX, minY, bw, bh, 0, 0, bw, bh);
+  tcc.globalCompositeOperation = 'source-over';
+
   tfContent = document.createElement('canvas');
-  tfContent.width = bw;
-  tfContent.height = bh;
+  tfContent.width = bw + PAD * 2;
+  tfContent.height = bh + PAD * 2;
   const cc = tfContent.getContext('2d');
-  cc.drawImage(baseCvs, minX, minY, bw, bh, 0, 0, bw, bh);
-  cc.globalCompositeOperation = 'destination-in';
-  cc.drawImage(mask, minX, minY, bw, bh, 0, 0, bw, bh);
-  cc.globalCompositeOperation = 'source-over';
+  /* 1. 中央内容 */
+  cc.drawImage(tmpContent, PAD, PAD);
+  /* 2. 4 条边 clamp */
+  cc.drawImage(tmpContent, 0, 0, bw, 1, PAD, 0, bw, 1);              // 上
+  cc.drawImage(tmpContent, 0, bh - 1, bw, 1, PAD, bh + PAD, bw, 1);  // 下
+  cc.drawImage(tmpContent, 0, 0, 1, bh, 0, PAD, 1, bh);              // 左
+  cc.drawImage(tmpContent, bw - 1, 0, 1, bh, bw + PAD, PAD, 1, bh);  // 右
+  /* 3. 4 个角 clamp */
+  cc.drawImage(tmpContent, 0, 0, 1, 1, 0, 0, 1, 1);
+  cc.drawImage(tmpContent, bw - 1, 0, 1, 1, bw + PAD, 0, 1, 1);
+  cc.drawImage(tmpContent, 0, bh - 1, 1, 1, 0, bh + PAD, 1, 1);
+  cc.drawImage(tmpContent, bw - 1, bh - 1, 1, 1, bw + PAD, bh + PAD, 1, 1);
+
+  tfContentPad = PAD;
 
   tfBase = document.createElement('canvas');
   tfBase.width = W;
@@ -6872,6 +7329,8 @@ function enterTransform() {
   bc.globalCompositeOperation = 'source-over';
 
   const cx0 = minX / dpr, cy0 = minY / dpr;
+  tfContentOriginX = cx0;
+  tfContentOriginY = cy0;
   tfCSSW = bw / dpr;
   tfCSSH = bh / dpr;
 
@@ -6892,12 +7351,29 @@ function enterTransform() {
 
   tfActive = true;
   tfDrag = null;
+  tfWarpMode = 'linear';
+  tfPerspectiveH  = null;
+  tfPerspectiveOq = null;
+
+  /* ★ 记录每个 4×4 单元 2 个三角形的初始朝向（规则网格，都是 +1） */
+  tfCellAreaSigns = [];
+  for (let r = 0; r < tfGridRows; r++) {
+    const row = [];
+    for (let c = 0; c < tfGridCols; c++) {
+      row.push({ s1: 1, s2: 1 });
+    }
+    tfCellAreaSigns.push(row);
+  }
+  tfLastClickTime = 0;
+  tfLastClickR = -1;
+  tfLastClickC = -1;
   cvs.style.cursor = 'default';
 
   renderTransform();
   showToast(
     '网格变形：拖顶点扭曲 · 拖内部/中心移动 · 顶部圆点旋转\n' +
-    'Ctrl+拖紫色手柄 = 斜切/透视 · Enter 确定 / Esc 取消 · Ctrl+Z 撤销'
+    'Ctrl+拖 4 角 = 投影变换 · Ctrl+拖 4 边中点 = 仿射（平行四边形）\n' +
+    '双击任一顶点切换线性 / 样条 · Enter 确定 / Esc 取消 · Ctrl+Z 撤销'
   );
 }
 
@@ -6919,6 +7395,10 @@ function cancelTransform() {
   tfBase = null;
   tfContent = null;
   tfVertices = null;
+  tfPerspectiveH  = null;
+  tfPerspectiveOq = null;
+  tfCellAreaSigns = null;
+  wglTexSrc = null;   /* ★ 强制下次重新上传纹理 */
   cvs.style.cursor = '';
   renderView();
 }
@@ -6934,6 +7414,10 @@ function commitTransform() {
   tfBase = null;
   tfContent = null;
   tfVertices = null;
+  tfPerspectiveH  = null;
+  tfPerspectiveOq = null;
+  tfCellAreaSigns = null;
+  wglTexSrc = null;   /* ★ 强制下次重新上传纹理 */
   cvs.style.cursor = '';
 
   restoreOutsideLockMask(commitTransform.lockSnap || null);
@@ -6970,20 +7454,49 @@ function drawWarpTri(g, img, cw, ch,
   const e = dx0 - a * sx0 - c * sy0;
   const f = dy0 - b * sx0 - d * sy0;
 
+  /* ★ 三角形外扩：消除相邻三角形之间的抗锯齿接缝（"三角形肌理"）
+     ── 原因：clip 是抗锯齿的，两个共享边的三角形各自 clip 后，
+        边界像素的 alpha 都可能 < 1，source-over 累加后仍 < 1，
+        视觉上出现细细的"线状肌理"。
+     ── 做法：把每个顶点沿"重心 → 顶点"方向向外推 EXPAND 像素，
+        让相邻三角形在共享边处发生 2×EXPAND 的重叠；
+        共享边界像素被两个三角形都完全覆盖，最终 alpha = 1。 */
+  const bcx = (dx0 + dx1 + dx2) / 3;
+  const bcy = (dy0 + dy1 + dy2) / 3;
+  /* ★ EXPAND 从 1.2 改为 0.6：
+     ── 1.2 时半透明边缘会被"两次 alpha 混合"加深 0.5→0.75，
+        视觉上出现"黑色三角网格"（因为半透明像素叠加后更深）。
+     ── 0.6 刚好覆盖 canvas clip 的 1px 抗锯齿边缘，重叠范围缩到最小，
+        不透明区域完全不受影响，半透明区域加深幅度从 0.5→0.75 降到 0.5→0.6（视觉几乎看不出来）。 */
+  const EXPAND = 0.6;
+  const expandVtx = (x, y) => {
+    const vx = x - bcx, vy = y - bcy;
+    const len = Math.hypot(vx, vy);
+    if (len < 1e-6) return [x, y];
+    const k = (len + EXPAND) / len;
+    return [bcx + vx * k, bcy + vy * k];
+  };
+  const [ex0, ey0] = expandVtx(dx0, dy0);
+  const [ex1, ey1] = expandVtx(dx1, dy1);
+  const [ex2, ey2] = expandVtx(dx2, dy2);
+
   g.save();
   g.beginPath();
-  g.moveTo(dx0, dy0);
-  g.lineTo(dx1, dy1);
-  g.lineTo(dx2, dy2);
+  g.moveTo(ex0, ey0);
+  g.lineTo(ex1, ey1);
+  g.lineTo(ex2, ey2);
   g.closePath();
   g.clip();
   g.transform(a, b, c, d, e, f);
-  g.drawImage(img, 0, 0, cw, ch);
-  g.restore();
-}
+      /* ★ 补偿 tfContent 的 padding：img 现在比原来大 2×PAD，
+         要让原内容仍然映射到原位置，绘制起点要向前偏 padCss，尺寸要加大 2×padCss */
+      const padCss = tfContentPad / dpr;
+      g.drawImage(img, -padCss, -padCss, cw + padCss * 2, ch + padCss * 2);
+      g.restore();
+    }
 
 function drawGridImage(img, verts) {
-  if (!img || !verts) return;
+  if (!img || !verts || verts.length < 2) return;
   const cw = tfCSSW, ch = tfCSSH;
   if (cw <= 0 || ch <= 0) return;
 
@@ -6995,7 +7508,12 @@ function drawGridImage(img, verts) {
   g.imageSmoothingEnabled = true;
   g.imageSmoothingQuality = 'high';
 
-  const rows = tfGridRows, cols = tfGridCols;
+  /* ★ 从 verts 推算网格尺寸：linear 模式是 3×3 单元，
+       spline 模式是 (3×SUB)×(3×SUB) 单元，都用同一套三角形渲染 */
+  const rows = verts.length - 1;
+  const cols = verts[0].length - 1;
+  if (rows < 1 || cols < 1) { g.restore(); return; }
+
   const cellW = cw / cols;
   const cellH = ch / rows;
 
@@ -7025,7 +7543,275 @@ function drawGridImage(img, verts) {
 
   g.restore();
 }
+/* =========================================================
+   WebGL 纹理映射渲染（替代 Canvas 2D 三角形方案）
+   ── 原理：tfContent 作为纹理，网格顶点作为顶点位置，GPU 光栅化。
+   ── 关键优势：GPU 光栅化相邻三角形共享边时使用 top-left rule，
+      共享边上的像素只被一个三角形写入 → 物理上不存在接缝/肌理。
+   ── Canvas 2D 版本（drawGridImage）保留为降级路径。
+   ========================================================= */
 
+let wglCanvas   = null;
+let wglCtx      = null;
+let wglProgram  = null;
+let wglTex      = null;
+let wglBufPos   = null;
+let wglBufUV    = null;
+let wglLoc      = { pos: -1, uv: -1, canvasSize: null, tex: null };
+let wglReady    = false;
+let wglTexSrc   = null;   // 追踪 tfContent 引用，变化时才重传纹理
+
+function wglCompileShader(gl, type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    console.error('[WebGL] shader compile:', gl.getShaderInfoLog(s));
+    gl.deleteShader(s);
+    return null;
+  }
+  return s;
+}
+
+function initWGL() {
+  if (wglReady) return true;
+  if (!wglCanvas) {
+    wglCanvas = document.createElement('canvas');
+    wglCanvas.addEventListener('webglcontextlost', e => {
+      e.preventDefault();
+      wglReady = false;
+      wglCtx = null;
+      wglProgram = null;
+      wglTex = null;
+      wglTexSrc = null;
+    });
+  }
+  const opts = {
+    alpha: true,
+    premultipliedAlpha: false,   /* 与 Canvas 2D 语义一致 */
+    antialias: true,
+    preserveDrawingBuffer: true, /* 需要 drawImage 读取 */
+    depth: false,
+    stencil: false
+  };
+  wglCtx = wglCanvas.getContext('webgl2', opts) ||
+           wglCanvas.getContext('webgl', opts) ||
+           wglCanvas.getContext('experimental-webgl', opts);
+  if (!wglCtx) { wglReady = false; return false; }
+  const gl = wglCtx;
+
+  /* WebGL 1 语法，WebGL 2 完全兼容 */
+  const vsSrc = `
+    attribute vec2 a_pos;
+    attribute vec2 a_uv;
+    uniform vec2 u_canvasSize;
+    varying vec2 v_uv;
+    void main() {
+      vec2 ndc = (a_pos / u_canvasSize) * 2.0 - 1.0;
+      ndc.y = -ndc.y;
+      gl_Position = vec4(ndc, 0.0, 1.0);
+      v_uv = a_uv;
+    }
+  `;
+  const fsSrc = `
+    /* ★ 从 mediump 改为 highp：
+       ── mediump 是 16-bit float，精度约 1/1024
+       ── 2000px 宽纹理 → 2px 采样误差 → 边缘抖动/模糊
+       ── highp 是 32-bit float，几乎无精度损失
+       ── 用 #ifdef 兼容极老设备（不支持 highp 时降级到 mediump） */
+    #ifdef GL_FRAGMENT_PRECISION_HIGH
+      precision highp float;
+    #else
+      precision mediump float;
+    #endif
+    uniform sampler2D u_tex;
+    varying vec2 v_uv;
+    void main() {
+      gl_FragColor = texture2D(u_tex, v_uv);
+    }
+  `;
+  const vs = wglCompileShader(gl, gl.VERTEX_SHADER, vsSrc);
+  const fs = wglCompileShader(gl, gl.FRAGMENT_SHADER, fsSrc);
+  if (!vs || !fs) return false;
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error('[WebGL] link:', gl.getProgramInfoLog(prog));
+    return false;
+  }
+  wglProgram = prog;
+  wglLoc.pos = gl.getAttribLocation(prog, 'a_pos');
+  wglLoc.uv = gl.getAttribLocation(prog, 'a_uv');
+  wglLoc.canvasSize = gl.getUniformLocation(prog, 'u_canvasSize');
+  wglLoc.tex = gl.getUniformLocation(prog, 'u_tex');
+
+  wglBufPos = gl.createBuffer();
+  wglBufUV  = gl.createBuffer();
+
+  gl.disable(gl.DEPTH_TEST);
+  gl.disable(gl.CULL_FACE);
+  /* ★ 禁用 blending：
+     ── top-left rule 保证相邻三角形共享边只被一个三角形光栅化一次
+     ── 每个像素最多被写一次，不存在重叠，本来就不需要 blending
+     ── 之前启用的 SRC_ALPHA / ONE_MINUS_SRC_ALPHA 是预乘空间公式，
+        和 premultipliedAlpha:false（非预乘 framebuffer）矛盾，
+        导致半透明边缘被双重 alpha 应用 → 整幅变亮。
+     ── 禁用后：fragment shader 直接输出非预乘 RGBA，
+        framebuffer 存的就是标准非预乘，drawImage 到 Canvas 2D 完全正确。 */
+  gl.disable(gl.BLEND);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+
+  wglReady = true;
+  return true;
+}
+
+/* 计算网格每个顶点的纹理 UV
+   ── 普通网格 / spline：按 (r/rows, c/cols) 映射到内层
+   ── 透视细分：顶点是由 oq 内双线性插值出的源位置 (sx, sy)，UV 按此算
+   ── 内层边界（去掉 padding）：物理像素 [PAD, PAD+bw) × [PAD, PAD+bh)
+   ── 纹理完整尺寸：tw × th = (bw + 2·PAD) × (bh + 2·PAD) */
+function computeUVsForGrid(verts) {
+  if (!verts || verts.length < 2) return null;
+  const rows = verts.length - 1;
+  const cols = verts[0].length - 1;
+  if (rows < 1 || cols < 1) return null;
+
+  const tw = tfContent.width;
+  const th = tfContent.height;
+  const PAD = tfContentPad;
+  const bw = tw - PAD * 2;
+  const bh = th - PAD * 2;
+  if (bw < 1 || bh < 1) return null;
+
+  /* =========================================================
+     ★ 统一参数化 UV（透视 / 非透视 / spline 全部走这一条）
+     ── 语义：源图像的 (j/cols, i/rows) 参数网格点，映射到当前
+        tfVertices 中对应顶点的屏幕位置。UV 完全由"网格参数"决定，
+        与顶点的几何位置无关。
+     ── 这样"无透视 → 透视细分"切换时，同一屏幕位置映射的
+        源内容不变 → 无跳变。
+     ── UV 始终落在 [PAD/tw, (PAD+bw)/tw] ⊂ (0,1)，
+        永不超出纹理范围 → 不会消失。
+     ── 顶点的几何移动（拖顶点 / 透视变换 / 样条弯曲）
+        改变的是"渲染位置"，不是"源内容"—— 这正是正确的
+        "网格变形"语义，也是 Photoshop 的行为。
+     ========================================================= */
+  const uvs = [];
+  for (let i = 0; i <= rows; i++) {
+    const uvRow = [];
+    for (let j = 0; j <= cols; j++) {
+      uvRow.push({
+        u: (j / cols * bw + PAD) / tw,
+        v: (i / rows * bh + PAD) / th
+      });
+    }
+    uvs.push(uvRow);
+  }
+  return uvs;
+}
+
+/* WebGL 主渲染：把 tfContent 按网格纹理映射绘制到 wglCanvas
+   返回 true 表示成功，false 表示 WebGL 不可用（调用方应降级到 2D） */
+function drawGridImageWGL(img, verts, uvs) {
+  if (!img || !verts || !uvs) return false;
+  if (!initWGL()) return false;
+  if (wglCtx.isContextLost && wglCtx.isContextLost()) {
+    wglReady = false;
+    return false;
+  }
+
+  const gl = wglCtx;
+  const W = baseCvs.width;
+  const H = baseCvs.height;
+  if (W < 1 || H < 1) return false;
+
+  /* 同步 wglCanvas 尺寸（可能因 new canvas / PSD 加载而变） */
+  if (wglCanvas.width !== W || wglCanvas.height !== H) {
+    wglCanvas.width = W;
+    wglCanvas.height = H;
+  }
+  gl.viewport(0, 0, W, H);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  /* 纹理：只有 tfContent 引用变化时才重传 */
+  if (!wglTex) wglTex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, wglTex);
+  if (wglTexSrc !== img) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    wglTexSrc = img;
+  }
+
+  /* 构建顶点数组：每单元格 2 个三角形，共 6 顶点 */
+  const rows = verts.length - 1;
+  const cols = verts[0].length - 1;
+  const totalVerts = rows * cols * 6;
+  const posArr = new Float32Array(totalVerts * 2);
+  const uvArr  = new Float32Array(totalVerts * 2);
+
+  let idx = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const p00 = verts[r][c];
+      const p10 = verts[r][c + 1];
+      const p11 = verts[r + 1][c + 1];
+      const p01 = verts[r + 1][c];
+      const t00 = uvs[r][c];
+      const t10 = uvs[r][c + 1];
+      const t11 = uvs[r + 1][c + 1];
+      const t01 = uvs[r + 1][c];
+
+      /* 三角形 A：(00, 10, 11) */
+      posArr[idx] = p00.x * dpr; posArr[idx + 1] = p00.y * dpr;
+      uvArr[idx]  = t00.u;       uvArr[idx + 1]  = t00.v;
+      idx += 2;
+      posArr[idx] = p10.x * dpr; posArr[idx + 1] = p10.y * dpr;
+      uvArr[idx]  = t10.u;       uvArr[idx + 1]  = t10.v;
+      idx += 2;
+      posArr[idx] = p11.x * dpr; posArr[idx + 1] = p11.y * dpr;
+      uvArr[idx]  = t11.u;       uvArr[idx + 1]  = t11.v;
+      idx += 2;
+
+      /* 三角形 B：(00, 11, 01) */
+      posArr[idx] = p00.x * dpr; posArr[idx + 1] = p00.y * dpr;
+      uvArr[idx]  = t00.u;       uvArr[idx + 1]  = t00.v;
+      idx += 2;
+      posArr[idx] = p11.x * dpr; posArr[idx + 1] = p11.y * dpr;
+      uvArr[idx]  = t11.u;       uvArr[idx + 1]  = t11.v;
+      idx += 2;
+      posArr[idx] = p01.x * dpr; posArr[idx + 1] = p01.y * dpr;
+      uvArr[idx]  = t01.u;       uvArr[idx + 1]  = t01.v;
+      idx += 2;
+    }
+  }
+
+  gl.useProgram(wglProgram);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, wglBufPos);
+  gl.bufferData(gl.ARRAY_BUFFER, posArr, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(wglLoc.pos);
+  gl.vertexAttribPointer(wglLoc.pos, 2, gl.FLOAT, false, 0, 0);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, wglBufUV);
+  gl.bufferData(gl.ARRAY_BUFFER, uvArr, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(wglLoc.uv);
+  gl.vertexAttribPointer(wglLoc.uv, 2, gl.FLOAT, false, 0, 0);
+
+  gl.uniform2f(wglLoc.canvasSize, W, H);
+  gl.uniform1i(wglLoc.tex, 0);
+
+  gl.drawArrays(gl.TRIANGLES, 0, totalVerts);
+  return true;
+}
 function renderTransform() {
   if (!tfActive || !tfBase) return;
   const W = baseCvs.width, H = baseCvs.height;
@@ -7038,7 +7824,29 @@ function renderTransform() {
   bctx.drawImage(tfBase, 0, 0);
   bctx.restore();
 
-  drawGridImage(tfContent, tfVertices);
+  /* ===== 优先 WebGL 纹理映射 =====
+     ── tfContent 作为纹理，网格顶点作为顶点位置，GPU 光栅化
+     ── top-left rule：共享边只被光栅化一次 → 无接缝、无肌理
+     ── 失败（WebGL 不可用 / 上下文丢失）→ 降级到 Canvas 2D 三角形方案 */
+  const verts = getRenderVerts();
+  let ok = false;
+  if (verts && verts.length >= 2) {
+    const uvs = computeUVsForGrid(verts);
+    if (uvs) ok = drawGridImageWGL(tfContent, verts, uvs);
+  }
+
+  if (ok) {
+    /* 把 WebGL canvas 合成到活动图层 */
+    bctx.save();
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.globalAlpha = 1;
+    bctx.drawImage(wglCanvas, 0, 0);
+    bctx.restore();
+  } else {
+    /* 降级路径：原有的 648/288 个三角形 + clip + drawImage */
+    drawGridImage(tfContent, verts);
+  }
 
   renderView();
 }
@@ -7055,71 +7863,247 @@ function applyTransformDrag(e) {
   if (d.type === 'move') {
     tfVertices = oq.map(row => row.map(p => ({ x: p.x + dx, y: p.y + dy })));
 
-  } else if (d.type === 'vertex') {
+    } else if (d.type === 'vertex') {
     tfVertices = oq.map(row => row.map(p => ({ x: p.x, y: p.y })));
-    tfVertices[d.r][d.c] = { x: ex, y: ey };
+
+    /* =========================================================
+       ★ 拖顶点钳制：用"2 三角形有向面积与初始符号一致"作为判据
+       ── 直接对应渲染器的拆法（A-B-D 和 A-D-C 两个三角形）
+       ── 不依赖 orig 位置合法性：始终检查目标位置，
+          彻底避免"两次拖到边界后 orig 非法 → 钳制跳过"的 bug
+       ── 参考符号来自 tfCellAreaSigns（进入 T 时初始化的 +1）
+       ========================================================= */
+    const rows = tfGridRows, cols = tfGridCols;
+    const origX = oq[d.r][d.c].x;
+    const origY = oq[d.r][d.c].y;
+
+    /* 收集被拖顶点所属于的 4×4 单元 */
+    const units = [];
+    if (d.r > 0 && d.c > 0)      units.push({ ur: d.r - 1, uc: d.c - 1, pos: 'br' });
+    if (d.r > 0 && d.c < cols)   units.push({ ur: d.r - 1, uc: d.c,     pos: 'bl' });
+    if (d.r < rows && d.c > 0)   units.push({ ur: d.r,     uc: d.c - 1, pos: 'tr' });
+    if (d.r < rows && d.c < cols) units.push({ ur: d.r,    uc: d.c,     pos: 'tl' });
+
+    /* 合法性检查：所有受影响单元的 2 个三角形朝向都必须与初始同号，
+       且面积足够大（> 1e-3，避免临界退化） */
+    const isLegalAt = (testX, testY) => {
+      for (const u of units) {
+        const A = oq[u.ur][u.uc];
+        const B = oq[u.ur][u.uc + 1];
+        const D = oq[u.ur + 1][u.uc + 1];
+        const C = oq[u.ur + 1][u.uc];
+        const nA = u.pos === 'tl' ? { x: testX, y: testY } : A;
+        const nB = u.pos === 'tr' ? { x: testX, y: testY } : B;
+        const nD = u.pos === 'br' ? { x: testX, y: testY } : D;
+        const nC = u.pos === 'bl' ? { x: testX, y: testY } : C;
+
+        /* 三角形1 (A, B, D) */
+        const area1 = (nB.x - nA.x) * (nD.y - nA.y)
+                    - (nB.y - nA.y) * (nD.x - nA.x);
+        /* 三角形2 (A, D, C) */
+        const area2 = (nD.x - nA.x) * (nC.y - nA.y)
+                    - (nD.y - nA.y) * (nC.x - nA.x);
+
+        const ref = tfCellAreaSigns && tfCellAreaSigns[u.ur]
+                    ? tfCellAreaSigns[u.ur][u.uc] : { s1: 1, s2: 1 };
+        if (area1 * ref.s1 <= 1e-3) return false;
+        if (area2 * ref.s2 <= 1e-3) return false;
+      }
+      return true;
+    };
+
+    let newX = ex, newY = ey;
+    /* ★ 关键改动：始终检查目标位置，不再依赖 orig 合法性 */
+    if (!isLegalAt(newX, newY)) {
+      let tLo = 0, tHi = 1;
+      for (let it = 0; it < 16; it++) {
+        const tMid = (tLo + tHi) / 2;
+        const tX = origX + (ex - origX) * tMid;
+        const tY = origY + (ey - origY) * tMid;
+        if (isLegalAt(tX, tY)) tLo = tMid;
+        else tHi = tMid;
+      }
+      /* 微微回退 0.2%，避免贴到边界导致下一帧又判非法 */
+      const tSafe = Math.max(0, tLo * 0.998);
+      newX = origX + (ex - origX) * tSafe;
+      newY = origY + (ey - origY) * tSafe;
+    }
+
+    tfVertices[d.r][d.c] = { x: newX, y: newY };
 
   } else if (d.type === 'scale') {
-    /* ===== Ctrl + 拖紫色手柄：局部变形（斜切 / 透视） =====
-       - 角点：对角点 100%，向内部和对边按切比雪夫距离线性衰减
-       - 边中点：边中点 100%，沿边向两端衰减，垂直边方向也衰减
-       基于拖拽开始时的快照 oq 计算，不会累积误差。 */
-    if (e.ctrlKey || e.metaKey) {
+    /* ===== Ctrl + 拖紫色手柄 =====
+       · 角（nw/ne/se/sw）：真正的投影变换（homography）
+          被拖角精确跟手，其他 3 角完全不动，网格按透视关系重分布
+       · 边（n/s/e/w）：保留原切比雪夫衰减的局部斜切
+       · 无 Ctrl：走下方的 AABB 全局缩放
+       ── 用 d.ctrlAtDown（按下时冻结）而不是 e.ctrlKey，
+          避免中途松键导致画面突变 */
+
+    if (d.ctrlAtDown) {
       const rows = tfGridRows, cols = tfGridCols;
 
-      tfVertices = oq.map(row => row.map(p => ({ x: p.x, y: p.y })));
-
       if (d.corner.length === 2) {
-        /* 角点 nw / ne / sw / se */
-        const r0 = (d.corner === 'nw' || d.corner === 'ne') ? 0 : rows;
-        const c0 = (d.corner === 'nw' || d.corner === 'sw') ? 0 : cols;
-        for (let r = 0; r <= rows; r++) {
-          for (let c = 0; c <= cols; c++) {
-            const dr = Math.abs(r - r0) / rows;
-            const dc = Math.abs(c - c0) / cols;
-            const t = Math.max(0, 1 - Math.max(dr, dc));  // 切比雪夫距离
-            if (t <= 0) continue;
-            tfVertices[r][c].x += dx * t;
-            tfVertices[r][c].y += dy * t;
-          }
+        /* ---- Ctrl + 角：投影变换（homography） ---- */
+        const cornerIdxMap = { 'nw': 0, 'ne': 1, 'se': 2, 'sw': 3 };
+        const ci = cornerIdxMap[d.corner];
+
+        /* 源四边形：拖拽开始时 4 个网格角（顺序 左上/右上/右下/左下） */
+        const srcCorners = [
+          { x: oq[0][0].x,        y: oq[0][0].y },
+          { x: oq[0][cols].x,     y: oq[0][cols].y },
+          { x: oq[rows][cols].x,  y: oq[rows][cols].y },
+          { x: oq[rows][0].x,     y: oq[rows][0].y }
+        ];
+
+        /* 目标四边形：仅移动被拖的那个角，其他 3 角保持原位 */
+        const dstCorners = srcCorners.map(c => ({ x: c.x, y: c.y }));
+
+        /* ===================================================
+           ★ 凸性钳制：被拖角必须保持在「相邻两角连线」的原侧
+           ── 一旦越过 / 碰到这条直线，四边形就会变凹 / 自交，
+              homography 会反号（"负缩放"），产生怪形状。
+           ── 检测到越界时：
+                1) 把被拖角投影到直线上；
+                2) 沿原侧法向退 eps 距离，避免 det=0 数值退化。
+           ── 四条边的邻角关系（角顺序 nw=0, ne=1, se=2, sw=3 顺时针）：
+                拖 nw(0) → 相邻 ne(1) 与 sw(3)
+                拖 ne(1) → 相邻 se(2) 与 nw(0)
+                拖 se(2) → 相邻 sw(3) 与 ne(1)
+                拖 sw(3) → 相邻 nw(0) 与 se(2)
+           =================================================== */
+        const prevIdx = (ci + 3) % 4;
+        const nextIdx = (ci + 1) % 4;
+        const A = srcCorners[prevIdx];
+        const B = srcCorners[nextIdx];
+
+        /* 原被拖角相对直线 AB 的侧向符号（+1 / -1） */
+        const sideOrigRaw = (B.x - A.x) * (srcCorners[ci].y - A.y)
+                          - (B.y - A.y) * (srcCorners[ci].x - A.x);
+        const sideOrig = (sideOrigRaw >= 0) ? 1 : -1;
+
+        /* 期望位置 */
+        let Px = srcCorners[ci].x + dx;
+        let Py = srcCorners[ci].y + dy;
+
+        /* 检查当前是否仍在正确一侧 */
+        const sideNow = (B.x - A.x) * (Py - A.y)
+                      - (B.y - A.y) * (Px - A.x);
+
+        if (sideNow * sideOrig <= 0) {
+          /* 越过或正好在直线上 → 钳制 */
+          const abx = B.x - A.x, aby = B.y - A.y;
+          const abLen2 = abx * abx + aby * aby;
+          const abLen  = Math.sqrt(abLen2) || 1;
+
+          /* 1) 投影到直线 AB */
+          const t = ((Px - A.x) * abx + (Py - A.y) * aby) / abLen2;
+          Px = A.x + t * abx;
+          Py = A.y + t * aby;
+
+          /* 2) 沿原侧法向退 eps：既保证凸，又避免 det=0 退化 */
+          /*   单位法向：sideOrig=+1 → (-aby, abx)/|AB|
+                         sideOrig=-1 → ( aby,-abx)/|AB| */
+          const eps = Math.min(4, Math.max(0.5, abLen * 0.02));
+          const nx = sideOrig * (-aby) / abLen;
+          const ny = sideOrig * ( abx) / abLen;
+          Px += nx * eps;
+          Py += ny * eps;
         }
-      } else if (d.corner === 'n' || d.corner === 's') {
-        /* 上下边中点 n / s */
-        const rEdge = (d.corner === 'n') ? 0 : rows;
-        const cMid  = cols / 2;
-        for (let r = 0; r <= rows; r++) {
-          const tAway = Math.max(0, 1 - Math.abs(r - rEdge) / rows * 2);
-          if (tAway <= 0) continue;
-          for (let c = 0; c <= cols; c++) {
-            const tAlong = Math.max(0, 1 - Math.abs(c - cMid) / cMid);
-            const t = tAlong * tAway;
-            if (t <= 0) continue;
-            tfVertices[r][c].x += dx * t;
-            tfVertices[r][c].y += dy * t;
-          }
-        }
-      } else {
-        /* 左右边中点 w / e */
-        const cEdge = (d.corner === 'w') ? 0 : cols;
-        const rMid  = rows / 2;
-        for (let c = 0; c <= cols; c++) {
-          const tAway = Math.max(0, 1 - Math.abs(c - cEdge) / cols * 2);
-          if (tAway <= 0) continue;
+
+        dstCorners[ci].x = Px;
+        dstCorners[ci].y = Py;
+
+        /* 求 homography 并应用到所有顶点 */
+        const H = quadToQuadMatrix(srcCorners, dstCorners);
+        if (H) {
+          /* ★ 保存状态供透视细分渲染使用：
+             · tfPerspectiveH  = 当前 homography
+             · tfPerspectiveOq = 拖拽开始时的控制网格（源空间均匀分布）
+             这样 getRenderVerts 就能在 3×3 控制网格的基础上
+             用 H 透视细分出 12×12 渲染网格，避免三角形仿射折叠 */
+          tfPerspectiveH  = H;
+          tfPerspectiveOq = oq.map(row => row.map(p => ({ x: p.x, y: p.y })));
+
+          const newVerts = [];
           for (let r = 0; r <= rows; r++) {
-            const tAlong = Math.max(0, 1 - Math.abs(r - rMid) / rMid);
-            const t = tAlong * tAway;
-            if (t <= 0) continue;
-            tfVertices[r][c].x += dx * t;
-            tfVertices[r][c].y += dy * t;
+            const row = [];
+            for (let c = 0; c <= cols; c++) {
+              const p  = oq[r][c];
+              const np = applyHomography(H, p.x, p.y);
+              row.push(np ? { x: np.x, y: np.y } : { x: p.x, y: p.y });
+            }
+            newVerts.push(row);
           }
+          tfVertices = newVerts;
+        } else {
+          /* H 退化 → 同步清空透视状态 */
+          tfPerspectiveH  = null;
+          tfPerspectiveOq = null;
+          /* homography 退化（3 点共线等）→ 保守回退，不变形 */
+          tfVertices = oq.map(row => row.map(p => ({ x: p.x, y: p.y })));
         }
+
+        renderTransform();
+        return;
+      }
+
+      /* ---- Ctrl + 边中点：仿射变换（保持平行四边形） ----
+         拖 n 边 → nw、ne 整体平移 (dx, dy)
+         拖 s 边 → se、sw 整体平移 (dx, dy)
+         拖 e 边 → ne、se 整体平移 (dx, dy)
+         拖 w 边 → nw、sw 整体平移 (dx, dy)
+         对面边两个角保持不动 → 目标四边形仍是平行四边形
+         （或矩形、斜平行四边形），用 3 对点求仿射矩阵。
+         ── 仿射是精确的线性映射：3×3 网格渲染已经准确，
+            不需要透视细分。 */
+
+      /* 1. 计算目标四角：只有被拖边的两个角移动 */
+      const nw = { x: oq[0][0].x,       y: oq[0][0].y       };
+      const ne = { x: oq[0][cols].x,    y: oq[0][cols].y    };
+      const se = { x: oq[rows][cols].x, y: oq[rows][cols].y };
+      const sw = { x: oq[rows][0].x,    y: oq[rows][0].y    };
+      const dstNW = { x: nw.x, y: nw.y };
+      const dstNE = { x: ne.x, y: ne.y };
+      const dstSE = { x: se.x, y: se.y };
+      const dstSW = { x: sw.x, y: sw.y };
+
+      if (d.corner === 'n') {
+        dstNW.x += dx; dstNW.y += dy;
+        dstNE.x += dx; dstNE.y += dy;
+      } else if (d.corner === 's') {
+        dstSE.x += dx; dstSE.y += dy;
+        dstSW.x += dx; dstSW.y += dy;
+      } else if (d.corner === 'e') {
+        dstNE.x += dx; dstNE.y += dy;
+        dstSE.x += dx; dstSE.y += dy;
+      } else { /* w */
+        dstNW.x += dx; dstNW.y += dy;
+        dstSW.x += dx; dstSW.y += dy;
+      }
+
+      /* 2. 由 3 对点求仿射（nw、ne、sw 三点；平行四边形情况下
+            目标也是平行四边形，仿射会精确映射整个网格） */
+      const aff = affineFromTriplets(nw, ne, sw, dstNW, dstNE, dstSW);
+      if (aff) {
+        /* ★ 仿射是精确的线性映射 → 清空透视状态，
+             3×3 网格渲染就是完美的平行四边形变形 */
+        tfPerspectiveH  = null;
+        tfPerspectiveOq = null;
+        tfVertices = oq.map(row => row.map(p => ({
+          x: aff.a * p.x + aff.c * p.y + aff.e,
+          y: aff.b * p.x + aff.d * p.y + aff.f
+        })));
+      } else {
+        /* 源四边形退化（三点共线）→ 保守回退，不变形 */
+        tfVertices = oq.map(row => row.map(p => ({ x: p.x, y: p.y })));
       }
 
       renderTransform();
       return;
     }
 
-    /* --- 默认：对角（或对面）缩放；按住 Alt：中心缩放 --- */
+    /* --- 无 Ctrl：AABB 全局缩放（对角/对面锚点、Alt 中心缩放） --- */
     const ohx = d.origHandle.x;
     const ohy = d.origHandle.y;
     const obb = d.origBB;
@@ -7139,7 +8123,7 @@ function applyTransformDrag(e) {
     };
     const dir = dirMap[d.corner] || { x: 1, y: 1 };
 
-    // 计算缩放锚点
+    /* 计算缩放锚点 */
     let ax, ay;
     if (e.altKey) {
       /* 中心缩放 */
@@ -7209,23 +8193,60 @@ function drawTransformUI() {
 
   const s = 1 / viewScale;
   const rows = tfGridRows, cols = tfGridCols;
+  const isSpline = (tfWarpMode === 'spline');
+  const gridTint = isSpline
+    ? 'rgba(255,216,80,.85)'      /* 样条：金黄色 */
+    : 'rgba(110,231,255,.7)';     /* 线性：青色 */
 
-  /* --- 网格线 --- */
+  /* --- 网格线 ---
+     linear 模式画直线；spline 模式用 catmullRomGridAt 采样折线，
+     与 getRenderVerts 的细分使用同一套插值函数 → 视觉与实际图像完全一致。 */
   vctx.beginPath();
-  for (let r = 0; r <= rows; r++) {
-    vctx.moveTo(verts[r][0].x, verts[r][0].y);
-    for (let c = 1; c <= cols; c++) vctx.lineTo(verts[r][c].x, verts[r][c].y);
-  }
-  for (let c = 0; c <= cols; c++) {
-    vctx.moveTo(verts[0][c].x, verts[0][c].y);
-    for (let r = 1; r <= rows; r++) vctx.lineTo(verts[r][c].x, verts[r][c].y);
+  if (isSpline) {
+    /* 每段采样 16 点：3 个控制段 → 48 点，曲线足够平滑 */
+    const SEG_SAMPLES = 16;
+    const subU = cols * SEG_SAMPLES;
+    const subV = rows * SEG_SAMPLES;
+
+    /* 水平线：每行 v = r/rows，u 从 0 → 1 */
+    for (let r = 0; r <= rows; r++) {
+      const v = r / rows;
+      for (let i = 0; i <= subU; i++) {
+        const u = i / subU;
+        const p = catmullRomGridAt(verts, rows, cols, u, v);
+        if (i === 0) vctx.moveTo(p.x, p.y);
+        else vctx.lineTo(p.x, p.y);
+      }
+    }
+
+    /* 垂直线：每列 u = c/cols，v 从 0 → 1 */
+    for (let c = 0; c <= cols; c++) {
+      const u = c / cols;
+      for (let i = 0; i <= subV; i++) {
+        const v = i / subV;
+        const p = catmullRomGridAt(verts, rows, cols, u, v);
+        if (i === 0) vctx.moveTo(p.x, p.y);
+        else vctx.lineTo(p.x, p.y);
+      }
+    }
+  } else {
+    for (let r = 0; r <= rows; r++) {
+      vctx.moveTo(verts[r][0].x, verts[r][0].y);
+      for (let c = 1; c <= cols; c++) vctx.lineTo(verts[r][c].x, verts[r][c].y);
+    }
+    for (let c = 0; c <= cols; c++) {
+      vctx.moveTo(verts[0][c].x, verts[0][c].y);
+      for (let r = 1; r <= rows; r++) vctx.lineTo(verts[r][c].x, verts[r][c].y);
+    }
   }
   vctx.lineWidth = 3 * s;
   vctx.strokeStyle = 'rgba(0,0,0,.55)';
   vctx.stroke();
   vctx.lineWidth = 1.2 * s;
-  vctx.strokeStyle = 'rgba(110,231,255,.7)';
+  if (isSpline) vctx.setLineDash([5 * s, 3 * s]);
+  vctx.strokeStyle = gridTint;
   vctx.stroke();
+  vctx.setLineDash([]);
 
   /* --- 缩放框（实线紫色）--- */
   const sh = tfGetScaleHandles();
@@ -12793,7 +13814,45 @@ cvs.addEventListener('pointerdown', e => {
     const hit = tfHitTest(hx, hy);
     if (!hit) { commitTransform(); return; }
 
+    /* ★ 双击顶点 → 切换线性 / 样条 */
+    if (hit.type === 'vertex') {
+      const now = performance.now();
+      if (now - tfLastClickTime < 300 &&
+          hit.r === tfLastClickR && hit.c === tfLastClickC) {
+        tfWarpMode = (tfWarpMode === 'linear') ? 'spline' : 'linear';
+        tfLastClickTime = 0;
+        tfLastClickR = -1;
+        tfLastClickC = -1;
+        renderTransform();
+        showToast(tfWarpMode === 'spline'
+          ? '已切换为样条曲线变形'
+          : '已切换为线性变形');
+        return;
+      }
+      tfLastClickTime = now;
+      tfLastClickR = hit.r;
+      tfLastClickC = hit.c;
+    } else {
+      tfLastClickTime = 0;
+      tfLastClickR = -1;
+      tfLastClickC = -1;
+    }
+
     const c = tfGetCenter();
+
+    /* ★ 除 Ctrl+角 投影外，任何其他操作都清空透视状态：
+       - 拖顶点（局部扭曲，不再是 homography）
+       - 拖边（局部斜切）
+       - 无 Ctrl 缩放 / 旋转 / 移动
+       ── Ctrl+角 投影分支会在 applyTransformDrag 里重新设置 */
+    const isPerspectiveAction =
+      !!(e.ctrlKey || e.metaKey) &&
+      hit.type === 'scale' && hit.corner.length === 2;
+    if (!isPerspectiveAction) {
+      tfPerspectiveH  = null;
+      tfPerspectiveOq = null;
+    }
+
     tfDrag = {
       pointerId: e.pointerId,
       type: hit.type,
@@ -12806,7 +13865,8 @@ cvs.addEventListener('pointerdown', e => {
       origHandle: (hit.type === 'scale') ? { x: hit.x, y: hit.y } : null,
       origBB: (hit.type === 'scale') ? tfGetBBox() : null,
       center: c,
-      startAngle: Math.atan2(hy - c.y, hx - c.x)
+      startAngle: Math.atan2(hy - c.y, hx - c.x),
+      ctrlAtDown: !!(e.ctrlKey || e.metaKey)
     };
     cvs.setPointerCapture(e.pointerId);
     updateTransformCursor(hit, e);
