@@ -39,7 +39,14 @@
     overscroll-behavior:none;
   }
   #c{display:block;touch-action:none;cursor:crosshair;position:relative;z-index:1;background:#000}
-  #c.picking{cursor:copy !important}
+  /* ★ 灰度显示模式（类似 PS 校样设置 → 工作中的灰度）。
+     纯显示层滤镜：不影响 baseCvs / layer.canvas 实际像素，
+     导出 PNG / PSD 仍然是彩色。 */
+  #c.grayscale-mode{filter:grayscale(1)}
+  /* ★ 吸色光标：SVG 吸管图标，热点在尖端（左下角 (2,22)） */
+  #c.picking{
+    cursor: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M2 22 L2 18 L9 11 L13 15 L6 22 Z' fill='%23fff' stroke='%23000' stroke-width='1.3' stroke-linejoin='round'/%3E%3Cpath d='M9 11 L17 3 L21 7 L13 15 Z' fill='%23fff' stroke='%23000' stroke-width='1.3' stroke-linejoin='round'/%3E%3Cpath d='M17 3 L21 7 L20 8 L16 4 Z' fill='%23ff3366' stroke='%23000' stroke-width='1.3' stroke-linejoin='round'/%3E%3C/svg%3E") 2 22, crosshair !important;
+  }
   #c.moving{cursor:move !important}
   #ui{
     position:fixed;top:14px;left:14px;width:274px;
@@ -434,9 +441,16 @@
     display:block;border-radius:8px;border:1px solid var(--line);
     cursor:pointer;touch-action:none;
   }
-  #qpPreview{
-    width:18px;height:26px;border-radius:6px;
-    border:1px solid var(--line);
+  /* ★ 新旧颜色对比框：两个方块紧挨，圆角由外层裁切，无内部分隔线 */
+  #qpPreviewWrap{
+    display:flex;
+    width:40px;height:26px;
+    border-radius:6px;
+    overflow:hidden;
+  }
+  #qpPreviewNew, #qpPreviewOld{
+    flex:1 1 50%;
+    height:100%;
   }
   #qpHex{
     width:100%;box-sizing:border-box;
@@ -543,6 +557,36 @@
     transform:translate(0,0);
     transition:none;
   }
+
+  /* ★ Alt 吸色时的新旧颜色对比浮层
+     · 左格永远显示「吸色前的颜色」
+     · 右格随吸色过程实时更新为「当前吸到的颜色」 */
+  #pickCompare{
+    position:fixed;
+    display:flex;
+    width:44px;height:28px;
+    border-radius:6px;
+    overflow:hidden;
+    pointer-events:none;
+    z-index:120;
+    /* ★ 一显示就完全不透明 —— 不再有半透明准备态，
+       避免"按下 Alt 后对比框先半透明卡一下再变不透明"的视觉突兀 */
+    box-shadow: 0 4px 14px rgba(0,0,0,.55),
+                0 0 0 1.5px rgba(0,0,0,.6),
+                inset 0 0 0 1px rgba(255,255,255,.12);
+    transition: box-shadow .12s;
+  }
+  /* ★ 吸色态（按住 ≥500ms）：只加青色发光外框提示"已进入吸色模式，
+     松开也不会弹拾色器"。不再改变不透明度（本身就不透明了）。 */
+  #pickCompare.picking-active{
+    box-shadow: 0 4px 14px rgba(0,0,0,.55),
+                0 0 0 1.5px rgba(0,0,0,.6),
+                0 0 0 3px rgba(110,231,255,.75),
+                0 0 14px 2px rgba(110,231,255,.4),
+                inset 0 0 0 1px rgba(255,255,255,.14);
+  }
+  #pickCompare[hidden]{display:none !important;}
+  #pickCompare > div{flex:1 1 50%;height:100%;}
 
   #curvePanel{
     position:fixed;top:0;left:0;
@@ -980,13 +1024,17 @@
 <div id="lqCursor"></div>
 <div id="brushCursor"></div>
 <div id="sizeBadge"></div>
+<div id="pickCompare" hidden>
+  <div id="pickCompareNew" title="当前吸到的颜色"></div>
+  <div id="pickCompareOld" title="打开前的颜色（本次固定）"></div>
+</div>
 <div id="eraserBadge">橡皮模式（按住 E）</div>
 <div id="zoomBadge">100%</div>
 
 <div id="sTolerancePanel">
   <span class="stpLabel">魔棒容差</span>
-  <input id="wandTolerance" type="range" min="0" max="100" value="30">
-  <i>30</i>
+  <input id="wandTolerance" type="range" min="0" max="100" value="8">
+  <i>8</i>
   <label class="stpCheck" title="连续：只选与点击处接壤的同色区域；关闭：选中所有同色区域">
     <input id="wandContiguous" type="checkbox" checked>
     <span>连续</span>
@@ -995,8 +1043,8 @@
 
 <div id="gTolerancePanel">
   <span class="stpLabel">填充容差</span>
-  <input id="gTolerance" type="range" min="0" max="100" value="30">
-  <i>30</i>
+  <input id="gTolerance" type="range" min="0" max="100" value="8">
+  <i>8</i>
   <label class="stpCheck" title="连续：只填充与点击处接壤的同色区域；关闭：填充整张画布上所有同色像素">
     <input id="gContiguous" type="checkbox" checked>
     <span>连续</span>
@@ -1296,7 +1344,10 @@
     <canvas id="qpSV"></canvas>
     <div class="qpRight">
       <canvas id="qpHue"></canvas>
-      <div id="qpPreview"></div>
+      <div id="qpPreviewWrap">
+        <div id="qpPreviewNew" title="当前新选颜色"></div>
+        <div id="qpPreviewOld" title="打开前所选颜色"></div>
+      </div>
     </div>
   </div>
   <input id="qpHex" type="text" spellcheck="false" maxlength="7" value="#000000">
@@ -1320,6 +1371,7 @@
   <span class="hint-item">Ctrl+M曲线</span>
   <span class="hint-item">Ctrl+E合并</span>
   <span class="hint-item">Ctrl+Z/Y撤销重做</span>
+  <span class="hint-item">Tab灰度</span>
   <span class="hint-item">Ctrl+D取消选区</span>
   <span class="hint-item">Ctrl+I反选</span>
   <span class="hint-item">Ctrl+C/X/V复制剪贴</span>
@@ -1421,9 +1473,9 @@ bEraserWidth: 16,
   paintNoisePressure: false,
   paintNoisePressureReverse: false,
   paintNoisePenMode: 'pressure',
-  paintTolerance: 30, // 油漆桶容差 0~100（映射到 0~255 通道差异）
+  paintTolerance: 8, // 油漆桶容差 0~100（映射到 0~255 通道差异）
   paintContiguous: true,   // 油漆桶：连续（true = 只填接壤区域；false = 全画布同色）
-  wandTolerance: 30,
+  wandTolerance: 8,
   wandContiguous: true,    // 魔棒：连续（true = 只选接壤区域；false = 全画布同色）
   pressureGain: 0,   // 压力增益（对数空间），0 表示不改变
   lqMode: 'push', lqStyle: 'smooth', lqSize: 80, lqStrength: 0.5,
@@ -1432,6 +1484,7 @@ bEraserWidth: 16,
   blurMode: 'smudge',      // Shift 模式：'smudge'(涂抹) | 'blend'(过渡)
   smudgePickup: 0.55,      // 涂抹时从画布拾取颜色的比例
   baseColor: '#000000',
+  grayscaleMode: false,    // 灰度显示模式（Tab 切换，纯显示层，不影响像素）
   /* 直线渐变的「反向」：同时反转色彩渐变与 alpha 渐变方向
      · alpha 渐变默认（false）：起点透明 → 终点不透明
      · 反向（true）          ：起点不透明 → 终点透明
@@ -3260,6 +3313,11 @@ function copySelection(cut) {
     if (active.locked)   { showToast('图层已锁定，无法剪切'); return false; }
   }
 
+  /* ★ 保险：先让 layer.canvas 与 baseCvs 完全一致。
+     否则剪切擦除后 layer.canvas 还是旧内容，undo 时 captureCurrentState
+     用 baseCvs 写回 layer.canvas 的瞬间，会导致层内容错位。 */
+  saveBaseToLayer(active);
+
   const W = baseCvs.width, H = baseCvs.height;
   const mask = getActiveMaskCvs();
   if (!mask) return false;
@@ -3305,7 +3363,14 @@ function copySelection(cut) {
 
   /* 3. 剪切：从 baseCvs 中擦除选区内的像素 */
   if (cut) {
-    takeSnapshot();
+    /* ★ 剪切是「跨图层」破坏性操作：
+       - 修改图层1（擦除选区像素）
+       - 稍后粘贴会修改图层2
+       必须用图层级快照（记录所有图层的像素 + 活动图层 id）。
+       否则用 pixel 快照，undo 时 restoreSnapshot 会把"图层1的内容"
+       错写到"当前活动图层（可能是图层2）" → 表现为图层2被清空/错乱、
+       图层1剪切效果不恢复。 */
+    takeLayerSnapshot({ needPixels: true });
     bctx.save();
     bctx.setTransform(1, 0, 0, 1, 0, 0);
     bctx.globalCompositeOperation = 'destination-out';
@@ -3329,7 +3394,16 @@ function pasteClipboard() {
   if (!active.visible) { showToast('图层不可见，无法粘贴'); return false; }
   if (active.locked)   { showToast('图层已锁定，无法粘贴'); return false; }
 
-  takeSnapshot();
+  /* ★ 保险：把 layer.canvas 同步为 baseCvs 的最新状态，
+     确保 takeLayerSnapshot 和后续 redo 快照都基于同一份一致数据。 */
+  saveBaseToLayer(active);
+
+  /* ★ 粘贴是「跨图层」破坏性操作：
+     粘贴内容来自 clipBuffer（剪切自图层1），粘贴到当前活动图层（图层2）。
+       undo 时如果还用 pixel 快照，会把快照里的"图层2像素"
+       错写到 activityLayer 之外的图层；改用图层级快照，
+       与剪切对称，撤销/前进时全图层像素 + 活动图层 id 一起恢复。 */
+  takeLayerSnapshot({ needPixels: true });
 
   const W = baseCvs.width, H = baseCvs.height;
 
@@ -6696,7 +6770,17 @@ function catmullRomGridAt(verts, rows, cols, u, v) {
    ── linear：直接返回 tfVertices（4×4 顶点，3×3 单元）
    ── spline：把 tfVertices 细分到 (3*SUB)×(3*SUB) 单元 */
 function getRenderVerts() {
-  if (tfWarpMode === 'linear') {
+  /* ★ 透视变换活跃（Ctrl+拖角）时，无论 linear / spline 都统一走
+     linear 的「源网格 + H」12×12 三角形仿射细分。
+     ── 原因：H 是射影变换（非线性），spline 的 Catmull-Rom 是多项式，
+        在 H 强透视时样条近似误差大；且 spline 分支的 cellSafe 凸性
+        检查会在 H 把某些 4×4 单元压扁时失败 → 该单元回退到双线性，
+        相邻单元仍在样条 → 边界处视觉跳变。
+     ── linear 的 12×12 三角形仿射细分对任意 H 都是精确的，且不依赖
+        凸性检查，H 活跃时用它最稳定。
+     ── H 不活跃时（拖顶点 / 拖内部 / 旋转 / 无 Ctrl 缩放），仍走
+        用户选择的 linear / spline。 */
+  if (tfWarpMode === 'linear' || (tfPerspectiveH && tfPerspectiveOq)) {
     /* =========================================================
        ★ 统一 12×12 三角形仿射细分（无论有无透视）
        ── 无透视：从 tfVertices 按 4×4 单元 2 三角形仿射细分
@@ -7977,34 +8061,42 @@ function applyTransformDrag(e) {
         const A = srcCorners[prevIdx];
         const B = srcCorners[nextIdx];
 
-        /* 原被拖角相对直线 AB 的侧向符号（+1 / -1） */
-        const sideOrigRaw = (B.x - A.x) * (srcCorners[ci].y - A.y)
-                          - (B.y - A.y) * (srcCorners[ci].x - A.x);
+        const abx = B.x - A.x, aby = B.y - A.y;
+        const abLen2 = abx * abx + aby * aby;
+        const abLen  = Math.sqrt(abLen2) || 1;
+
+        /* 拖拽开始时被拖角相对直线 AB 的侧向符号（+1 / -1） */
+        const sideOrigRaw = abx * (srcCorners[ci].y - A.y)
+                          - aby * (srcCorners[ci].x - A.x);
         const sideOrig = (sideOrigRaw >= 0) ? 1 : -1;
 
-        /* 期望位置 */
+        /* 期望位置（鼠标 + 起始偏移） */
         let Px = srcCorners[ci].x + dx;
         let Py = srcCorners[ci].y + dy;
 
-        /* 检查当前是否仍在正确一侧 */
-        const sideNow = (B.x - A.x) * (Py - A.y)
-                      - (B.y - A.y) * (Px - A.x);
+        /* ★ 修复「临界点跳变」：
+           原条件 sideNow * sideOrig <= 0 在 dNorm = 0（越过 AB 线）
+           才钳制。dNorm = 0+ 时 P 在 AB 线上（法向 = 0），dNorm = 0-
+           时钳制到 proj + eps（法向 = eps）→ 位置跳 eps，且 H 的
+           透视项从 ~0 突变到 ~(eps/abLen) 量级 → 整个形状"跳一下"。
+           改为提前在 dNorm < eps 处钳制：
+             · dNorm = eps 时用户位置恰为 proj + eps·法向，与钳制点重合
+               → 位置和 H 都连续；
+             · dNorm < eps 时钳制点固定为 proj + eps·法向 → H 不再随
+               鼠标深入而变化，形状稳定贴在凸边界上，切向仍跟随。
+           eps 与 AB 长度自适应并设下限，保证小选区上 H 的透视项也稳定。 */
+        const sideNow = abx * (Py - A.y) - aby * (Px - A.x);
+        const dNorm   = (sideNow / abLen) * sideOrig;   /* 正 = 正确侧 */
 
-        if (sideNow * sideOrig <= 0) {
-          /* 越过或正好在直线上 → 钳制 */
-          const abx = B.x - A.x, aby = B.y - A.y;
-          const abLen2 = abx * abx + aby * aby;
-          const abLen  = Math.sqrt(abLen2) || 1;
+        const eps = Math.max(4, Math.min(24, abLen * 0.06));
 
-          /* 1) 投影到直线 AB */
+        if (dNorm < eps) {
+          /* 1) 投影到直线 AB（切向跟随鼠标） */
           const t = ((Px - A.x) * abx + (Py - A.y) * aby) / abLen2;
           Px = A.x + t * abx;
           Py = A.y + t * aby;
 
-          /* 2) 沿原侧法向退 eps：既保证凸，又避免 det=0 退化 */
-          /*   单位法向：sideOrig=+1 → (-aby, abx)/|AB|
-                         sideOrig=-1 → ( aby,-abx)/|AB| */
-          const eps = Math.min(4, Math.max(0.5, abLen * 0.02));
+          /* 2) 沿正确侧法向固定退 eps（保证凸 + H 稳定） */
           const nx = sideOrig * (-aby) / abLen;
           const ny = sideOrig * ( abx) / abLen;
           Px += nx * eps;
@@ -9348,6 +9440,13 @@ function updateLayersUI() {
     const blendSelect = document.createElement('select');
     blendSelect.className = 'layer-blend';
     blendSelect.title = '图层混合模式';
+    /* ★ 校验 layer.blendMode 是否为合法值，不合法则重置为 source-over。
+       否则所有 <option> 都不会被 selected → 下拉框视觉上"空白"，
+       用户以为"什么也没选"，其实是值不在列表里。 */
+    const _bm = layer.blendMode || 'source-over';
+    if (!LAYER_BLEND_MODES.some(m => m.value === _bm)) {
+      layer.blendMode = 'source-over';
+    }
     for (const m of LAYER_BLEND_MODES) {
       const opt = document.createElement('option');
       opt.value = m.value;
@@ -9854,6 +9953,17 @@ function exitSelectionMode() {
   selPointerId = null;
   cvs.style.cursor = '';
   selOverlay.style.display = 'none';
+}
+
+/* ★ 切换灰度 / 彩色显示模式（Tab）。
+   通过 CSS filter 作用于 #c，只影响屏幕显示，不改任何像素数据。
+   导出 PNG / PSD 时用的是独立合成 canvas，因此仍为彩色。 */
+function toggleGrayscaleMode() {
+  cfg.grayscaleMode = !cfg.grayscaleMode;
+  cvs.classList.toggle('grayscale-mode', cfg.grayscaleMode);
+  showToast(cfg.grayscaleMode
+    ? '灰度显示 · 工作中的灰度（Tab 切回彩色）'
+    : '彩色显示');
 }
 
 function showToast(msg) {
@@ -12630,14 +12740,32 @@ function updateBrushCursor(x, y, e) {
 /* =========================================================
    Alt 吸色 / S 键套索状态
    ========================================================= */
+/* ★ 吸色专用：复用画布 + 局部合成窗口
+   ── 旧实现每次 new 一张 3840×1890 画布再完整合成 7 层，
+      光内存分配就 ~29MB，吸色时指针一动就卡。
+   ── 改成 5×5 的固定窗口，复用画布，只合成指针周围那点像素。
+      混合模式是像素级运算 → 中心像素结果与全画布合成完全一致。 */
+const PICK_WIN  = 5;
+const PICK_HALF = 2;   // 中心点在 (2,2)
+
+const pickOutCvs  = document.createElement('canvas');
+const pickOutCtx  = pickOutCvs.getContext('2d', { willReadFrequently: true });
+const pickClipCvs = document.createElement('canvas');
+const pickClipCtx = pickClipCvs.getContext('2d', { willReadFrequently: true });
+
 const colorInputEl = document.getElementById('baseColor');
+
 let altPressed = false;
+let keyboardAltDown = false;   /* ★ 真实键盘 Alt 状态（比 pointer 的 altKey 可靠） */
+let altStartedWithPickerOpen = false;   /* ★ 本次 Alt 按下时拾色器原本是开着的 */
 let ctrlPressed = false;
 let backtickHeld = false;
 let lastSKeydownTime = -1e9;
 let gHeld = false;   // 按住 G → 填充模式（左键填充 / 右键擦除）
-let altPressUsed = false;  // 本次 Alt 是否被用于吸色（决定 keyup 时是否弹拾色器）
-let altPressTime = 0;      // Alt 按下的时间戳，用于区分单击 / 长按
+let altPressUsed = false;  // 本次 Alt 是否被用于吸色（颜色确实变了才置 true）
+let altPressTime = 0;      // Alt 按下的时间戳
+let altPickMode = false;   // 是否已进入"吸色模式"（长按 ≥ 500ms）
+let altPickTimer = null;   // 进入吸色模式的延时定时器
 
 function isSHeld() {
   if (!backtickHeld) return false;
@@ -12728,43 +12856,358 @@ function updateModifierCursor() {
   }
 }
 
-function pickColorAt(cssX, cssY) {
+function pickColorAt(cssX, cssY, previewOnly) {
+  const W = baseCvs.width, H = baseCvs.height;
   const px = Math.round(cssX * dpr);
   const py = Math.round(cssY * dpr);
-  if (px < 0 || py < 0 || px >= baseCvs.width || py >= baseCvs.height) return;
+  if (px < 0 || py < 0 || px >= W || py >= H) return;
 
-  /* 从「所有可见图层的合成结果」取样，
-     而不是只从当前活动图层取样。
-     ★ 所见即所得：合成结果如果是半透明的（alpha < 255），
-       必须和背景色 cfg.bg 做 alpha 混合，得到屏幕上实际显示的颜色。
-       否则「黑色 50% 透明」吸出来会是纯黑，而用户看到的是灰色。 */
-  const comp = document.createElement('canvas');
-  comp.width  = baseCvs.width;
-  comp.height = baseCvs.height;
-  const cctx = comp.getContext('2d', { willReadFrequently: true });
-  composeLayersTo(cctx, comp.width, comp.height);
+  const win = PICK_WIN;
+  const winX = px - PICK_HALF;
+  const winY = py - PICK_HALF;
 
-  const d = cctx.getImageData(px, py, 1, 1).data;
+  /* 复用 pickOutCvs（5×5 固定尺寸，永不重新分配） */
+  if (pickOutCvs.width !== win || pickOutCvs.height !== win) {
+    pickOutCvs.width  = win;
+    pickOutCvs.height = win;
+  }
+  pickOutCtx.setTransform(1, 0, 0, 1, 0, 0);
+  pickOutCtx.globalCompositeOperation = 'source-over';
+  pickOutCtx.globalAlpha = 1;
+  pickOutCtx.clearRect(0, 0, win, win);
+
+  /* ★ 逐层局部合成：
+     只 drawImage(src, winX, winY, win, win, 0, 0, win, win)，
+     处理 25 个像素/层，而不是 3840×1890 个像素/层。
+     drawImage 的源区域越界时 canvas 会自动裁剪，
+     中心像素 (PICK_HALF, PICK_HALF) 对应的源始终是 (px, py)，
+     所以中心点结果与完整合成完全一致。 */
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i];
+    if (!layer.visible) continue;
+    const src = getLayerCanvas(layer);
+    if (!src) continue;
+
+    const blend = layer.blendMode || 'source-over';
+    const alpha = layer.opacity ?? 1;
+
+    if (layer.clip && i > 0) {
+      /* clip 层：需要下方图层的局部 alpha 做 mask */
+      let belowCanvas = null;
+      for (let j = i - 1; j >= 0; j--) {
+        if (layers[j].visible) {
+          belowCanvas = getLayerCanvas(layers[j]);
+          break;
+        }
+      }
+
+      if (!belowCanvas) {
+        pickOutCtx.globalCompositeOperation = blend;
+        pickOutCtx.globalAlpha = alpha;
+        pickOutCtx.drawImage(src, winX, winY, win, win, 0, 0, win, win);
+        pickOutCtx.globalCompositeOperation = 'source-over';
+        pickOutCtx.globalAlpha = 1;
+        continue;
+      }
+
+      if (pickClipCvs.width !== win || pickClipCvs.height !== win) {
+        pickClipCvs.width  = win;
+        pickClipCvs.height = win;
+      }
+      pickClipCtx.setTransform(1, 0, 0, 1, 0, 0);
+      pickClipCtx.globalCompositeOperation = 'source-over';
+      pickClipCtx.globalAlpha = 1;
+      pickClipCtx.clearRect(0, 0, win, win);
+      pickClipCtx.drawImage(src, winX, winY, win, win, 0, 0, win, win);
+      pickClipCtx.globalCompositeOperation = 'destination-in';
+      pickClipCtx.drawImage(belowCanvas, winX, winY, win, win, 0, 0, win, win);
+      pickClipCtx.globalCompositeOperation = 'source-over';
+
+      pickOutCtx.globalCompositeOperation = blend;
+      pickOutCtx.globalAlpha = alpha;
+      pickOutCtx.drawImage(pickClipCvs, 0, 0);
+      pickOutCtx.globalCompositeOperation = 'source-over';
+      pickOutCtx.globalAlpha = 1;
+    } else {
+      pickOutCtx.globalCompositeOperation = blend;
+      pickOutCtx.globalAlpha = alpha;
+      pickOutCtx.drawImage(src, winX, winY, win, win, 0, 0, win, win);
+      pickOutCtx.globalCompositeOperation = 'source-over';
+      pickOutCtx.globalAlpha = 1;
+    }
+  }
+
+  /* 只读中心 1 个像素 */
+  const d = pickOutCtx.getImageData(PICK_HALF, PICK_HALF, 1, 1).data;
   const a = d[3] / 255;
   const bgRgb = hexToRgb(cfg.bg);
   const r = Math.round(d[0] * a + bgRgb[0] * (1 - a));
   const g = Math.round(d[1] * a + bgRgb[1] * (1 - a));
   const b = Math.round(d[2] * a + bgRgb[2] * (1 - a));
   const hex = rgbToHex(r, g, b);
-  applyNewBaseColor(hex);
+
+  /* ★ previewOnly = true：只更新对比框右格 + 左 UI 的视觉，不改 cfg.baseColor。
+     ── 按下 Alt 的瞬间立即预览当前位置颜色，左右两侧同步变，消除 500ms 延迟。
+     ── 短按松开时由 exitAltPick 把左 UI 恢复为 cfg.baseColor，拾色器仍显示旧色 → 语义正确。 */
+  if (previewOnly) {
+    updatePickCompareNew(hex);
+    /* ★ 同步左侧大 UI（<input type="color">）的颜色显示。
+       只改 value 的视觉，不改 cfg.baseColor —— 短按未吸色时不污染真实色。 */
+    if (colorInputEl && colorInputEl.value !== hex) {
+      colorInputEl.value = hex;
+    }
+  } else {
+    applyNewBaseColor(hex);
+  }
 }
 
-/* 节流版吸色：pointermove 连续拖动时限制到 ~25fps，
-   避免每次都重合成所有图层 + getImageData 造成卡顿。 */
+/* 节流版吸色：局部合成后单次开销已经极低（微秒级），
+   节流只用于给高刷屏（120Hz/240Hz）兜底，防止极端情况下无谓调用。 */
 let lastPickTime = 0;
 function pickColorAtThrottled(cssX, cssY) {
   const now = performance.now();
-  if (now - lastPickTime < 40) return;
+  if (now - lastPickTime < 16) return;   // 60fps
   lastPickTime = now;
   pickColorAt(cssX, cssY);
 }
 
+/* ★ 预览专用节流：按下 Alt 的前 500ms 内（尚未进入吸色模式），
+   移动指针时也实时更新对比框右格颜色 —— 让用户"按住就能看到"。 */
+let lastPreviewTime = 0;
+function pickColorPreviewThrottled(cssX, cssY) {
+  const now = performance.now();
+  if (now - lastPreviewTime < 16) return;
+  lastPreviewTime = now;
+  pickColorAt(cssX, cssY, true);
+}
+
+/* =========================================================
+   Alt 吸色：新旧颜色对比浮层
+   ── 光标附近显示两个紧挨的方块：
+       左格 = 吸色开始前的颜色（固定）
+       右格 = 当前吸到的颜色（实时更新）
+   ── 吸色结束（pointerup）后延迟 800ms 自动隐藏，
+       让用户有时间看清最后结果
+   ========================================================= */
+const pickCompareEl    = document.getElementById('pickCompare');
+const pickCompareOldEl = document.getElementById('pickCompareOld');
+const pickCompareNewEl = document.getElementById('pickCompareNew');
+let pickOldColor       = null;
+let pickCompareTimer   = null;
+
+/* 面板位置：默认光标右下方 18px；靠边时自动翻到另一侧，避免被裁掉 */
+function positionPickCompare(x, y) {
+  if (!pickCompareEl) return;
+  const w = 44, h = 28, gap = 18;
+  let left = x + gap;
+  let top  = y + gap;
+  if (left + w > window.innerWidth  - 8) left = x - w - gap;
+  if (top  + h > window.innerHeight - 8) top  = y - h - gap;
+  if (left < 8) left = 8;
+  if (top  < 8) top  = 8;
+  pickCompareEl.style.left = left + 'px';
+  pickCompareEl.style.top  = top  + 'px';
+}
+
+/* 对比框是否处于「本次 Alt 会话中已显示」状态。
+   ── 一次 Alt 会话（按下 → 松开）期间只允许初始化一次颜色，
+      后续重入只更新位置，绝不重读 cfg.baseColor，
+      否则 hover 期间被重入会污染「打开前颜色」。 */
+let pickCompareActive = false;
+
+/* 开始吸色：记录旧色、显示面板、初始新色 = 旧色（等 pickColorAt 更新） */
+function showPickCompare(x, y) {
+  if (!pickCompareEl) return;
+
+  /* ★ 重入保护：本次 Alt 会话已经初始化过 → 只更新位置，绝不重读颜色。
+     修复"每动一下右格跟着变 / 像重启"——本质是 altPressed 被意外重置后
+     tryEnterAltPick 重入，重新执行 pickOldColor = cfg.baseColor（已是新色）。 */
+  if (pickCompareActive) {
+    positionPickCompare(x, y);
+    return;
+  }
+
+  pickCompareActive = true;
+  pickOldColor = cfg.baseColor;   /* 只在本次 Alt 会话首次显示时记录一次 */
+  if (pickCompareOldEl) pickCompareOldEl.style.background = pickOldColor;
+  if (pickCompareNewEl) {
+    pickCompareNewEl.style.background = pickOldColor;
+    /* ★ 同步 dataset.hex 缓存 —— 否则下次 updatePickCompareNew 时，
+       若新吸到的颜色恰好等于上次会话残留的 dataset.hex（如都是绿色），
+       缓存命中会直接 return，右格卡在旧色（红色），
+       表现为"刚打开还是红色，动一下才变绿"。 */
+    pickCompareNewEl.dataset.hex = pickOldColor;
+  }
+  pickCompareEl.hidden = false;
+  positionPickCompare(x, y);
+  if (pickCompareTimer) {
+    clearTimeout(pickCompareTimer);
+    pickCompareTimer = null;
+  }
+
+  /* ★ 立即预览一次当前位置的颜色 —— 消除 500ms 延迟。
+     只更新对比框右格，不改 cfg.baseColor。 */
+  const wx = (x - viewOffsetX) / viewScale;
+  const wy = (y - viewOffsetY) / viewScale;
+  pickColorAt(wx, wy, true);
+}
+
+/* 跟随光标（吸色拖动时调用） */
+function movePickCompare(x, y) {
+  if (!pickCompareEl || pickCompareEl.hidden) return;
+  positionPickCompare(x, y);
+}
+
+/* 更新右格为新吸到的颜色（由 applyNewBaseColor 内部调用）。
+   ★ 用 dataset 缓存上次的值：浏览器规范化后 style.background 是
+      "rgb(r, g, b)" 格式，和 hex 直接比较永远不等；用 dataset 存原始 hex。 */
+function updatePickCompareNew(hex) {
+  if (!pickCompareEl || pickCompareEl.hidden) return;
+  if (!pickCompareNewEl) return;
+  if (pickCompareNewEl.dataset.hex === hex) return;
+  pickCompareNewEl.dataset.hex = hex;
+  pickCompareNewEl.style.background = hex;
+}
+
+/* 隐藏吸色对比框。
+   delay=0 时立即隐藏（Alt 松开时用），delay>0 时延迟隐藏。
+   ── 无论哪条路径，最终都要把 pickCompareActive 重置为 false，
+      这样下一次 Alt 会话才能重新记录「打开前颜色」。 */
+function hidePickCompare(delay) {
+  const doHide = () => {
+    if (pickCompareEl) pickCompareEl.hidden = true;
+    pickCompareTimer = null;
+    pickCompareActive = false;   /* ★ 会话结束 */
+  };
+
+  if (!pickCompareEl || pickCompareEl.hidden) {
+    pickCompareActive = false;
+    return;
+  }
+  if (pickCompareTimer) clearTimeout(pickCompareTimer);
+  if (!delay) { doHide(); return; }
+  pickCompareTimer = setTimeout(doHide, delay);
+}
+
+/* =========================================================
+   Alt 按下 / 松开的统一入口
+   =========================================================
+   为什么要统一？
+   ── 按 Alt 时，pointermove / pointerdown 事件（带 altKey=true）
+      可能比 keydown 先到达（WebView2 / 浏览器的事件优先级差异）。
+   ── 旧代码 syncModifierStatesFromPointer 会把 altPressed 抢先设为 true，
+      导致之后 keydown 里的 if (e.altKey && !altPressed) 判断为 false，
+      跳过了「显示对比框 + 启动 500ms 定时器」的整个流程。
+   ── 旧代码 keydown 里还有 !qpActive 检查：上一次单击 Alt 弹出拾色器后，
+      下一次按 Alt 会被挡住，整个流程都不执行 → "连续按 Alt 没对比框，
+      只能点击吸色"的 bug。
+   现在所有「按下」路径都走 tryEnterAltPick（防重入），
+   所有「松开」路径都走 exitAltPick（统一清理）。
+   ========================================================= */
+
+/* Alt 按下：显示对比框 + 启动 500ms 长按定时器。
+   已按下时直接 return（防重入）。
+   ── 不再检查 qpActive：拾色器打开时按 Alt 依然要显示对比框 +
+      启动 500ms 定时器，否则会出现"连续按 Alt 退化到点击才吸色"的 bug。
+   条件不满足时（S 模式 / T 变换 / 曲线 / 裁剪 / 自定义框选 / Ctrl+Alt / Shift+Alt）：
+   只记录 altPressed = true，让 keyup 能正确判断是否弹拾色器。 */
+function tryEnterAltPick(x, y, withCtrl, withShift) {
+  if (altPressed) return;
+
+  /* ★ 判断本次 Alt 是否真的要进入吸色流程 */
+  const canPick = !(isSHeld() || tfActive || cpActive || cropMode || selecting
+                    || withCtrl || withShift);
+
+  /* ★ 关键：拾色器已经打开 + 本次是吸色意图 → 立刻关闭，不等 500ms。
+     用户典型场景：短按 Alt 弹出拾色器 → 不选色 → 直接长按 Alt 想吸色。
+     此时拾色器应该瞬间消失，而不是等 500ms 定时器跑完。
+     altStartedWithPickerOpen 记录本次 Alt 的「起点状态」，
+     让 keyup 判断"是否还要弹拾色器"时能区分：
+       · 起点拾色器关着 + 短按无吸色 → 弹（用户单击 Alt 的常规意图）
+       · 起点拾色器开着 + 短按无吸色 → 不弹（用户意图是吸色/关面板） */
+  if (canPick && qpActive) {
+    qpClose();
+    altStartedWithPickerOpen = true;
+  } else {
+    altStartedWithPickerOpen = false;
+  }
+
+  altPressed = true;
+  altPressUsed = false;
+  altPickMode = false;
+  altPressTime = performance.now();
+  updateModifierCursor();
+
+  if (!canPick) {
+    return;
+  }
+
+  showPickCompare(x, y);
+
+  if (altPickTimer) clearTimeout(altPickTimer);
+  altPickTimer = setTimeout(() => {
+    altPickTimer = null;
+
+    /* ★ 无论 altPressed 状态如何，长按 500ms 后都先关闭拾色器 ——
+       这是用户长按 Alt 的核心诉求（拾色器不该继续遮挡吸色操作）。
+       之前把 qpClose 放在 if(!altPressed) return 之后，
+       一旦 altPressed 被 pointer 事件误清，qpClose 永远执行不到。 */
+    if (qpActive) qpClose();
+
+    /* ★ 如果 altPressed 被误清但键盘 Alt 还按着，恢复它 ——
+       这样后续仍能进入吸色模式（wasPickMode 也保持 true，keyup 不弹拾色器） */
+    if (!altPressed && keyboardAltDown) {
+      altPressed = true;
+    }
+
+    if (!altPressed) return;
+
+    altPickMode = true;
+    if (pickCompareEl) pickCompareEl.classList.add('picking-active');
+
+    /* ★ 立即吸一次当前指针位置的颜色 —— 让"按住 Alt 不动也能吸色" */
+    if (typeof lastClientX === 'number' && typeof lastClientY === 'number') {
+      const wx = (lastClientX - viewOffsetX) / viewScale;
+      const wy = (lastClientY - viewOffsetY) / viewScale;
+      pickColorAt(wx, wy);
+    }
+}, 500);
+}
+
+/* Alt 松开：统一清理对比框 / 定时器 / 状态。
+   返回本次 Alt 的判定结果（供 keyup 判断是否弹拾色器）。 */
+function exitAltPick() {
+  const wasPickMode = altPickMode;
+  const wasUsed = altPressUsed;
+  const startedWithPickerOpen = altStartedWithPickerOpen;   /* ★ */
+  const tapMs = performance.now() - altPressTime;
+
+  altPressed = false;
+  altPickMode = false;
+  altPressUsed = false;
+  altStartedWithPickerOpen = false;   /* ★ 会话结束，复位 */
+  if (altPickTimer) { clearTimeout(altPickTimer); altPickTimer = null; }
+
+  /* ★ 本次 Alt 未真正吸色（短按预览阶段可能临时改了 input.value），
+     把左侧大 UI 恢复为 cfg.baseColor 的真实值 ——
+     避免"左 UI 显示预览绿、拾色器却显示原色红"的不一致。 */
+  if (!wasPickMode && !wasUsed && colorInputEl) {
+    colorInputEl.value = cfg.baseColor;
+  }
+
+  hidePickCompare(0);
+  if (pickCompareEl) pickCompareEl.classList.remove('picking-active');
+  updateModifierCursor();
+
+  return { wasPickMode, wasUsed, startedWithPickerOpen, tapMs };   /* ★ 新增字段 */
+}
+
 function applyNewBaseColor(hex) {
+  /* ★ Alt 吸色时，如果颜色确实变了，标记 altPressUsed，
+     这样 keyup 时不会误弹拾色器。 */
+  if (altPressed && hex !== cfg.baseColor) {
+    altPressUsed = true;
+  }
   cfg.baseColor = hex;
   updateBaseHsl();
   colorInputEl.value = hex;
@@ -12772,6 +13215,9 @@ function applyNewBaseColor(hex) {
   /* 把颜色写入当前模式的独立存储 —— 保证切换工具时不会被串色 */
   const key = getActiveColorMode();
   if (cfg.colorModes[key]) cfg.colorModes[key].baseColor = hex;
+
+  /* ★ 如果吸色对比面板正显示，同步更新右格为新色 */
+  updatePickCompareNew(hex);
 
   /* 短暂高亮色块，作为"吸到了"的视觉反馈（替代 toast） */
   colorInputEl.style.transition = 'box-shadow .12s';
@@ -12787,12 +13233,13 @@ function applyNewBaseColor(hex) {
    - 按住 Alt 点击/拖动 画布 → 吸色（原有行为，不弹面板）
    - 单击 Alt（不用于吸色）→ 在鼠标位置弹出拾色器
    ========================================================= */
-const qpEl       = document.getElementById('quickPicker');
-const qpSV       = document.getElementById('qpSV');
-const qpHue      = document.getElementById('qpHue');
-const qpPreview  = document.getElementById('qpPreview');
-const qpHex      = document.getElementById('qpHex');
-const qpSwatches = document.getElementById('qpSwatches');
+const qpEl         = document.getElementById('quickPicker');
+const qpSV         = document.getElementById('qpSV');
+const qpHue        = document.getElementById('qpHue');
+const qpPreviewNew = document.getElementById('qpPreviewNew');
+const qpPreviewOld = document.getElementById('qpPreviewOld');
+const qpHex        = document.getElementById('qpHex');
+const qpSwatches   = document.getElementById('qpSwatches');
 
 const qpSVCtx  = qpSV.getContext('2d');
 const qpHueCtx = qpHue.getContext('2d');
@@ -12945,7 +13392,7 @@ function qpCurrentHex() {
 
 function qpUpdatePreview(applyToBase) {
   const hex = qpCurrentHex();
-  qpPreview.style.background = hex;
+  if (qpPreviewNew) qpPreviewNew.style.background = hex;
   if (document.activeElement !== qpHex) qpHex.value = hex;
   if (applyToBase) applyNewBaseColor(hex);
 }
@@ -12960,6 +13407,9 @@ function qpOpen(x, y) {
 
   qpEl.hidden = false;
   qpActive = true;
+
+  /* ★ 右下角对比框：右边一格永远显示"打开前的颜色" */
+  if (qpPreviewOld) qpPreviewOld.style.background = cfg.baseColor;
 
   qpDraw();
   qpUpdatePreview(false);
@@ -13051,7 +13501,7 @@ qpHex.addEventListener('input', () => {
   const [h, s, val] = qpRgbToHsv(r, g, b);
   qpHSV.h = h; qpHSV.s = s; qpHSV.v = val;
   qpDraw();
-  qpPreview.style.background = v;
+  if (qpPreviewNew) qpPreviewNew.style.background = v;
   applyNewBaseColor(v);
 });
 qpHex.addEventListener('keydown', e => {
@@ -13909,14 +14359,17 @@ cvs.addEventListener('pointerdown', e => {
 
   if (sHeld) lastSKeydownTime = performance.now();
 
-  /* 吸色：只按 Alt（不能同时按 Ctrl / Shift / S） */
+  /* 吸色：只按 Alt（不能同时按 Ctrl / Shift / S）
+     ── pointerdown 也可能先于 keydown 到达 → 补触发。
+     ── 标记 altPressUsed（避免 keyup 时误弹拾色器）。
+     ── 强制刷新一次颜色（click 位置和 hover 位置可能不同）。 */
   if (e.altKey && !e.ctrlKey && !e.shiftKey && e.button !== 1 && !sHeld) {
     e.preventDefault();
+    tryEnterAltPick(e.clientX, e.clientY, false, false);
     altPressUsed = true;
-    /* 捕获指针，保证 pointerup / pointercancel 一定派发到 canvas，
-       不会因系统菜单抢焦点而丢失 */
     try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
-    pickColorAtThrottled(evtX(e), evtY(e));
+    movePickCompare(e.clientX, e.clientY);
+    pickColorAt(evtX(e), evtY(e));
     return;
   }
 
@@ -14201,10 +14654,19 @@ cvs.addEventListener('pointermove', e => {
     return;
   }
 
-  if (e.altKey && !e.ctrlKey && (e.buttons & 1) && !(e.buttons & 4) && !isSHeld() && !e.shiftKey) {
-    e.preventDefault();
-    altPressUsed = true;
-    pickColorAtThrottled(evtX(e), evtY(e));
+  /* ★ 按住 Alt hover 吸色（不需要按鼠标键）。
+     ── pointer 事件可能先于 keydown 到达 → 用 tryEnterAltPick 补触发。
+     ── < 500ms：只移动对比框，不吸色 → 松手弹拾色器。
+     ── ≥ 500ms：altPickMode = true，实时吸色 → 松手不弹拾色器。 */
+  if (e.altKey && !e.ctrlKey && !isSHeld() && !e.shiftKey && !selecting) {
+    tryEnterAltPick(e.clientX, e.clientY, false, false);
+    movePickCompare(e.clientX, e.clientY);
+    if (altPickMode) {
+      pickColorAtThrottled(evtX(e), evtY(e));
+    } else {
+      /* ★ 前 500ms 内也实时预览右格颜色 —— 避免"按住移动时右格卡住" */
+      pickColorPreviewThrottled(evtX(e), evtY(e));
+    }
     return;
   }
 
@@ -14386,6 +14848,10 @@ function endStroke(e) {
   if (isSHeld()) {
     lastSKeydownTime = performance.now();
   }
+
+  /* Alt 吸色对比框的显示/隐藏由 Alt 键的 keydown / keyup 控制，
+     pointerup 不处理（吸色已改为 hover，无需点击）。 */
+
 
   if (panActive && (!e || e.pointerId === panPointerId)) {
     panActive = false;
@@ -14574,6 +15040,24 @@ cvs.addEventListener('contextmenu', e => {
 });
 
 /* =========================================================
+   Tab 键：切换灰度 / 彩色显示模式（全局拦截，禁用所有 Tab 默认行为）
+   =========================================================
+   ── capture 阶段拦截，无论焦点在画布、输入框、下拉框，都先 preventDefault，
+      彻底禁用 Tab 的默认行为（焦点切换 / 选项切换 / textarea 插入缩进）。
+   ── 纯 Tab（无修饰键）→ 切换灰度；
+      Shift/Ctrl/Alt + Tab → 只拦截，不切换（避免误触改变显示模式）。
+   ========================================================= */
+window.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      toggleGrayscaleMode();
+    }
+  }
+}, { capture: true });
+
+/* =========================================================
    禁用浏览器快捷键（Ctrl + 加号 / 减号 缩放）
    ========================================================= */
 window.addEventListener('keydown', e => {
@@ -14585,13 +15069,22 @@ window.addEventListener('keydown', e => {
   }
 }, { capture: true });
 
-/* 阻止 Alt 单击激活 WebView / 系统菜单。
-   —— Windows 上 Alt+单击 会弹出窗口菜单，导致 keyup/pointerup 丢失，
+/* 阻止 Alt 单击激活 WebView / 系统菜单，同时在 capture 阶段处理 Alt 按下。
+   ── Windows 上 Alt+单击 会弹出窗口菜单，导致 keyup/pointerup 丢失，
       altPressed 卡在 true，光标停在 picking 无法恢复。
-      capture 阶段 + preventDefault 才能真正拦住。 */
+   ── 用 capture 阶段的第二个原因：qpHex 等输入框的 keydown 监听器里有
+      stopPropagation()，会阻断冒泡阶段到达 window 的监听器，
+      导致焦点在输入框时 Alt 按下事件被完全吞掉
+      （表现为"拾色器里长按 Alt 无法进入吸色模式、拾色器也不自动关闭"）。
+   ── capture 阶段先于任何 target 上的监听器触发，不受 stopPropagation 影响，
+      也不走主 keydown 里的 text-input 守卫。 */
 window.addEventListener('keydown', e => {
   if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
+    keyboardAltDown = true;          /* ★ 键盘权威状态 */
     e.preventDefault();
+    if (!altPressed) {
+      tryEnterAltPick(lastClientX, lastClientY, e.ctrlKey || e.metaKey, e.shiftKey);
+    }
   }
 }, { capture: true });
 
@@ -14738,16 +15231,33 @@ function takeSnapshot() {
       };
     });
 
+    /* ★ 先取出来，检查有效性。toDataURL 在大画布 / 内存压力下
+       可能返回空字符串或超短 base64 —— 直接 push 会让 undo 恢复到
+       「空白快照」。宁可跳过这次快照，也不要写入坏数据。 */
+    let dataUrl;
+    try {
+      dataUrl = baseCvs.toDataURL('image/png');
+    } catch (e) {
+      console.warn('[takeSnapshot] baseCvs.toDataURL 失败，跳过', e);
+      return;
+    }
+    if (!dataUrl || dataUrl.length < 50) {
+      console.warn('[takeSnapshot] baseCvs.toDataURL 返回异常，跳过');
+      return;
+    }
+
     history.push({
       kind: 'pixel',
-      data: baseCvs.toDataURL('image/png'),
+      data: dataUrl,
       selectionOps: selOps,
       selectionInverted: selectionInverted
     });
     if (history.length > 16) history.shift();
     /* 新操作使 redo 链失效 */
     redoStack.length = 0;
-  } catch (err) {}
+  } catch (err) {
+    console.error('[takeSnapshot]', err);
+  }
 }
 
 /* 捕获当前完整状态（图层 + 选区），用于 undo/redo 栈 */
@@ -14755,18 +15265,38 @@ function captureCurrentState() {
   const active = getActiveLayer();
   if (active) saveBaseToLayer(active);
 
-  const snapLayers = layers.map(l => ({
-    id: l.id,
-    name: l.name,
-    visible: l.visible,
-    locked: l.locked,
-    clip: l.clip,
-    lockPixels: l.lockPixels,
-    blendMode: l.blendMode,
-    opacity: l.opacity ?? 1,
-    data: l.canvas.toDataURL('image/png'),
-    lockMaskData: l.lockMask ? l.lockMask.toDataURL('image/png') : null
-  }));
+  const snapLayers = layers.map(l => {
+    let data;
+    try {
+      data = l.canvas.toDataURL('image/png');
+    } catch (e) {
+      console.warn('[captureCurrentState] toDataURL 失败', l.name, e);
+      data = '';
+    }
+    /* ★ 有效性检查：坏数据不能进快照，否则 redo 恢复出空白层 */
+    if (!data || data.length < 50) {
+      throw new Error('图层像素快照失败：' + l.name);
+    }
+    let lockMaskData = null;
+    if (l.lockMask) {
+      try {
+        lockMaskData = l.lockMask.toDataURL('image/png');
+        if (!lockMaskData || lockMaskData.length < 50) lockMaskData = null;
+      } catch (e) { lockMaskData = null; }
+    }
+    return {
+      id: l.id,
+      name: l.name,
+      visible: l.visible,
+      locked: l.locked,
+      clip: l.clip,
+      lockPixels: l.lockPixels,
+      blendMode: l.blendMode,
+      opacity: l.opacity ?? 1,
+      data,
+      lockMaskData
+    };
+  });
 
   const selOps = selectionOps.map(opt => {
     if (opt.type === 'wand') {
@@ -14815,8 +15345,30 @@ function takeLayerSnapshot(options) {
         lockMaskData: null
       };
       if (needPixels) {
-        s.data = l.canvas.toDataURL('image/png');
-        if (l.lockMask) s.lockMaskData = l.lockMask.toDataURL('image/png');
+        /* ★ 有效性检查：坏 data 一旦进快照，undoLayerSnapshot 的
+           img.onerror 会触发 resolve(null)，随后 layers.filter(l => l)
+           会直接删掉整个图层（用户看到的"图层被删"）。
+           宁可整次快照失败（catch 打日志，history 不 push），
+           也绝不写入坏数据。 */
+        let data;
+        try {
+          data = l.canvas.toDataURL('image/png');
+        } catch (e) {
+          console.warn('[takeLayerSnapshot] toDataURL 失败', l.name, e);
+          data = '';
+        }
+        if (!data || data.length < 50) {
+          throw new Error('图层像素快照失败：' + l.name);
+        }
+        s.data = data;
+        if (l.lockMask) {
+          try {
+            const lmData = l.lockMask.toDataURL('image/png');
+            s.lockMaskData = (lmData && lmData.length >= 50) ? lmData : null;
+          } catch (e) {
+            s.lockMaskData = null;
+          }
+        }
       }
       return s;
     });
@@ -14844,7 +15396,9 @@ function takeLayerSnapshot(options) {
     if (history.length > 16) history.shift();
     /* 新操作使 redo 链失效 */
     redoStack.length = 0;
-  } catch (err) {}
+  } catch (err) {
+    console.error('[takeLayerSnapshot]', err);
+  }
 }
 
 let undoing = false;
@@ -14855,6 +15409,7 @@ function restoreSnapshot(snap) {
 
   /* 兼容旧格式（直接是字符串 dataURL） */
   if (typeof snap === 'string') {
+    undoing = true;
     const img = new Image();
     img.onload = () => {
       bctx.save();
@@ -14867,7 +15422,9 @@ function restoreSnapshot(snap) {
       const active = getActiveLayer();
       if (active) saveBaseToLayer(active);
       renderView();
+      undoing = false;
     };
+    img.onerror = () => { undoing = false; };
     img.src = snap;
     return;
   }
@@ -14878,7 +15435,18 @@ function restoreSnapshot(snap) {
     return;
   }
 
+  /* ★ 防御：空字符串 / 过短 data 的快照 = 坏数据，
+     直接跳过恢复，避免画布被 clearRect 后变空白。 */
+  if (!snap.data || snap.data.length < 50) {
+    console.warn('[restoreSnapshot] 像素快照数据无效，跳过恢复');
+    return;
+  }
+
   /* 像素级快照 */
+  /* ★ 加 undoing 守卫：图片 onload 是异步的，期间用户快速连按 Ctrl+Z
+     会连续 pop，导致中间状态全部丢失。这里和 layers 分支保持一致，
+     恢复完成前拒绝后续撤销。 */
+  undoing = true;
   const img = new Image();
   img.onload = () => {
     bctx.save();
@@ -14906,7 +15474,9 @@ function restoreSnapshot(snap) {
     }
 
     renderView();
+    undoing = false;
   };
+  img.onerror = () => { undoing = false; };
   img.src = snap.data;
 }
 
@@ -14919,7 +15489,11 @@ function undo() {
   try {
     redoStack.push(captureCurrentState());
     if (redoStack.length > 16) redoStack.shift();
-  } catch (err) {}
+  } catch (err) {
+    /* ★ 不能静默：redoStack 里没有当前状态 = 前进将无法回到"粘贴后"。
+       这里不阻止 undo 本身，只是把问题记录下来方便排查。 */
+    console.error('[undo] 保存当前状态到 redoStack 失败，前进可能失效', err);
+  }
 
   restoreSnapshot(snap);
 }
@@ -14933,7 +15507,9 @@ function redo() {
   try {
     history.push(captureCurrentState());
     if (history.length > 16) history.shift();
-  } catch (err) {}
+  } catch (err) {
+    console.error('[redo] 保存当前状态到 history 失败，撤销可能失效', err);
+  }
 
   restoreSnapshot(snap);
 }
@@ -14976,7 +15552,25 @@ function undoLayerSnapshot(snap) {
           finishLock(null);
         }
       };
-      img.onerror = () => resolve(null);
+      img.onerror = () => {
+        /* ★ data 坏了也要保留图层结构 —— 用空画布替代，
+           绝不能 resolve(null)，否则 Promise.all 之后
+           layers.filter(l => l) 会把这个图层整个删掉。
+           这是"撤销后图层 1/2 凭空消失一部分"的第二处兜底。 */
+        const c = document.createElement('canvas');
+        c.width = W;
+        c.height = H;
+        const ctx = c.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        resolve({
+          id: s.id, name: s.name,
+          canvas: c, ctx,
+          visible: s.visible, locked: s.locked, clip: s.clip,
+          lockPixels: s.lockPixels, blendMode: s.blendMode,
+          opacity: s.opacity ?? 1,
+          lockMask: null
+        });
+      };
       img.src = s.data;
     } else {
       /* 无像素数据：复用现有图层画布，只同步属性 */
@@ -16568,9 +17162,14 @@ lqStyleBox.addEventListener('click', e => {
   applyLqStyle(btn.dataset.v);
 });
 
-document.getElementById('blend').addEventListener('change', e => {
-  cfg.blend = e.target.value;
-});
+const _mainBlendEl = document.getElementById('blend');
+if (_mainBlendEl) {
+  /* ★ 保证 select 值 = cfg.blend，防止初始不同步时下拉框显示空白 */
+  _mainBlendEl.value = cfg.blend || 'source-over';
+  _mainBlendEl.addEventListener('change', e => {
+    cfg.blend = e.target.value;
+  });
+}
 
 document.getElementById('bg').addEventListener('input', e => {
   cfg.bg = e.target.value;
@@ -16662,8 +17261,22 @@ window.addEventListener('keydown', e => {
         'range', 'color', 'checkbox', 'radio',
         'button', 'submit', 'reset', 'file'
       ].includes(_type));
-    /* SELECT 下拉框：拦截所有快捷键（避免和选项选择冲突） */
-    if (_isTextInput || _tag === 'SELECT') {
+    /* SELECT 下拉框：拦截所有快捷键（避免和选项选择冲突）。
+       但空格键例外：用户按空格通常想平移画布 / 复位视图。
+       若焦点卡在 SELECT 上，空格会被浏览器默认用来展开下拉，
+       导致"混合模式什么也没选时被锁定在这里"的现象。
+       这里先主动 blur 掉 SELECT，再放行空格逻辑（下方会处理平移/复位）。 */
+    if (_tag === 'SELECT') {
+      if (e.code === 'Space' || e.key === ' ') {
+        try { _tgt.blur(); } catch (_) {}
+        /* ★ 关键：立刻阻止浏览器对 select 的空格默认行为（打开下拉），
+           即使下面 spaceMode 命中 return 也不会再弹下拉 */
+        e.preventDefault();
+        /* 不 return，继续走空格平移 / 复位逻辑 */
+      } else {
+        return;
+      }
+    } else if (_isTextInput) {
       return;
     }
   }
@@ -16831,12 +17444,8 @@ window.addEventListener('keydown', e => {
     return;
   }
 
-  if (e.altKey && !altPressed) {
-    altPressed = true;
-    altPressUsed = false;
-    altPressTime = performance.now();
-    updateModifierCursor();
-  }
+  /* Alt 键已经在 capture 阶段的监听器里处理过
+     （防止输入框 stopPropagation 拦截），这里不再重复处理。 */
   if ((e.ctrlKey || e.metaKey) && !ctrlPressed) {
     ctrlPressed = true;
     updateModifierCursor();
@@ -17048,14 +17657,22 @@ window.addEventListener('keyup', e => {
     blurBar.style.display = 'none';
     if (backtickHeld && !tfActive) updateLassoCursor(e);
   }
-  if ((e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight' || !e.altKey) && altPressed) {
-    altPressed = false;
-    updateModifierCursor();
+  /* ★ 键盘 Alt 状态复位（keydown 中置 true，这里置 false） */
+if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
+    keyboardAltDown = false;
+}
+
+if ((e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight' || !e.altKey) && altPressed) {
+    const r = exitAltPick();
     if (backtickHeld && !tfActive) updateLassoCursor(e);
-    /* 单击 Alt（未用于吸色、按住 <350ms）→ 弹 / 收拾色器；
-       长按 Alt 只当修饰键用，不弹面板 */
-    const altTapMs = performance.now() - altPressTime;
-    if (!altPressUsed && altTapMs < 350 &&
+
+    /* ★ 轻点判定（三个条件必须同时满足才弹拾色器）：
+       1. 未进入吸色模式（没长按 500ms）
+       2. 颜色没有实际改变（避免 hover 时被误判为吸色）
+       3. 按住时间 < 500ms
+       任一不满足 → 视为吸色操作，不弹拾色器。 */
+    if (!r.wasPickMode && !r.wasUsed && r.tapMs < 500 &&
+        !r.startedWithPickerOpen &&   /* ★ 本次 Alt 起点是拾色器开着 → 不重弹 */
         !tfActive && !cpActive && !cropMode && !backtickHeld) {
       if (qpActive) qpClose();
       else qpOpen(lastClientX, lastClientY);
@@ -17068,7 +17685,9 @@ window.addEventListener('keyup', e => {
 });
 
 window.addEventListener('blur', () => {
-  if (altPressed) { altPressed = false; updateModifierCursor(); }
+  keyboardAltDown = false;   /* ★ 失焦时清掉键盘 Alt 状态 */
+  /* ★ Alt 状态统一清理（Alt+Tab / 切焦点 / 系统菜单抢焦点时防残留） */
+  if (altPressed) exitAltPick();
   altPressUsed = false;
   if (ctrlPressed) { ctrlPressed = false; updateModifierCursor(); }
   blurBar.style.display = 'none';
@@ -17118,7 +17737,17 @@ function syncModifierStatesFromPointer(e) {
   const hasAlt  = !!e.altKey;
   const hasCtrl = !!(e.ctrlKey || e.metaKey);
   let changed = false;
-  if (altPressed  !== hasAlt)  { altPressed  = hasAlt;  changed = true; }
+
+  /* ★ 只要键盘 Alt 还按着，就不认为 Alt 被松开 ——
+     避免 pointer 事件里 e.altKey 偶尔为 false 时误清 altPressed，
+     进而误清 500ms 定时器导致拾色器永不关闭。 */
+  if (hasAlt || keyboardAltDown) {
+    tryEnterAltPick(e.clientX, e.clientY, hasCtrl, e.shiftKey);
+  } else if (altPressed) {
+    exitAltPick();
+    changed = true;
+  }
+
   if (ctrlPressed !== hasCtrl) { ctrlPressed = hasCtrl; changed = true; }
   if (changed) updateModifierCursor();
 }
@@ -17131,6 +17760,7 @@ window.addEventListener('pointerdown',   syncModifierStatesFromPointer, true);
 
 /* 窗口重新获得焦点时清空修饰键状态，防止 Tauri / 浏览器切换焦点后残留 */
 window.addEventListener('focus', () => {
+  keyboardAltDown = false;   /* ★ */
   let changed = false;
   if (altPressed)  { altPressed  = false; changed = true; }
   if (ctrlPressed) { ctrlPressed = false; changed = true; }
@@ -17140,6 +17770,7 @@ window.addEventListener('focus', () => {
 /* 页面重新可见时也清一次 */
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
+  keyboardAltDown = false;   /* ★ */
   let changed = false;
   if (altPressed)  { altPressed  = false; changed = true; }
   if (ctrlPressed) { ctrlPressed = false; changed = true; }
@@ -17431,6 +18062,8 @@ updateBlurBrushPreview();
 const wandToleranceEl = document.getElementById('wandTolerance');
 if (wandToleranceEl) {
   const out = wandToleranceEl.nextElementSibling;
+  wandToleranceEl.value = String(cfg.wandTolerance);
+  if (out) out.textContent = String(cfg.wandTolerance);
   wandToleranceEl.addEventListener('input', () => {
     const v = parseFloat(wandToleranceEl.value);
     cfg.wandTolerance = v;
@@ -17440,6 +18073,8 @@ if (wandToleranceEl) {
 const gToleranceEl = document.getElementById('gTolerance');
 if (gToleranceEl) {
   const out = gToleranceEl.nextElementSibling;
+  gToleranceEl.value = String(cfg.paintTolerance);
+  if (out) out.textContent = String(cfg.paintTolerance);
   gToleranceEl.addEventListener('input', () => {
     const v = parseFloat(gToleranceEl.value);
     cfg.paintTolerance = v;
@@ -17498,6 +18133,34 @@ document.addEventListener('change', (e) => {
   }
 }, true);
 
+/* ★ ESC 关闭下拉后，select 可能仍残留焦点，
+   导致后续字母键被 return 吃掉（"锁定"）。这里兜底失焦。 */
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && t.tagName === 'SELECT' && e.key === 'Escape') {
+    try { t.blur(); } catch (_) {}
+  }
+}, true);
+
+/* ★ select 失焦后如果 value 为空（某些 WebView 的怪行为），
+   恢复到第一个 option，避免"空白锁定"状态 */
+document.addEventListener('blur', e => {
+  const t = e.target;
+  if (!t || t.tagName !== 'SELECT') return;
+  if (!t.value) {
+    const first = t.querySelector('option');
+    if (first) t.value = first.value;
+  }
+}, true);
+/* 点击任何非 SELECT 区域时，主动让当前聚焦的 SELECT 失焦，
+   防止"点开下拉 → 不选 → 点走"后焦点仍卡在 select 上，
+   导致后续空格键被浏览器用来打开下拉框而不是平移画布。 */
+document.addEventListener('pointerdown', e => {
+  const ae = document.activeElement;
+  if (ae && ae.tagName === 'SELECT' && ae !== e.target && !ae.contains(e.target)) {
+    try { ae.blur(); } catch (_) {}
+  }
+}, true);
 let resizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
