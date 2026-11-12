@@ -12758,6 +12758,7 @@ const colorInputEl = document.getElementById('baseColor');
 let altPressed = false;
 let keyboardAltDown = false;   /* ★ 真实键盘 Alt 状态（比 pointer 的 altKey 可靠） */
 let altStartedWithPickerOpen = false;   /* ★ 本次 Alt 按下时拾色器原本是开着的 */
+let altCanPick = false;   /* ★ 本次 Alt 是否允许进入吸色流程（S/T/曲线/裁剪/Ctrl/Shift 时为 false） */
 let ctrlPressed = false;
 let backtickHeld = false;
 let lastSKeydownTime = -1e9;
@@ -13117,14 +13118,11 @@ function tryEnterAltPick(x, y, withCtrl, withShift) {
   /* ★ 判断本次 Alt 是否真的要进入吸色流程 */
   const canPick = !(isSHeld() || tfActive || cpActive || cropMode || selecting
                     || withCtrl || withShift);
+  altCanPick = canPick;
 
-  /* ★ 关键：拾色器已经打开 + 本次是吸色意图 → 立刻关闭，不等 500ms。
+  /* 拾色器已经打开 + 本次是吸色意图 → 立刻关闭（按下瞬间，不等阈值）。
      用户典型场景：短按 Alt 弹出拾色器 → 不选色 → 直接长按 Alt 想吸色。
-     此时拾色器应该瞬间消失，而不是等 500ms 定时器跑完。
-     altStartedWithPickerOpen 记录本次 Alt 的「起点状态」，
-     让 keyup 判断"是否还要弹拾色器"时能区分：
-       · 起点拾色器关着 + 短按无吸色 → 弹（用户单击 Alt 的常规意图）
-       · 起点拾色器开着 + 短按无吸色 → 不弹（用户意图是吸色/关面板） */
+     此时拾色器应该瞬间消失，而不是继续遮挡。 */
   if (canPick && qpActive) {
     qpClose();
     altStartedWithPickerOpen = true;
@@ -13138,41 +13136,58 @@ function tryEnterAltPick(x, y, withCtrl, withShift) {
   altPressTime = performance.now();
   updateModifierCursor();
 
-  if (!canPick) {
-    return;
-  }
+  if (!canPick) return;
 
-  showPickCompare(x, y);
-
+  /* ★ 关键：按下 Alt 后先静默等待，不显示对比框、不预览、不变色。
+     等待期结束后由 enterAltPickMode 一次性完成「显示对比框 + 发光边框
+     + 立即吸一次颜色」，之后才真正进入吸色状态（altPickMode = true）。
+     ── 等待期内（< 250ms）抬起 Alt → wasPickMode = false → keyup 弹拾色器。
+     ── 等待期到点（≥ 250ms） → wasPickMode = true  → 进入吸色，keyup 不弹。
+     这样两种状态严格由"时间"驱动，而不是"按下即吸色、抬起算时间"。 */
   if (altPickTimer) clearTimeout(altPickTimer);
   altPickTimer = setTimeout(() => {
     altPickTimer = null;
-
-    /* ★ 无论 altPressed 状态如何，长按 500ms 后都先关闭拾色器 ——
-       这是用户长按 Alt 的核心诉求（拾色器不该继续遮挡吸色操作）。
-       之前把 qpClose 放在 if(!altPressed) return 之后，
-       一旦 altPressed 被 pointer 事件误清，qpClose 永远执行不到。 */
-    if (qpActive) qpClose();
-
-    /* ★ 如果 altPressed 被误清但键盘 Alt 还按着，恢复它 ——
-       这样后续仍能进入吸色模式（wasPickMode 也保持 true，keyup 不弹拾色器） */
-    if (!altPressed && keyboardAltDown) {
-      altPressed = true;
-    }
-
     if (!altPressed) return;
-
-    altPickMode = true;
-    if (pickCompareEl) pickCompareEl.classList.add('picking-active');
-
-    /* ★ 立即吸一次当前指针位置的颜色 —— 让"按住 Alt 不动也能吸色" */
-    if (typeof lastClientX === 'number' && typeof lastClientY === 'number') {
-      const wx = (lastClientX - viewOffsetX) / viewScale;
-      const wy = (lastClientY - viewOffsetY) / viewScale;
-      pickColorAt(wx, wy);
-    }
-}, 500);
+    enterAltPickMode();
+  }, 250);
 }
+
+/* ★ 进入吸色模式（一次性完成所有「吸色态」的视觉与行为）：
+   ── 触发时机：
+        · altPickTimer 到点（按住 Alt ≥ 250ms，纯等待驱动）
+        · Alt+点击（pointerdown 里主动调用，点击是明确手势，不等阈值）
+   ── 完成内容：
+        · 显示对比框（此刻才记录 pickOldColor = 当前 cfg.baseColor）
+        · 加青色发光边框（picking-active）
+        · 立即吸一次当前位置颜色
+   ── 之后的 pointermove 由 altPickMode 标志驱动实时吸色
+   ── 幂等：已进入则直接返回 */
+function enterAltPickMode() {
+  if (altPickMode) return;
+  if (!altPressed) return;
+  if (!altCanPick) return;
+
+  if (altPickTimer) {
+    clearTimeout(altPickTimer);
+    altPickTimer = null;
+  }
+
+  /* 拾色器如果在（比如用户先点开拾色器再长按 Alt），此时关掉 */
+  if (qpActive) qpClose();
+
+  altPickMode = true;
+
+  const px = (typeof lastClientX === 'number') ? lastClientX : window.innerWidth  / 2;
+  const py = (typeof lastClientY === 'number') ? lastClientY : window.innerHeight / 2;
+
+  showPickCompare(px, py);
+  if (pickCompareEl) pickCompareEl.classList.add('picking-active');
+
+  const wx = (px - viewOffsetX) / viewScale;
+  const wy = (py - viewOffsetY) / viewScale;
+  pickColorAt(wx, wy);
+}
+
 
 /* Alt 松开：统一清理对比框 / 定时器 / 状态。
    返回本次 Alt 的判定结果（供 keyup 判断是否弹拾色器）。 */
@@ -13186,6 +13201,7 @@ function exitAltPick() {
   altPickMode = false;
   altPressUsed = false;
   altStartedWithPickerOpen = false;   /* ★ 会话结束，复位 */
+  altCanPick = false;                 /* ★ 会话结束，复位 */
   if (altPickTimer) { clearTimeout(altPickTimer); altPickTimer = null; }
 
   /* ★ 本次 Alt 未真正吸色（短按预览阶段可能临时改了 input.value），
@@ -14361,15 +14377,19 @@ cvs.addEventListener('pointerdown', e => {
 
   /* 吸色：只按 Alt（不能同时按 Ctrl / Shift / S）
      ── pointerdown 也可能先于 keydown 到达 → 补触发。
-     ── 标记 altPressUsed（避免 keyup 时误弹拾色器）。
-     ── 强制刷新一次颜色（click 位置和 hover 位置可能不同）。 */
+     ── Alt+点击是明确手势：立即进入吸色模式（不等 250ms 阈值），
+        因为点击已表达"要吸这个颜色"的完整意图，无需再等长按判定。
+     ── 纯 Alt 长按（不点击）仍走 250ms 定时器进入吸色。 */
   if (e.altKey && !e.ctrlKey && !e.shiftKey && e.button !== 1 && !sHeld) {
     e.preventDefault();
     tryEnterAltPick(e.clientX, e.clientY, false, false);
-    altPressUsed = true;
+    if (altCanPick) {
+      enterAltPickMode();      /* 立即进入吸色态（若尚未进入） */
+      altPressUsed = true;     /* 标记，keyup 不弹拾色器 */
+      movePickCompare(e.clientX, e.clientY);
+      pickColorAt(evtX(e), evtY(e));
+    }
     try { cvs.setPointerCapture(e.pointerId); } catch (err) {}
-    movePickCompare(e.clientX, e.clientY);
-    pickColorAt(evtX(e), evtY(e));
     return;
   }
 
@@ -14656,16 +14676,13 @@ cvs.addEventListener('pointermove', e => {
 
   /* ★ 按住 Alt hover 吸色（不需要按鼠标键）。
      ── pointer 事件可能先于 keydown 到达 → 用 tryEnterAltPick 补触发。
-     ── < 500ms：只移动对比框，不吸色 → 松手弹拾色器。
-     ── ≥ 500ms：altPickMode = true，实时吸色 → 松手不弹拾色器。 */
+     ── < 250ms（等待期）：什么都不做，让 tryEnterAltPick 静默启动定时器。
+     ── ≥ 250ms（altPickMode = true）：跟随位置、实时吸色、松手不弹拾色器。 */
   if (e.altKey && !e.ctrlKey && !isSHeld() && !e.shiftKey && !selecting) {
     tryEnterAltPick(e.clientX, e.clientY, false, false);
-    movePickCompare(e.clientX, e.clientY);
     if (altPickMode) {
+      movePickCompare(e.clientX, e.clientY);
       pickColorAtThrottled(evtX(e), evtY(e));
-    } else {
-      /* ★ 前 500ms 内也实时预览右格颜色 —— 避免"按住移动时右格卡住" */
-      pickColorPreviewThrottled(evtX(e), evtY(e));
     }
     return;
   }
@@ -17671,7 +17688,7 @@ if ((e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight' || !e.altK
        2. 颜色没有实际改变（避免 hover 时被误判为吸色）
        3. 按住时间 < 500ms
        任一不满足 → 视为吸色操作，不弹拾色器。 */
-    if (!r.wasPickMode && !r.wasUsed && r.tapMs < 500 &&
+    if (!r.wasPickMode && !r.wasUsed && r.tapMs < 250 &&
         !r.startedWithPickerOpen &&   /* ★ 本次 Alt 起点是拾色器开着 → 不重弹 */
         !tfActive && !cpActive && !cropMode && !backtickHeld) {
       if (qpActive) qpClose();
