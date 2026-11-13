@@ -13046,11 +13046,8 @@ function showPickCompare(x, y) {
     pickCompareTimer = null;
   }
 
-  /* ★ 立即预览一次当前位置的颜色 —— 消除 500ms 延迟。
-     只更新对比框右格，不改 cfg.baseColor。 */
-  const wx = (x - viewOffsetX) / viewScale;
-  const wy = (y - viewOffsetY) / viewScale;
-  pickColorAt(wx, wy, true);
+  /* ★ 不做预览：对比框右格保持 = 当前 cfg.baseColor（上面已初始化）。
+     用户点击鼠标时才落地并更新右格。 */
 }
 
 /* 跟随光标（吸色拖动时调用） */
@@ -13183,9 +13180,8 @@ function enterAltPickMode() {
   showPickCompare(px, py);
   if (pickCompareEl) pickCompareEl.classList.add('picking-active');
 
-  const wx = (px - viewOffsetX) / viewScale;
-  const wy = (py - viewOffsetY) / viewScale;
-  pickColorAt(wx, wy);
+  /* ★ 不做预览：进入吸色态只显示对比框 + 发光边框。
+     指针位置的颜色要等用户点击鼠标才落地（pointerdown 里处理）。 */
 }
 
 
@@ -13204,10 +13200,12 @@ function exitAltPick() {
   altCanPick = false;                 /* ★ 会话结束，复位 */
   if (altPickTimer) { clearTimeout(altPickTimer); altPickTimer = null; }
 
-  /* ★ 本次 Alt 未真正吸色（短按预览阶段可能临时改了 input.value），
+  /* ★ 本次 Alt 期间没点击落地（可能只是长按看了一圈颜色但没点确定），
      把左侧大 UI 恢复为 cfg.baseColor 的真实值 ——
-     避免"左 UI 显示预览绿、拾色器却显示原色红"的不一致。 */
-  if (!wasPickMode && !wasUsed && colorInputEl) {
+     避免"左 UI 显示预览绿，但 cfg.baseColor 还是原色红"的不一致。
+     ── 去掉 !wasPickMode 条件：长按进入吸色态但没点击，同样要恢复。
+     ── 只保留 !wasUsed：只要没落地过（wasUsed=false）就恢复。 */
+  if (!wasUsed && colorInputEl) {
     colorInputEl.value = cfg.baseColor;
   }
 
@@ -14681,8 +14679,9 @@ cvs.addEventListener('pointermove', e => {
   if (e.altKey && !e.ctrlKey && !isSHeld() && !e.shiftKey && !selecting) {
     tryEnterAltPick(e.clientX, e.clientY, false, false);
     if (altPickMode) {
+      /* ★ 只移动对比框跟随光标；不预览、不落地。
+         颜色要等用户点击鼠标才更新（pointerdown 里处理）。 */
       movePickCompare(e.clientX, e.clientY);
-      pickColorAtThrottled(evtX(e), evtY(e));
     }
     return;
   }
