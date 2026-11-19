@@ -618,6 +618,49 @@
     background:#14141a;border:1px solid var(--line);border-radius:8px;
     cursor:crosshair;touch-action:none;
   }
+  /* ★ Ctrl+M 三面板：曲线 / HSL / 阈值 */
+  #cpCurvePane, #cpHslPane, #cpThresholdPane {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  #cpCurvePane[hidden], #cpHslPane[hidden], #cpThresholdPane[hidden] {
+    display: none !important;
+  }
+  #cpCurvePane #cpChannels {
+    display: flex; gap: 4px; justify-content: center;
+  }
+  #cpHslPane .cpRow, #cpThresholdPane .cpRow {
+    display: flex; align-items: center; gap: 8px;
+    height: 22px;
+  }
+  #cpHslPane .cpRow > span, #cpThresholdPane .cpRow > span {
+    flex: 0 0 44px; color: var(--dim); font-size: 11px;
+  }
+  #cpHslPane .cpRow > i, #cpThresholdPane .cpRow > i {
+    flex: 0 0 42px; text-align: right; font-style: normal;
+    color: #b9b9c9; font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  #cpHslPane .cpRow input[type=range], #cpThresholdPane .cpRow input[type=range] {
+    flex: 1; min-width: 0;
+    -webkit-appearance: none; appearance: none;
+    height: 3px; border-radius: 3px;
+    background: rgba(255,255,255,.14);
+    outline: none; cursor: pointer;
+  }
+  #cpHslPane .cpRow input[type=range]::-webkit-slider-thumb,
+  #cpThresholdPane .cpRow input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: #e9e9f0; border: none;
+    cursor: pointer; box-shadow: 0 0 0 3px rgba(110,231,255,.18);
+  }
+  #cpHslPane .cpRow input[type=range]::-moz-range-thumb,
+  #cpThresholdPane .cpRow input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #e9e9f0; border: none; cursor: pointer;
+  }
+  #cpThWeights {
+    display: flex; flex-direction: column; gap: 6px;
+  }
   #curvePanel .cpActions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
   #curvePanel .cpActions button{
     padding:7px 0;border-radius:9px;border:1px solid var(--line);
@@ -628,6 +671,70 @@
   #curvePanel .cpActions #cpApply{
     background:linear-gradient(135deg,rgba(110,231,255,.25),rgba(167,139,250,.25));
     border-color:rgba(110,231,255,.55);color:#fff;
+  }
+
+  /* ★ A 键：加深 / 减淡工具面板 */
+  #dodgeBurnPanel{
+    position:fixed;top:18px;left:50%;transform:translateX(-50%);
+    display:none;flex-direction:column;gap:8px;
+    padding:10px 14px;border-radius:12px;
+    background:var(--panel);
+    backdrop-filter:blur(14px) saturate(1.4);
+    -webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border:1px solid var(--line);
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+    z-index:23;user-select:none;font-size:12px;
+  }
+  #dodgeBurnPanel .dbRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  #dodgeBurnPanel .dbRow > span{color:#c9c9d9;white-space:nowrap;flex:0 0 auto;}
+  #dodgeBurnPanel .dbRow > i{
+    color:#b9b9c9;font-style:normal;min-width:36px;text-align:right;
+    font-variant-numeric:tabular-nums;flex:0 0 auto;
+  }
+  /* 加深 / 减淡切换（分段式按钮） */
+  #dodgeBurnPanel .dbModes{
+    display:flex;border-radius:9px;overflow:hidden;
+    border:1px solid var(--line);flex:0 0 auto;
+  }
+  #dodgeBurnPanel .dbModes button{
+    padding:5px 14px;border:none;background:rgba(255,255,255,.04);
+    color:var(--dim);font-size:11.5px;cursor:pointer;font-family:inherit;
+    transition:.15s;
+  }
+  #dodgeBurnPanel .dbModes button:hover{background:rgba(255,255,255,.1);color:#fff}
+  #dodgeBurnPanel .dbModes button.on{
+    background:linear-gradient(135deg,rgba(110,231,255,.30),rgba(167,139,250,.30));
+    color:#fff;
+  }
+  /* 色调切换（亮调 / 中间调 / 暗调） */
+  #dodgeBurnPanel .dbTones{
+    display:flex;gap:4px;flex:0 0 auto;
+  }
+  #dodgeBurnPanel .dbTones button{
+    padding:4px 9px;border-radius:7px;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);
+    color:var(--dim);font-size:11px;cursor:pointer;font-family:inherit;
+    transition:.15s;
+  }
+  #dodgeBurnPanel .dbTones button:hover{background:rgba(255,255,255,.1);color:#fff}
+  #dodgeBurnPanel .dbTones button.on{
+    background:linear-gradient(135deg,rgba(110,231,255,.22),rgba(167,139,250,.22));
+    border-color:rgba(110,231,255,.55);color:#fff;
+  }
+  /* 强度 / 大小 滑杆 */
+  #dodgeBurnPanel input[type=range]{
+    width:160px;-webkit-appearance:none;appearance:none;
+    height:3px;border-radius:3px;background:rgba(255,255,255,.14);
+    outline:none;cursor:pointer;flex:0 1 auto;
+  }
+  #dodgeBurnPanel input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:#e9e9f0;border:none;cursor:pointer;
+    box-shadow:0 0 0 3px rgba(110,231,255,.25);
+  }
+  #dodgeBurnPanel input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;
+    background:#e9e9f0;border:none;cursor:pointer;
   }
 
     #cropDialog{
@@ -1051,17 +1158,62 @@
   </label>
 </div>
 
+<div id="dodgeBurnPanel">
+  <div class="dbRow">
+    <span>模式</span>
+    <div class="dbModes" id="dbModes">
+      <button data-v="burn" class="on">加深</button>
+      <button data-v="dodge">减淡</button>
+    </div>
+    <span style="margin-left:14px">色调</span>
+    <div class="dbTones" id="dbTones">
+      <button data-v="shadows">亮调</button>
+      <button data-v="midtones" class="on">中间调</button>
+      <button data-v="highlights">暗调</button>
+    </div>
+  </div>
+  <div class="dbRow">
+    <span>强度</span>
+    <input id="dbStrength" type="range" min="1" max="100" value="30">
+    <i>30%</i>
+    <span style="margin-left:14px">大小</span>
+    <input id="dbSize" type="range" min="10" max="240" value="60">
+    <i>60</i>
+  </div>
+</div>
+
 <div id="curvePanel" hidden>
   <div class="cpHead">
-    <span class="cpTitle">曲线</span>
+    <span class="cpTitle">调整</span>
+    <div class="cpChannels" id="cpTabs">
+      <button data-tab="curve" class="on">曲线</button>
+      <button data-tab="hsl">HSL</button>
+      <button data-tab="threshold">阈值</button>
+    </div>
+  </div>
+
+  <div id="cpCurvePane">
     <div class="cpChannels" id="cpChannels">
       <button data-c="rgb" class="on">RGB</button>
       <button data-c="r">R</button>
       <button data-c="g">G</button>
       <button data-c="b">B</button>
     </div>
+    <canvas id="cpCanvas" width="256" height="256"></canvas>
   </div>
-  <canvas id="cpCanvas" width="256" height="256"></canvas>
+
+  <div id="cpHslPane" hidden>
+    <div class="cpRow"><span>色相</span><input id="cpHue" type="range" min="-180" max="180" value="0" step="1"><i>0°</i></div>
+    <div class="cpRow"><span>饱和度</span><input id="cpSat" type="range" min="-100" max="100" value="0" step="1"><i>0%</i></div>
+    <div class="cpRow"><span>明度</span><input id="cpLum" type="range" min="-100" max="100" value="0" step="1"><i>0%</i></div>
+    <div class="cpRow"><span>对比度</span><input id="cpContrast" type="range" min="-100" max="100" value="0" step="1"><i>0</i></div>
+  </div>
+
+  <div id="cpThresholdPane" hidden>
+    <div class="cpRow"><span>色阶数</span><input id="cpThLevels" type="range" min="2" max="4" value="2" step="1"><i>2</i></div>
+    <div id="cpThWeights"></div>
+  </div>
+
   <div class="cpActions">
     <button id="cpReset">重置</button>
     <button id="cpCancel">取消</button>
@@ -1479,6 +1631,12 @@ bEraserWidth: 16,
   wandContiguous: true,    // 魔棒：连续（true = 只选接壤区域；false = 全画布同色）
   pressureGain: 0,   // 压力增益（对数空间），0 表示不改变
   lqMode: 'push', lqStyle: 'smooth', lqSize: 80, lqStrength: 0.5,
+  /* ★ A 键加深 / 减淡工具（默认喷枪、软笔） */
+  dodgeBurnMode: 'burn',        // 'burn' 加深 | 'dodge' 减淡
+  dodgeBurnTone: 'midtones',    // 'shadows' 亮调 | 'midtones' 中间调 | 'highlights' 暗调
+  dodgeBurnStrength: 0.30,      // 强度 0~1（滑杆 1~100 → /100）
+  dodgeBurnSize: 60,            // 笔刷大小 CSS 像素
+  dodgeBurnHardness: 0.30,      // 笔刷硬度（喷枪软笔默认 0.3）
   blurSize: 80,
   blurStrength: 0.5,
   blurMode: 'smudge',      // Shift 模式：'smudge'(涂抹) | 'blend'(过渡)
@@ -5610,6 +5768,183 @@ function buildDragMask(cssX, cssY, shape) {
 }
 
 /* =========================================================
+   A 键：加深 / 减淡（喷枪 + 软笔）
+   =========================================================
+   算法：
+   ── 每次 dab 局部 getImageData，对笔刷范围内像素：
+      · 计算距离 → 笔刷 alpha（软边余弦衰减）
+      · 计算像素亮度 L（0~1）→ 色调权重 tw
+         - 亮调（shadows）   ：(1-L)²   → L=0 时最大
+         - 中间调（midtones） ：4L(1-L)  → L=0.5 时最大
+         - 暗调（highlights） ：L²       → L=1 时最大
+      · delta = strength × brushAlpha × tw × timeFactor
+      · 加深（burn）：RGB ×= (1 - delta)  朝黑靠近
+      · 减淡（dodge）：RGB += (255-RGB) × delta  朝白靠近
+   ── 喷枪：按住鼠标时通过 rAF 持续 dab，每次按时间差累积强度
+   ── 喷枪频率基准 30Hz（60fps 下每帧 timeFactor ≈ 0.55）
+   ========================================================= */
+function applyDodgeBurnDab(cssX, cssY, timeFactor) {
+  const active = getActiveLayer();
+  if (!active || !active.visible || active.locked) return;
+
+  const W = baseCvs.width, H = baseCvs.height;
+  const cxP = cssX * dpr;
+  const cyP = cssY * dpr;
+  const rP  = Math.max(4, cfg.dodgeBurnSize * dpr * 0.5);
+  const r2  = rP * rP;
+
+  const bx0 = Math.max(0, Math.floor(cxP - rP));
+  const by0 = Math.max(0, Math.floor(cyP - rP));
+  const bx1 = Math.min(W, Math.ceil(cxP + rP));
+  const by1 = Math.min(H, Math.ceil(cyP + rP));
+  if (bx1 <= bx0 || by1 <= by0) return;
+
+  const pw = bx1 - bx0;
+  const ph = by1 - by0;
+
+  let img;
+  try { img = bctx.getImageData(bx0, by0, pw, ph); } catch (e) { return; }
+  const d = img.data;
+
+  const isBurn   = (cfg.dodgeBurnMode === 'burn');
+  const tone     = cfg.dodgeBurnTone;
+  const strength = Math.max(0.01, Math.min(1, cfg.dodgeBurnStrength));
+  const hard     = Math.max(0, Math.min(1, cfg.dodgeBurnHardness));
+  const tf       = Math.max(0.2, Math.min(3, timeFactor || 1));
+
+  /* 每帧基础 delta：strength 30% × 0.04 = 0.012/帧；
+     tf≈0.55 时实际 ≈ 0.0067/帧，60fps 持续 1 秒约 0.4（30% 提亮），手感合适 */
+  const baseDelta = strength * 0.04 * tf;
+
+  /* 选区 / 锁定像素遮罩 */
+  let maskData = null;
+  const activeMask = getActiveMaskCvs();
+  if (activeMask) {
+    try { maskData = activeMask.getContext('2d').getImageData(bx0, by0, pw, ph).data; } catch (e) {}
+  }
+  let lockData = null;
+  if (active && active.lockPixels && active.lockMask) {
+    try { lockData = active.lockMask.getContext('2d').getImageData(bx0, by0, pw, ph).data; } catch (e) {}
+  }
+
+  for (let y = 0; y < ph; y++) {
+    const gy = by0 + y;
+    const dy = gy - cyP;
+    const rowBase = y * pw;
+
+    for (let x = 0; x < pw; x++) {
+      const gx = bx0 + x;
+      const dx = gx - cxP;
+      const d2 = dx * dx + dy * dy;
+      if (d2 > r2) continue;
+
+      const di = (rowBase + x) * 4;
+
+      /* 选区 / 锁定像素 */
+      let mAlpha = 1;
+      if (maskData) mAlpha *= maskData[di + 3] / 255;
+      if (lockData) mAlpha *= lockData[di + 3] / 255;
+      if (mAlpha < 0.01) continue;
+
+      /* 笔刷软边 alpha */
+      const dist = Math.sqrt(d2);
+      const t = dist / rP;
+      let ba;
+      if (t <= hard) ba = 1;
+      else {
+        const tt = (t - hard) / Math.max(1e-6, 1 - hard);
+        ba = 0.5 * (1 + Math.cos(Math.PI * tt));
+      }
+      if (ba < 0.01) continue;
+
+      const r = d[di], g = d[di + 1], b = d[di + 2], a = d[di + 3];
+      if (a < 3) continue;
+
+      /* 亮度 L ∈ [0,1] */
+      const L = (r * 0.299 + g * 0.587 + b * 0.114) * (1 / 255);
+
+      /* 色调权重 */
+      let tw;
+      if (tone === 'shadows') {
+        const om = 1 - L;
+        tw = om * om;
+      } else if (tone === 'highlights') {
+        tw = L * L;
+      } else {
+        tw = 4 * L * (1 - L);
+      }
+
+      const delta = baseDelta * ba * tw * mAlpha;
+      if (delta < 0.0001) continue;
+
+      let nr, ng, nb;
+      if (isBurn) {
+        const k = 1 - delta;
+        nr = r * k;
+        ng = g * k;
+        nb = b * k;
+      } else {
+        nr = r + (255 - r) * delta;
+        ng = g + (255 - g) * delta;
+        nb = b + (255 - b) * delta;
+      }
+
+      d[di]     = nr;
+      d[di + 1] = ng;
+      d[di + 2] = nb;
+    }
+  }
+
+  bctx.putImageData(img, bx0, by0);
+  renderView();
+}
+
+/* 喷枪 rAF：按住鼠标时持续 dab（每次按帧间隔累积强度） */
+function dbAirbrushTick() {
+  if (!dodgeBurnActive) { dbRafId = null; return; }
+  const now = performance.now();
+  const dt = now - dbLastTickTime;
+  dbLastTickTime = now;
+  if (dt > 0 && dbHasPointer) {
+    /* 30Hz 基准：60fps 下 dt=16.67 → factor=0.55；掉帧时系数变大 */
+    const factor = Math.max(0.2, Math.min(3, dt / 30));
+    applyDodgeBurnDab(dbCursorX, dbCursorY, factor);
+  }
+  dbRafId = requestAnimationFrame(dbAirbrushTick);
+}
+
+function startDodgeBurn(cssX, cssY, pointerId) {
+  dodgeBurnActive = true;
+  dodgeBurnPointerId = pointerId;
+  try { cvs.setPointerCapture(pointerId); } catch (err) {}
+
+  dbCursorX = cssX;
+  dbCursorY = cssY;
+  dbHasPointer = true;
+  dbLastTickTime = performance.now();
+
+  /* 立即 dab 一次（用户点击即见效果） */
+  applyDodgeBurnDab(cssX, cssY, 1);
+
+  if (dbRafId == null) {
+    dbRafId = requestAnimationFrame(dbAirbrushTick);
+  }
+}
+
+function endDodgeBurn() {
+  if (!dodgeBurnActive) return;
+  dodgeBurnActive = false;
+  dodgeBurnPointerId = null;
+  dbHasPointer = false;
+  if (dbRafId != null) {
+    cancelAnimationFrame(dbRafId);
+    dbRafId = null;
+  }
+  invalidateSceneCache();
+  renderView();
+}
+
+/* =========================================================
    圆形 / 自定义笔刷：涂抹推拉算法
    ========================================================= */
 let circleSmoothActive = false;
@@ -6322,24 +6657,36 @@ function cpRender() {
   }
 }
 
-function cpApply() {
+/* =========================================================
+   Ctrl+M 三面板：曲线 / HSL / 阈值
+   ========================================================= */
+let cpTab = 'curve';           // 'curve' | 'hsl' | 'threshold'
+
+/* HSL 参数 */
+let cpHueShift = 0;    // -180 ~ 180 度
+let cpSatScale = 0;    // -100 ~ 100（相对百分比，正=增饱和，负=减饱和）
+let cpLumShift = 0;    // -100 ~ 100（亮度偏移百分比）
+let cpContrast = 0;    // -100 ~ 100（对比度）
+
+/* 阈值参数 */
+let cpThLevels = 2;                 // 2 ~ 4
+let cpThWeights = [10, 10, 10, 10]; // 每色阶比重（归一化后使用）
+
+function cpGetOrig() {
   const W = baseCvs.width, H = baseCvs.height;
+  if (cpOrigData && cpOrigData.length === W * H * 4) return cpOrigData;
+  const srcCtx = cpSnapshot ? cpSnapshot.getContext('2d') : bctx;
+  try {
+    return srcCtx.getImageData(0, 0, W, H).data;
+  } catch (e) { return null; }
+}
 
-  /* 原图像素在 cpOpen 时已缓存，直接拷贝一份用作本次处理；
-     若缓存丢失（异常情况），从 cpSnapshot 现读一次 */
-  let orig;
-  if (cpOrigData && cpOrigData.length === W * H * 4) {
-    orig = cpOrigData;
-  } else {
-    const srcCtx = cpSnapshot ? cpSnapshot.getContext('2d') : bctx;
-    try {
-      orig = srcCtx.getImageData(0, 0, W, H).data;
-    } catch (e) {
-      return;
-    }
-  }
+/* ★ 曲线应用（原 cpApply 改名） */
+function cpApplyCurve() {
+  const W = baseCvs.width, H = baseCvs.height;
+  const orig = cpGetOrig();
+  if (!orig) return;
 
-  /* 拷贝到 ImageData（原地处理，不污染缓存） */
   const img = new ImageData(new Uint8ClampedArray(orig), W, H);
   const d = img.data;
 
@@ -6348,12 +6695,6 @@ function cpApply() {
   const lutG = cpBuildLUT(cpCurves.g);
   const lutB = cpBuildLUT(cpCurves.b);
 
-  /* ★ 关键修复：有选区时只对选区内像素应用曲线，边缘按 mask alpha 混合。
-     ── 原代码直接对全画布应用 → 选区外也被改。
-     ── 现在用 mask 的 alpha 通道：
-        · alpha=255（完全在选区内）→ 完全应用曲线
-        · alpha=0  （完全在选区外）→ 保留原始像素（跳过）
-        · 0<alpha<255（选区边缘）→ 按 alpha 比例混合 */
   if (cpMaskAlpha && cpMaskAlpha.length === W * H) {
     const total = W * H;
     for (let i = 0; i < total; i++) {
@@ -6365,9 +6706,7 @@ function cpApply() {
       const ng = lutG[lutRgb[g]];
       const nb = lutB[lutRgb[b]];
       if (a === 255) {
-        d[o]     = nr;
-        d[o + 1] = ng;
-        d[o + 2] = nb;
+        d[o] = nr; d[o + 1] = ng; d[o + 2] = nb;
       } else {
         const t = a / 255;
         d[o]     = nr * t + r * (1 - t);
@@ -6376,7 +6715,6 @@ function cpApply() {
       }
     }
   } else {
-    /* 无选区：全画布应用 */
     for (let i = 0; i < d.length; i += 4) {
       d[i]     = lutR[lutRgb[d[i]]];
       d[i + 1] = lutG[lutRgb[d[i + 1]]];
@@ -6384,18 +6722,246 @@ function cpApply() {
     }
   }
 
-  /* 每次应用曲线前抓快照，应用后用遮罩还原锁区外的像素 */
   const lockSnap = captureLockMaskSnapshot();
-
   bctx.putImageData(img, 0, 0);
-
   restoreOutsideLockMask(lockSnap);
   renderView();
+}
+
+/* ★ HSL 应用（性能优化版）
+   ── hue2rgb 内联到主循环（消除每像素闭包创建 —— 原代码每像素 new 一个
+      hue2rgb 函数对象，7M 像素 = 7M 次闭包创建，是最大的性能杀手）
+   ── 复用 cpHslWork buffer，避免每次 new Uint8ClampedArray（130MB）
+   ── 三通道 max/min 用条件判断替代 Math.max/max 展开
+   ── 1/255 常量预乘，避免每像素除法
+   ── 灰度情况（s=0）三通道一次算，避免三次重复分支 */
+let cpHslWork = null;
+let cpHslRaf = null;
+
+function cpApplyHSL() {
+  const W = baseCvs.width, H = baseCvs.height;
+  const orig = cpGetOrig();
+  if (!orig) return;
+
+  const total = W * H;
+  const n = total * 4;
+
+  /* ★ 复用 work buffer */
+  if (!cpHslWork || cpHslWork.length !== n) {
+    cpHslWork = new Uint8ClampedArray(n);
+  }
+  cpHslWork.set(orig);
+  const d = cpHslWork;
+
+  const hueOff = cpHueShift / 360;
+  const satMul = 1 + cpSatScale / 100;
+  const contrastMul = 1 + cpContrast / 100;
+  const hasMask = cpMaskAlpha && cpMaskAlpha.length === total;
+  const mask = hasMask ? cpMaskAlpha : null;
+  const LUM_OFF = cpLumShift / 200;
+
+  for (let i = 0; i < total; i++) {
+    const o = i * 4;
+    const r0 = d[o], g0 = d[o + 1], b0 = d[o + 2];
+
+    let maskA = 255;
+    if (mask) {
+      maskA = mask[i];
+      if (maskA === 0) continue;
+    }
+
+    /* --- RGB → HSL（内联，避免 Math.max/min 展开） --- */
+    const rn = r0 * 0.00392157;   // /255
+    const gn = g0 * 0.00392157;
+    const bn = b0 * 0.00392157;
+
+    let max, min;
+    if (rn >= gn) {
+      if (rn >= bn) { max = rn; min = gn < bn ? gn : bn; }
+      else          { max = bn; min = rn < gn ? rn : gn; }
+    } else {
+      if (gn >= bn) { max = gn; min = rn < bn ? rn : bn; }
+      else          { max = bn; min = gn < rn ? gn : rn; }
+    }
+
+    const l0 = (max + min) * 0.5;
+    const chroma = max - min;
+
+    let h = 0, s = 0;
+    if (chroma > 0.000001) {
+      s = l0 > 0.5 ? chroma / (2 - max - min) : chroma / (max + min);
+      if (max === rn)      h = ((gn - bn) / chroma + (gn < bn ? 6 : 0)) * 0.1666667;
+      else if (max === gn) h = ((bn - rn) / chroma + 2) * 0.1666667;
+      else                 h = ((rn - gn) / chroma + 4) * 0.1666667;
+    }
+
+    /* --- 应用调整 --- */
+    h = h + hueOff;
+    h = h - Math.floor(h);        // 归一到 [0,1)，避免 % 的负值处理
+    s = s * satMul;
+    if (s < 0) s = 0; else if (s > 1) s = 1;
+    let nl = (l0 + LUM_OFF - 0.5) * contrastMul + 0.5;
+    if (nl < 0) nl = 0; else if (nl > 1) nl = 1;
+
+    /* --- HSL → RGB（内联 hue2rgb） --- */
+    let nr, ng, nb;
+    if (s === 0) {
+      const v = (nl * 255 + 0.5) | 0;
+      nr = v; ng = v; nb = v;
+    } else {
+      const q = nl < 0.5 ? nl * (1 + s) : nl + s - nl * s;
+      const p = 2 * nl - q;
+      const dqp = q - p;   // (q-p) 复用
+
+      /* R 通道 */
+      let t = h + 0.33333333;
+      if (t >= 1) t -= 1;
+      if (t < 0.16666667)      nr = (p + dqp * 6 * t) * 255 + 0.5;
+      else if (t < 0.5)        nr = q * 255 + 0.5;
+      else if (t < 0.66666667) nr = (p + dqp * (0.66666667 - t) * 6) * 255 + 0.5;
+      else                     nr = p * 255 + 0.5;
+      nr = nr | 0;
+
+      /* G 通道 */
+      t = h;
+      if (t < 0.16666667)      ng = (p + dqp * 6 * t) * 255 + 0.5;
+      else if (t < 0.5)        ng = q * 255 + 0.5;
+      else if (t < 0.66666667) ng = (p + dqp * (0.66666667 - t) * 6) * 255 + 0.5;
+      else                     ng = p * 255 + 0.5;
+      ng = ng | 0;
+
+      /* B 通道 */
+      t = h - 0.33333333;
+      if (t < 0) t += 1;
+      if (t < 0.16666667)      nb = (p + dqp * 6 * t) * 255 + 0.5;
+      else if (t < 0.5)        nb = q * 255 + 0.5;
+      else if (t < 0.66666667) nb = (p + dqp * (0.66666667 - t) * 6) * 255 + 0.5;
+      else                     nb = p * 255 + 0.5;
+      nb = nb | 0;
+    }
+
+    /* --- 选区边缘混合 --- */
+    if (maskA < 255) {
+      const tt = maskA * 0.00392157;
+      d[o]     = nr  * tt + r0 * (1 - tt);
+      d[o + 1] = ng  * tt + g0 * (1 - tt);
+      d[o + 2] = nb  * tt + b0 * (1 - tt);
+    } else {
+      d[o]     = nr;
+      d[o + 1] = ng;
+      d[o + 2] = nb;
+    }
+  }
+
+  const lockSnap = captureLockMaskSnapshot();
+  const img = new ImageData(d, W, H);
+  bctx.putImageData(img, 0, 0);
+  restoreOutsideLockMask(lockSnap);
+  renderView();
+}
+
+/* ★ rAF 节流版：拖动滑杆用（每帧最多触发一次） */
+function cpScheduleHSL() {
+  if (cpHslRaf) return;
+  cpHslRaf = requestAnimationFrame(() => {
+    cpHslRaf = null;
+    if (cpActive) cpApplyHSL();
+  });
+}
+
+/* ★ 阈值应用 */
+function cpApplyThreshold() {
+  const W = baseCvs.width, H = baseCvs.height;
+  const orig = cpGetOrig();
+  if (!orig) return;
+
+  const img = new ImageData(new Uint8ClampedArray(orig), W, H);
+  const d = img.data;
+
+  const n = cpThLevels;
+  const weights = cpThWeights.slice(0, n);
+  const sumW = weights.reduce((a, b) => a + b, 0) || 1;
+  const ws = weights.map(w => w / sumW);
+
+  const ths = [];
+  let acc = 0;
+  for (let i = 0; i < n - 1; i++) {
+    acc += ws[i];
+    ths.push(acc);
+  }
+
+  const reps = [];
+  for (let i = 0; i < n; i++) {
+    reps.push(Math.round((i / (n - 1)) * 255));
+  }
+
+  const total = W * H;
+  if (cpMaskAlpha && cpMaskAlpha.length === W * H) {
+    for (let i = 0; i < total; i++) {
+      const a = cpMaskAlpha[i];
+      if (a === 0) continue;
+      const o = i * 4;
+      const r = d[o], g = d[o + 1], b = d[o + 2];
+      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+      let level = n - 1;
+      for (let k = 0; k < ths.length; k++) {
+        if (lum < ths[k]) { level = k; break; }
+      }
+      const v = reps[level];
+      if (a === 255) {
+        d[o] = v; d[o + 1] = v; d[o + 2] = v;
+      } else {
+        const t = a / 255;
+        d[o]     = v * t + r * (1 - t);
+        d[o + 1] = v * t + g * (1 - t);
+        d[o + 2] = v * t + b * (1 - t);
+      }
+    }
+  } else {
+    for (let i = 0; i < total; i++) {
+      const o = i * 4;
+      const r = d[o], g = d[o + 1], b = d[o + 2];
+      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+      let level = n - 1;
+      for (let k = 0; k < ths.length; k++) {
+        if (lum < ths[k]) { level = k; break; }
+      }
+      const v = reps[level];
+      d[o] = v; d[o + 1] = v; d[o + 2] = v;
+    }
+  }
+
+  const lockSnap = captureLockMaskSnapshot();
+  bctx.putImageData(img, 0, 0);
+  restoreOutsideLockMask(lockSnap);
+  renderView();
+}
+
+/* ★ 阈值 rAF 节流 */
+let cpThRaf = null;
+function cpScheduleThreshold() {
+  if (cpThRaf) return;
+  cpThRaf = requestAnimationFrame(() => {
+    cpThRaf = null;
+    if (cpActive) cpApplyThreshold();
+  });
+}
+
+/* ★ 路由入口：cpApply 按当前 tab 分发 */
+function cpApply() {
+  if (cpTab === 'curve') cpApplyCurve();
+  else if (cpTab === 'hsl') cpApplyHSL();
+  else if (cpTab === 'threshold') cpApplyThreshold();
 }
 
 function cpSetActive(on) {
   cpActive = on;
   cpPanel.hidden = !on;
+  /* ★ 关闭面板时取消挂起的 rAF，避免延时回调在 cpOrigData 清空后跑到 */
+  if (!on) {
+    if (cpHslRaf) { cancelAnimationFrame(cpHslRaf); cpHslRaf = null; }
+    if (cpThRaf)  { cancelAnimationFrame(cpThRaf);  cpThRaf  = null; }
+  }
   if (on) {
     if (!cpPanel.dataset.positioned) {
       const w = cpPanel.offsetWidth  || 300;
@@ -6409,12 +6975,81 @@ function cpSetActive(on) {
 }
 
 function cpReset() {
+  /* 曲线 */
   cpCurves.rgb = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
   cpCurves.r = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
   cpCurves.g = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
   cpCurves.b = [{ x: 0, y: 0 }, { x: 255, y: 255 }];
   cpRender();
+
+  /* HSL */
+  cpHueShift = 0;
+  cpSatScale = 0;
+  cpLumShift = 0;
+  cpContrast = 0;
+  updateCpRangeLabel('cpHue', cpHueShift + '°', 0);
+  updateCpRangeLabel('cpSat', cpSatScale + '%', 0);
+  updateCpRangeLabel('cpLum', cpLumShift + '%', 0);
+  updateCpRangeLabel('cpContrast', String(cpContrast), 0);
+
+  /* 阈值 */
+  cpThLevels = 2;
+  cpThWeights = [10, 10, 10, 10];
+  updateCpRangeLabel('cpThLevels', '2', 2);
+  rebuildThWeightsUI();
+
+  /* 应用当前 tab */
   cpApply();
+}
+
+/* 辅助：把 range 的 label 同步 */
+function updateCpRangeLabel(id, displayText, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = String(value);
+  const row = el.closest('.cpRow');
+  const out = row ? row.querySelector('i') : null;
+  if (out) out.textContent = displayText;
+}
+
+/* 辅助：重建阈值比重 UI */
+function rebuildThWeightsUI() {
+  const container = document.getElementById('cpThWeights');
+  if (!container) return;
+  container.innerHTML = '';
+  for (let i = 0; i < cpThLevels; i++) {
+    const row = document.createElement('div');
+    row.className = 'cpRow';
+
+    const label = document.createElement('span');
+    label.textContent = '色阶 ' + (i + 1);
+
+    const range = document.createElement('input');
+    range.type = 'range';
+    range.min = '1';
+    range.max = '100';
+    range.step = '1';
+    range.value = String(cpThWeights[i] || 10);
+    range.dataset.idx = i;
+
+    const out = document.createElement('i');
+    out.textContent = String(cpThWeights[i] || 10);
+
+    range.addEventListener('input', () => {
+      const v = parseFloat(range.value);
+      cpThWeights[i] = v;
+      out.textContent = String(v);
+      if (cpTab === 'threshold') cpScheduleThreshold();
+    });
+    range.addEventListener('change', () => {
+      if (cpTab === 'threshold') cpApplyThreshold();
+    });
+
+    row.appendChild(label);
+    row.appendChild(range);
+    row.appendChild(out);
+    container.appendChild(row);
+  }
 }
 
 function cpOpen() {
@@ -6463,6 +7098,30 @@ function cpOpen() {
   cpChannel = 'rgb';
   cpChannels.querySelectorAll('button').forEach(b =>
     b.classList.toggle('on', b.dataset.c === 'rgb'));
+
+  /* ★ 重置 tab 状态为曲线 */
+  cpTab = 'curve';
+  cpTabs.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.tab === 'curve'));
+  cpCurvePane.hidden = false;
+  cpHslPane.hidden = true;
+  cpThresholdPane.hidden = true;
+
+  /* ★ 重置 HSL 参数 */
+  cpHueShift = 0;
+  cpSatScale = 0;
+  cpLumShift = 0;
+  cpContrast = 0;
+  updateCpRangeLabel('cpHue', '0°', 0);
+  updateCpRangeLabel('cpSat', '0%', 0);
+  updateCpRangeLabel('cpLum', '0%', 0);
+  updateCpRangeLabel('cpContrast', '0', 0);
+
+  /* ★ 重置阈值参数 */
+  cpThLevels = 2;
+  cpThWeights = [10, 10, 10, 10];
+  updateCpRangeLabel('cpThLevels', '2', 2);
+  rebuildThWeightsUI();
 
   cpSetActive(true);
 }
@@ -6668,6 +7327,76 @@ cpPanel.addEventListener('pointercancel', cpEndPanelDrag);
 document.getElementById('cpReset').addEventListener('click', cpReset);
 document.getElementById('cpCancel').addEventListener('click', cpCancel);
 document.getElementById('cpApply').addEventListener('click', cpConfirm);
+
+/* =========================================================
+   Ctrl+M 三面板：tab 切换 + HSL / 阈值事件绑定
+   ========================================================= */
+const cpTabs        = document.getElementById('cpTabs');
+const cpCurvePane   = document.getElementById('cpCurvePane');
+const cpHslPane     = document.getElementById('cpHslPane');
+const cpThresholdPane = document.getElementById('cpThresholdPane');
+
+cpTabs.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const tab = btn.dataset.tab;
+  if (!tab || tab === cpTab) return;
+  cpTab = tab;
+  cpTabs.querySelectorAll('button').forEach(b =>
+    b.classList.toggle('on', b.dataset.tab === cpTab));
+  cpCurvePane.hidden     = (cpTab !== 'curve');
+  cpHslPane.hidden       = (cpTab !== 'hsl');
+  cpThresholdPane.hidden = (cpTab !== 'threshold');
+
+  if (cpTab === 'curve') cpRender();
+  /* 切换 tab 后立即重新应用（各 tab 的效果互相独立地叠加在原始图上） */
+  cpApply();
+});
+
+/* HSL 滑块 */
+(function bindHSL() {
+  const map = [
+    ['cpHue',      v => { cpHueShift = v;  return v + '°'; }],
+    ['cpSat',      v => { cpSatScale = v;  return v + '%'; }],
+    ['cpLum',      v => { cpLumShift = v;  return v + '%'; }],
+    ['cpContrast', v => { cpContrast = v;  return String(v); }]
+  ];
+  for (const [id, apply] of map) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      const v = parseFloat(el.value);
+      const label = apply(v);
+      const row = el.closest('.cpRow');
+      const out = row ? row.querySelector('i') : null;
+      if (out) out.textContent = label;
+      /* ★ 改用 rAF 节流：60+ 次/秒降到 ≤60 次/秒，且同一帧内多次合并 */
+      if (cpTab === 'hsl') cpScheduleHSL();
+    });
+    /* ★ 松手后立即全分辨率应用一次（确保最终结果精确） */
+    el.addEventListener('change', () => {
+      if (cpTab === 'hsl') cpApplyHSL();
+    });
+  }
+})();
+
+/* 阈值色阶数滑块 */
+(function bindThLevels() {
+  const el = document.getElementById('cpThLevels');
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const v = parseInt(el.value, 10);
+    cpThLevels = Math.max(2, Math.min(4, v));
+    const row = el.closest('.cpRow');
+    const out = row ? row.querySelector('i') : null;
+    if (out) out.textContent = String(cpThLevels);
+    rebuildThWeightsUI();
+    if (cpTab === 'threshold') cpScheduleThreshold();
+  });
+  el.addEventListener('change', () => {
+    if (cpTab === 'threshold') cpApplyThreshold();
+  });
+})();
 
 /* =========================================================
    自由变换（T）
@@ -12696,6 +13425,30 @@ function updateBrushCursor(x, y, e) {
   if (tfActive) { brushCursor.style.display = 'none'; return; }
   if (selecting) { brushCursor.style.display = 'none'; return; }
   if (spaceMode === 'pan' || spaceMode === 'zoom') { brushCursor.style.display = 'none'; return; }
+
+  /* ★ A 键：加深 / 减淡圆形笔刷光标（优先于 G 等其他工具） */
+  if (aHeld && !e || aHeld) {
+    /* aHeld 时始终显示圆形光标 */
+    if (e && (e.altKey || e.ctrlKey || e.metaKey || (e.buttons & 4))) {
+      brushCursor.style.display = 'none'; return;
+    }
+    const rawSize = cfg.dodgeBurnSize;
+    const size = Math.max(4, Math.min(500, rawSize * viewScale));
+    brushCursor.style.display = 'block';
+    brushCursor.style.left = x + 'px';
+    brushCursor.style.top  = y + 'px';
+    brushCursor.style.width  = size + 'px';
+    brushCursor.style.height = size + 'px';
+    if (cfg.dodgeBurnMode === 'burn') {
+      brushCursor.style.borderColor = 'rgba(255,180,120,.95)';  // 橙色 = 加深
+      brushCursor.style.boxShadow = '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,180,120,.35)';
+    } else {
+      brushCursor.style.borderColor = 'rgba(120,220,255,.95)';  // 蓝色 = 减淡
+      brushCursor.style.boxShadow = '0 0 0 1px rgba(0,0,0,.5), inset 0 0 0 1px rgba(120,220,255,.35)';
+    }
+    return;
+  }
+
   if (gHeld) { brushCursor.style.display = 'none'; return; }
 
   const isPlace = cfg.tool === 'place' && cfg.ctrlMode !== 'drag';
@@ -12763,6 +13516,24 @@ let ctrlPressed = false;
 let backtickHeld = false;
 let lastSKeydownTime = -1e9;
 let gHeld = false;   // 按住 G → 填充模式（左键填充 / 右键擦除）
+
+/* ★ A 键：加深 / 减淡工具 */
+let aHeld = false;
+let dodgeBurnActive = false;
+let dodgeBurnPointerId = null;
+let dbCursorX = 0, dbCursorY = 0;
+let dbHasPointer = false;
+let dbRafId = null;
+let dbLastTickTime = 0;
+
+function showDodgeBurnPanel() {
+  const panel = document.getElementById('dodgeBurnPanel');
+  if (panel) panel.style.display = 'flex';
+}
+function hideDodgeBurnPanel() {
+  const panel = document.getElementById('dodgeBurnPanel');
+  if (panel) panel.style.display = 'none';
+}
 let altPressUsed = false;  // 本次 Alt 是否被用于吸色（颜色确实变了才置 true）
 let altPressTime = 0;      // Alt 按下的时间戳
 let altPickMode = false;   // 是否已进入"吸色模式"（长按 ≥ 500ms）
@@ -14355,6 +15126,15 @@ cvs.addEventListener('pointerdown', e => {
     return;
   }
 
+  /* ★ A 键：加深 / 减淡工具（优先级高于 S / G / Shift / Ctrl） */
+  if (aHeld && e.button === 0) {
+    if (!canEditActiveLayer()) return;
+    e.preventDefault();
+    takeSnapshot();
+    startDodgeBurn(evtX(e), evtY(e), e.pointerId);
+    return;
+  }
+
   /* ---- 自定义形状/画笔/模糊笔头：框选模式 ---- */
   if (selecting && e.button === 0) {
     e.preventDefault();
@@ -14672,6 +15452,20 @@ cvs.addEventListener('pointermove', e => {
     return;
   }
 
+  /* ★ A 键：加深 / 减淡（喷枪持续，rAF 会持续 dab 当前位置） */
+  if (dodgeBurnActive && e.pointerId === dodgeBurnPointerId) {
+    e.preventDefault();
+    dbCursorX = evtX(e);
+    dbCursorY = evtY(e);
+    dbHasPointer = true;
+    updateBrushCursor(e.clientX, e.clientY, e);
+    return;
+  }
+  if (aHeld) {
+    updateBrushCursor(e.clientX, e.clientY, e);
+    return;
+  }
+
   /* ★ 按住 Alt hover 吸色（不需要按鼠标键）。
      ── pointer 事件可能先于 keydown 到达 → 用 tryEnterAltPick 补触发。
      ── < 250ms（等待期）：什么都不做，让 tryEnterAltPick 静默启动定时器。
@@ -14863,6 +15657,12 @@ cvs.addEventListener('pointerenter', e => {
 function endStroke(e) {
   if (isSHeld()) {
     lastSKeydownTime = performance.now();
+  }
+
+  /* ★ A 键：加深 / 减淡——停止喷枪 */
+  if (dodgeBurnActive && (!e || e.pointerId === dodgeBurnPointerId)) {
+    endDodgeBurn();
+    return;
   }
 
   /* Alt 吸色对比框的显示/隐藏由 Alt 键的 keydown / keyup 控制，
@@ -15266,7 +16066,8 @@ function takeSnapshot() {
       kind: 'pixel',
       data: dataUrl,
       selectionOps: selOps,
-      selectionInverted: selectionInverted
+      selectionInverted: selectionInverted,
+      activeLayerId: activeLayerId   // ★ 记录快照时的 active 图层
     });
     if (history.length > 16) history.shift();
     /* 新操作使 redo 链失效 */
@@ -15465,6 +16266,17 @@ function restoreSnapshot(snap) {
   undoing = true;
   const img = new Image();
   img.onload = () => {
+    /* ★ 关键修复：先快照当前 active，再操作。
+       ── pixel 快照记录的是「快照时刻那个 active 图层」的像素，
+          必须写回快照时的 active 图层，不能写当前 active。
+       ── 否则：用户 Ctrl+Z 后立刻切到图层 B，异步解码完成时
+          getActiveLayer() 返回 B → 把快照像素写进 B → B 像素全部消失。
+       ── 用户在异步期间主动切到 B 时，我们：
+          ① 快照像素写回原来的 A 图层（正确的语义）
+          ② 把 B 图层的内容重新加载到 baseCvs（保留用户的切换） */
+    const snapActiveId = snap.activeLayerId;
+    const currentActiveId = activeLayerId;
+
     bctx.save();
     bctx.setTransform(1, 0, 0, 1, 0, 0);
     bctx.globalCompositeOperation = 'source-over';
@@ -15472,8 +16284,22 @@ function restoreSnapshot(snap) {
     bctx.clearRect(0, 0, baseCvs.width, baseCvs.height);
     bctx.drawImage(img, 0, 0);
     bctx.restore();
-    const active = getActiveLayer();
-    if (active) saveBaseToLayer(active);
+
+    if (snapActiveId != null) {
+      /* 新快照（带 activeLayerId）：写回快照时的那个图层 */
+      const snapActiveLayer = layers.find(l => l.id === snapActiveId);
+      if (snapActiveLayer) saveBaseToLayer(snapActiveLayer);
+
+      /* 如果用户已切到别的图层 → 重新加载用户当前图层到 baseCvs */
+      if (currentActiveId !== snapActiveId) {
+        const curActive = layers.find(l => l.id === currentActiveId);
+        if (curActive) loadLayerToBase(curActive);
+      }
+    } else {
+      /* 兼容老快照（没有 activeLayerId 字段）：写回当前 active */
+      const active = getActiveLayer();
+      if (active) saveBaseToLayer(active);
+    }
 
     if (snap.selectionOps) {
       selectionOps = snap.selectionOps.map(opt => {
@@ -15607,6 +16433,13 @@ function undoLayerSnapshot(snap) {
   }));
 
   return Promise.all(jobs).then(newLayers => {
+    /* ★ 记录用户在异步恢复期间的选择。
+       ── 撤销是异步的（Promise.all 等所有图层图片解码），
+          期间用户可能点击了某个图层，把 activeLayerId 改成了别的。
+       ── 如果用户在快照 active 之外主动切了图层，我们尊重用户的切换，
+          但图层像素必须按快照恢复。 */
+    const userActiveId = activeLayerId;
+
     layers = newLayers.filter(l => l);
 
     if (!layers.length) {
@@ -15616,9 +16449,18 @@ function undoLayerSnapshot(snap) {
       selectedLayerIds = new Set([activeLayerId]);
     } else {
       const wantId = snap.activeLayerId;
-      activeLayerId = layers.find(l => l.id === wantId)
-        ? wantId
-        : layers[layers.length - 1].id;
+
+      /* ★ 优先保留用户的主动切换（如果用户切到的图层在新数组里仍存在） */
+      const userLayerExists = userActiveId != null &&
+        layers.find(l => l.id === userActiveId);
+
+      if (userLayerExists && userActiveId !== wantId) {
+        activeLayerId = userActiveId;
+      } else {
+        activeLayerId = layers.find(l => l.id === wantId)
+          ? wantId
+          : layers[layers.length - 1].id;
+      }
 
       selectedLayerIds = new Set(snap.selectedLayerIds || []);
       /* 过滤掉不存在的 id，并保证 active 一定在集合里 */
@@ -15658,6 +16500,92 @@ function undoLayerSnapshot(snap) {
     updateLayersUI();
     renderView();
   });
+}
+
+/* =========================================================
+   方向键微调位置（类似 PS）
+   ── 有选区：选区内像素位移，选区同步跟随
+   ── 无选区：整个图层内容位移
+   ── 每按一次 1px；Shift+方向 10px
+   ── 位移前的状态由 takeSnapshot 记录（有 350ms 节流，连续按合并为一次撤销）
+   ========================================================= */
+function nudgeContent(dx, dy) {
+  const active = getActiveLayer();
+  if (!active) return;
+  if (!active.visible) { showToast('图层「' + active.name + '」不可见，无法微调'); return; }
+  if (active.locked)   { showToast('图层「' + active.name + '」已锁定，无法微调'); return; }
+
+  takeSnapshot();
+
+  const W = baseCvs.width, H = baseCvs.height;
+  const dxPx = Math.round(dx * dpr);
+  const dyPx = Math.round(dy * dpr);
+  const activeMask = getActiveMaskCvs();
+
+  if (activeMask) {
+    /* ---- 有选区：选区内像素位移，选区外保留 ---- */
+    /* 1. 选区外内容 */
+    const t1 = document.createElement('canvas');
+    t1.width = W; t1.height = H;
+    const t1c = t1.getContext('2d');
+    t1c.setTransform(1, 0, 0, 1, 0, 0);
+    t1c.drawImage(baseCvs, 0, 0);
+    t1c.globalCompositeOperation = 'destination-out';
+    t1c.drawImage(activeMask, 0, 0);
+    t1c.globalCompositeOperation = 'source-over';
+
+    /* 2. 选区内内容（位移后叠加） */
+    const t2 = document.createElement('canvas');
+    t2.width = W; t2.height = H;
+    const t2c = t2.getContext('2d');
+    t2c.setTransform(1, 0, 0, 1, 0, 0);
+    t2c.drawImage(baseCvs, 0, 0);
+    t2c.globalCompositeOperation = 'destination-in';
+    t2c.drawImage(activeMask, 0, 0);
+    t2c.globalCompositeOperation = 'source-over';
+
+    bctx.save();
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.globalAlpha = 1;
+    bctx.clearRect(0, 0, W, H);
+    bctx.drawImage(t1, 0, 0);
+    bctx.drawImage(t2, dxPx, dyPx);
+    bctx.restore();
+
+    /* 3. 选区同步位移（跟 PS 一致） */
+    selectionOps = selectionOps.map(opt => {
+      if (opt.type === 'wand') {
+        const newMask = document.createElement('canvas');
+        newMask.width  = opt.maskCanvas.width;
+        newMask.height = opt.maskCanvas.height;
+        const nc = newMask.getContext('2d');
+        nc.setTransform(1, 0, 0, 1, 0, 0);
+        nc.drawImage(opt.maskCanvas, dxPx, dyPx);
+        return { type: 'wand', maskCanvas: newMask, op: opt.op };
+      }
+      return {
+        op: opt.op,
+        points: opt.points.map(p => ({ x: p.x + dx, y: p.y + dy }))
+      };
+    });
+    rebuildSelection();
+  } else {
+    /* ---- 无选区：整层内容位移 ---- */
+    const tmp = document.createElement('canvas');
+    tmp.width = W; tmp.height = H;
+    tmp.getContext('2d').drawImage(baseCvs, 0, 0);
+
+    bctx.save();
+    bctx.setTransform(1, 0, 0, 1, 0, 0);
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.globalAlpha = 1;
+    bctx.clearRect(0, 0, W, H);
+    bctx.drawImage(tmp, dxPx, dyPx);
+    bctx.restore();
+  }
+
+  renderView();
 }
 
 /* =========================================================
@@ -17425,6 +18353,18 @@ window.addEventListener('keydown', e => {
     showSTolerancePanel();
   }
 
+  /* ---- A 键：加深 / 减淡工具（按住激活） ---- */
+  if (e.code === 'KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+    if (!aHeld) {
+      aHeld = true;
+      showDodgeBurnPanel();
+      /* 隐藏原生光标，改用圆形笔刷光标 */
+      if (!tfActive) cvs.style.cursor = 'none';
+    }
+    e.preventDefault();
+    return;
+  }
+
   /* ---- G 键：进入填充模式（按住） ---- */
   if (e.code === 'KeyG' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
     if (!gHeld) {
@@ -17549,6 +18489,45 @@ window.addEventListener('keydown', e => {
     return;
   }
 
+  /* ---- Q 键：按住打开混合模式径向菜单 ---- */
+  if (e.code === 'KeyQ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (cpActive || tfActive || cropMode) return;
+    if (!qKeyHeld) {
+      qKeyHeld = true;
+      openBlendRadial();
+    }
+    e.preventDefault();
+    return;
+  }
+
+  /* ---- 方向键：微调位置（1px；Shift+方向 10px）---- */
+  if ((k === 'arrowup' || k === 'arrowdown' || k === 'arrowleft' || k === 'arrowright')
+      && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    /* 焦点在输入类控件时不做处理（让输入框正常响应） */
+    const tgt = e.target;
+    if (tgt && (tgt.tagName === 'INPUT' ||
+                tgt.tagName === 'TEXTAREA' ||
+                tgt.tagName === 'SELECT')) {
+      return;
+    }
+    /* 变换 / 曲线 / 拾色器 / 裁剪 / 拖动中都不接管 */
+    if (tfActive || cpActive || cropMode || qpActive) return;
+    if (moveActive || lqActive || blurActive || lassoSmoothActive ||
+        lineSmoothActive || dragSmoothActive || circleSmoothActive ||
+        drawing) return;
+    if (qKeyHeld && radialActive) return;
+
+    e.preventDefault();
+    const step = e.shiftKey ? 10 : 1;
+    let dx = 0, dy = 0;
+    if (k === 'arrowup')    dy = -step;
+    if (k === 'arrowdown')  dy =  step;
+    if (k === 'arrowleft')  dx = -step;
+    if (k === 'arrowright') dx =  step;
+    nudgeContent(dx, dy);
+    return;
+  }
+
     /* ---- Delete / Backspace：删除图层内容 ---- */
   if ((k === 'delete' || k === 'backspace') &&
       !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
@@ -17640,6 +18619,25 @@ window.addEventListener('keyup', e => {
     return;
   }
 
+  /* ---- 松开 Q：应用径向菜单选择 ---- */
+  if (e.code === 'KeyQ') {
+    if (qKeyHeld) {
+      qKeyHeld = false;
+      if (radialActive && radialMode === 'blend') {
+        let value = null;
+        if (radialHoverIndex >= 0 && radialHoverIndex < radialItems.length) {
+          value = radialItems[radialHoverIndex].value;
+        } else if (radialInnerHoverIndex >= 0 && radialInnerHoverIndex < radialInnerItems.length) {
+          value = radialInnerItems[radialInnerHoverIndex].value;
+        }
+        if (value) applyBlendModeFromRadial(value);
+        hideRadial();
+      }
+    }
+    e.preventDefault();
+    return;
+  }
+
   /* ---- 松开 X ---- */
   if (e.code === 'KeyX') {
     sizeHeld = false;
@@ -17663,6 +18661,14 @@ window.addEventListener('keyup', e => {
     lastSKeydownTime = -1e9;
     if (!tfActive && !altPressed && !ctrlPressed && !sizeHeld) cvs.style.cursor = '';
         hideSTolerancePanel();
+  }
+  if (e.code === 'KeyA') {
+    if (aHeld) {
+      aHeld = false;
+      hideDodgeBurnPanel();
+      if (dodgeBurnActive) endDodgeBurn();
+      if (!tfActive && !altPressed && !ctrlPressed && !sizeHeld) cvs.style.cursor = '';
+    }
   }
   if (e.code === 'KeyG') {
     gHeld = false;
@@ -17705,6 +18711,17 @@ window.addEventListener('blur', () => {
   /* ★ Alt 状态统一清理（Alt+Tab / 切焦点 / 系统菜单抢焦点时防残留） */
   if (altPressed) exitAltPick();
   altPressUsed = false;
+  /* ★ Q 键径向菜单清理 */
+  if (qKeyHeld) {
+    qKeyHeld = false;
+    if (radialActive && radialMode === 'blend') hideRadial();
+  }
+  /* ★ A 键加深 / 减淡清理 */
+  if (aHeld) {
+    aHeld = false;
+    hideDodgeBurnPanel();
+  }
+  if (dodgeBurnActive) endDodgeBurn();
   if (ctrlPressed) { ctrlPressed = false; updateModifierCursor(); }
   blurBar.style.display = 'none';
   hideSTolerancePanel();
@@ -17814,6 +18831,35 @@ let radialOuterR = 130;
 let radialInnerR = 46;
 const radialStartAngle = -Math.PI / 2;
 
+/* ★ Q 键：混合模式径向菜单（双圈） */
+let radialMode = 'number';       // 'number' | 'blend'
+let radialInnerItems = [];       // 内圈 items（仅 blend 模式）
+let radialInnerHoverIndex = -1;  // 内圈 hover index
+let radialVoidR = 46;            // 内圈空白半径（blend 模式下用）
+let qKeyHeld = false;
+
+/* 混合模式：内圈（常用 8 项）+ 外圈（高级 8 项） */
+const BLEND_RADIAL_INNER = [
+  { value: 'source-over', label: '正常' },
+  { value: 'multiply',    label: '正片叠底' },
+  { value: 'screen',      label: '滤色' },
+  { value: 'overlay',     label: '叠加' },
+  { value: 'darken',      label: '变暗' },
+  { value: 'lighten',     label: '变亮' },
+  { value: 'hard-light',  label: '强光' },
+  { value: 'difference',  label: '差值' }
+];
+const BLEND_RADIAL_OUTER = [
+  { value: 'color-dodge', label: '颜色减淡' },
+  { value: 'color-burn',  label: '颜色加深' },
+  { value: 'soft-light',  label: '柔光' },
+  { value: 'exclusion',   label: '排除' },
+  { value: 'hue',         label: '色相' },
+  { value: 'saturation',  label: '饱和度' },
+  { value: 'color',       label: '颜色' },
+  { value: 'luminosity',  label: '明度' }
+];
+
 const RADIAL_DEFS = {
   '1': {
     label: '放置',
@@ -17916,6 +18962,10 @@ function openRadial(n) {
   const def = RADIAL_DEFS[n];
   if (!def) return;
 
+  radialMode = 'number';
+  radialInnerItems = [];
+  radialInnerHoverIndex = -1;
+
   radialItems = def.items.slice();
   radialActive = true;
   radialHoverIndex = -1;
@@ -17925,6 +18975,7 @@ function openRadial(n) {
   const maxR = Math.min(140, Math.min(window.innerWidth, window.innerHeight) / 2 - 12);
   radialOuterR = Math.max(80, maxR);
   radialInnerR = radialOuterR * 0.35;
+  radialVoidR  = radialInnerR;
 
   const size = radialOuterR * 2 + 20;
 
@@ -17952,7 +19003,58 @@ function hideRadial() {
   radialActive = false;
   radialItems  = [];
   radialHoverIndex = -1;
+  radialInnerItems = [];
+  radialInnerHoverIndex = -1;
+  radialMode = 'number';
   radialMenuEl.hidden = true;
+}
+
+/* ★ Q 键：打开混合模式双圈径向菜单 */
+function openBlendRadial() {
+  radialMode = 'blend';
+  radialInnerItems = BLEND_RADIAL_INNER;
+  radialItems = BLEND_RADIAL_OUTER;
+  radialActive = true;
+  radialHoverIndex = -1;
+  radialInnerHoverIndex = -1;
+  radialLabelEl.textContent = '混合';
+
+  const maxR = Math.min(160, Math.min(window.innerWidth, window.innerHeight) / 2 - 12);
+  radialOuterR = Math.max(110, maxR);
+  radialInnerR = radialOuterR * 0.66;
+  radialVoidR  = radialOuterR * 0.32;
+
+  const size = radialOuterR * 2 + 20;
+  let left = lastClientX - size / 2;
+  let top  = lastClientY - size / 2;
+  left = Math.max(6, Math.min(window.innerWidth  - size - 6, left));
+  top  = Math.max(6, Math.min(window.innerHeight - size - 6, top));
+
+  radialMenuEl.style.width  = size + 'px';
+  radialMenuEl.style.height = size + 'px';
+  radialMenuEl.style.left   = left + 'px';
+  radialMenuEl.style.top    = top  + 'px';
+  radialMenuEl.hidden = false;
+
+  radialCenterX = left + size / 2;
+  radialCenterY = top  + size / 2;
+
+  renderRadial();
+  updateRadialHover(lastClientX, lastClientY);
+}
+
+function getBlendLabel(value) {
+  for (const it of BLEND_RADIAL_INNER) if (it.value === value) return it.label;
+  for (const it of BLEND_RADIAL_OUTER) if (it.value === value) return it.label;
+  return value;
+}
+
+function applyBlendModeFromRadial(value) {
+  if (!value) return;
+  cfg.blend = value;
+  const blendSel = document.getElementById('blend');
+  if (blendSel) blendSel.value = value;
+  showToast('混合模式：' + getBlendLabel(value));
 }
 
 function renderRadial() {
@@ -17966,29 +19068,64 @@ function renderRadial() {
 
   const cx = size / 2;
   const cy = size / 2;
-  const arc = TAU / N;
-  const gap = Math.min(0.06, arc * 0.10);
-
   let html = '';
-  for (let i = 0; i < N; i++) {
-    /* 反向映射：视觉位置 i → 数据索引 N-1-i
-       环形菜单从正上方顺时针排列；UI 面板从左到右排列。
-       为让两者的视觉顺序一致（左 ↔ 逆时针方向），做一次反向。 */
-    const itemIdx = N - 1 - i;
 
-    const a0 = radialStartAngle + i * arc + gap / 2;
-    const a1 = radialStartAngle + (i + 1) * arc - gap / 2;
-    const isHover = (itemIdx === radialHoverIndex);
-
-    const path = annularSector(cx, cy, radialInnerR, radialOuterR, a0, a1);
-    html += `<path class="rm-seg${isHover ? ' hover' : ''}" d="${path}"/>`;
-
-    const am = (a0 + a1) / 2;
-    const tr = (radialInnerR + radialOuterR) / 2;
-    const tx = cx + Math.cos(am) * tr;
-    const ty = cy + Math.sin(am) * tr;
-    html += `<text class="rm-txt${isHover ? ' hover' : ''}" x="${tx}" y="${ty}" `
-          + `text-anchor="middle" dominant-baseline="middle">${escapeXml(radialItems[itemIdx].label)}</text>`;
+  if (radialMode === 'blend' && radialInnerItems.length > 0) {
+    /* ★ 双圈：内圈 + 外圈 */
+    /* 内圈：radialVoidR ~ radialInnerR */
+    const N1 = radialInnerItems.length;
+    const arc1 = TAU / N1;
+    const gap1 = Math.min(0.06, arc1 * 0.10);
+    for (let i = 0; i < N1; i++) {
+      const itemIdx = N1 - 1 - i;
+      const a0 = radialStartAngle + i * arc1 + gap1 / 2;
+      const a1 = radialStartAngle + (i + 1) * arc1 - gap1 / 2;
+      const isHover = (radialInnerHoverIndex >= 0 && itemIdx === radialInnerHoverIndex);
+      const path = annularSector(cx, cy, radialVoidR, radialInnerR, a0, a1);
+      html += `<path class="rm-seg${isHover ? ' hover' : ''}" d="${path}"/>`;
+      const am = (a0 + a1) / 2;
+      const tr = (radialVoidR + radialInnerR) / 2;
+      const tx = cx + Math.cos(am) * tr;
+      const ty = cy + Math.sin(am) * tr;
+      html += `<text class="rm-txt${isHover ? ' hover' : ''}" x="${tx}" y="${ty}" `
+            + `text-anchor="middle" dominant-baseline="middle">${escapeXml(radialInnerItems[itemIdx].label)}</text>`;
+    }
+    /* 外圈：radialInnerR ~ radialOuterR */
+    const N2 = radialItems.length;
+    const arc2 = TAU / N2;
+    const gap2 = Math.min(0.06, arc2 * 0.10);
+    for (let i = 0; i < N2; i++) {
+      const itemIdx = N2 - 1 - i;
+      const a0 = radialStartAngle + i * arc2 + gap2 / 2;
+      const a1 = radialStartAngle + (i + 1) * arc2 - gap2 / 2;
+      const isHover = (radialHoverIndex >= 0 && itemIdx === radialHoverIndex);
+      const path = annularSector(cx, cy, radialInnerR, radialOuterR, a0, a1);
+      html += `<path class="rm-seg${isHover ? ' hover' : ''}" d="${path}"/>`;
+      const am = (a0 + a1) / 2;
+      const tr = (radialInnerR + radialOuterR) / 2;
+      const tx = cx + Math.cos(am) * tr;
+      const ty = cy + Math.sin(am) * tr;
+      html += `<text class="rm-txt${isHover ? ' hover' : ''}" x="${tx}" y="${ty}" `
+            + `text-anchor="middle" dominant-baseline="middle">${escapeXml(radialItems[itemIdx].label)}</text>`;
+    }
+  } else {
+    /* 单圈（数字键 1/2/3） */
+    const arc = TAU / N;
+    const gap = Math.min(0.06, arc * 0.10);
+    for (let i = 0; i < N; i++) {
+      const itemIdx = N - 1 - i;
+      const a0 = radialStartAngle + i * arc + gap / 2;
+      const a1 = radialStartAngle + (i + 1) * arc - gap / 2;
+      const isHover = (itemIdx === radialHoverIndex);
+      const path = annularSector(cx, cy, radialInnerR, radialOuterR, a0, a1);
+      html += `<path class="rm-seg${isHover ? ' hover' : ''}" d="${path}"/>`;
+      const am = (a0 + a1) / 2;
+      const tr = (radialInnerR + radialOuterR) / 2;
+      const tx = cx + Math.cos(am) * tr;
+      const ty = cy + Math.sin(am) * tr;
+      html += `<text class="rm-txt${isHover ? ' hover' : ''}" x="${tx}" y="${ty}" `
+            + `text-anchor="middle" dominant-baseline="middle">${escapeXml(radialItems[itemIdx].label)}</text>`;
+    }
   }
   radialSvgEl.innerHTML = html;
 }
@@ -18016,13 +19153,70 @@ function escapeXml(s) {
 }
 
 function updateRadialHover(clientX, clientY) {
-  if (!radialActive || radialItems.length === 0) return;
+  if (!radialActive) return;
 
   const dx = clientX - radialCenterX;
   const dy = clientY - radialCenterY;
   const dist = Math.hypot(dx, dy);
 
-  /* 内圈空白区 → 无选中 */
+  let ang = Math.atan2(dy, dx) - radialStartAngle;
+  ang = ((ang % TAU) + TAU) % TAU;
+
+  if (radialMode === 'blend' && radialInnerItems.length > 0) {
+    /* ★ 双圈：先判断半径属于内圈/外圈/空白 */
+    if (dist < radialVoidR * 0.85) {
+      /* 最内空白 */
+      if (radialHoverIndex !== -1 || radialInnerHoverIndex !== -1) {
+        radialHoverIndex = -1;
+        radialInnerHoverIndex = -1;
+        renderRadial();
+      }
+      return;
+    }
+
+    if (dist >= radialVoidR && dist < radialInnerR) {
+      /* 内圈 */
+      const N1 = radialInnerItems.length;
+      const arc1 = TAU / N1;
+      let visualI = Math.floor(ang / arc1);
+      if (visualI < 0) visualI = 0;
+      if (visualI >= N1) visualI = N1 - 1;
+      const itemIdx = N1 - 1 - visualI;
+      if (itemIdx !== radialInnerHoverIndex || radialHoverIndex !== -1) {
+        radialInnerHoverIndex = itemIdx;
+        radialHoverIndex = -1;
+        renderRadial();
+      }
+      return;
+    }
+
+    if (dist >= radialInnerR && dist <= radialOuterR * 1.1) {
+      /* 外圈 */
+      const N2 = radialItems.length;
+      const arc2 = TAU / N2;
+      let visualI = Math.floor(ang / arc2);
+      if (visualI < 0) visualI = 0;
+      if (visualI >= N2) visualI = N2 - 1;
+      const itemIdx = N2 - 1 - visualI;
+      if (itemIdx !== radialHoverIndex || radialInnerHoverIndex !== -1) {
+        radialHoverIndex = itemIdx;
+        radialInnerHoverIndex = -1;
+        renderRadial();
+      }
+      return;
+    }
+
+    /* 外圈之外 */
+    if (radialHoverIndex !== -1 || radialInnerHoverIndex !== -1) {
+      radialHoverIndex = -1;
+      radialInnerHoverIndex = -1;
+      renderRadial();
+    }
+    return;
+  }
+
+  /* ★ 单圈（数字键 1/2/3） */
+  if (radialItems.length === 0) return;
   if (dist < radialInnerR * 0.75) {
     if (radialHoverIndex !== -1) {
       radialHoverIndex = -1;
@@ -18030,21 +19224,12 @@ function updateRadialHover(clientX, clientY) {
     }
     return;
   }
-
-  let ang = Math.atan2(dy, dx) - radialStartAngle;
-  ang = ((ang % TAU) + TAU) % TAU;
-
   const N = radialItems.length;
   const arc = TAU / N;
   let visualI = Math.floor(ang / arc);
   if (visualI < 0) visualI = 0;
   if (visualI >= N) visualI = N - 1;
-
-  /* 视觉位置 → 数据索引，与 renderRadial 的反向映射保持一致。
-     radialHoverIndex 现在直接就是「数据索引」，
-     所以 onNumberKeyUp 里 radialItems[radialHoverIndex] 无需修改。 */
   const itemIdx = N - 1 - visualI;
-
   if (itemIdx !== radialHoverIndex) {
     radialHoverIndex = itemIdx;
     renderRadial();
@@ -18075,6 +19260,60 @@ if (collapseLayersBtn && layersPanelEl) {
 buildCustomSlotsUI();
 updateCustomBrushPreview();
 updateBlurBrushPreview();
+
+/* ★ A 键加深 / 减淡：面板事件绑定 */
+(function bindDodgeBurnUI() {
+  const modes = document.getElementById('dbModes');
+  if (modes) {
+    modes.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const v = btn.dataset.v;
+      if (!v || v === cfg.dodgeBurnMode) return;
+      cfg.dodgeBurnMode = v;
+      modes.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('on', b.dataset.v === v));
+    });
+  }
+
+  const tones = document.getElementById('dbTones');
+  if (tones) {
+    tones.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const v = btn.dataset.v;
+      if (!v || v === cfg.dodgeBurnTone) return;
+      cfg.dodgeBurnTone = v;
+      tones.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('on', b.dataset.v === v));
+    });
+  }
+
+  const strengthEl = document.getElementById('dbStrength');
+  if (strengthEl) {
+    strengthEl.value = String(Math.round(cfg.dodgeBurnStrength * 100));
+    const out = strengthEl.nextElementSibling;
+    if (out) out.textContent = Math.round(cfg.dodgeBurnStrength * 100) + '%';
+    strengthEl.addEventListener('input', () => {
+      const v = parseInt(strengthEl.value, 10);
+      cfg.dodgeBurnStrength = v / 100;
+      if (out) out.textContent = v + '%';
+    });
+  }
+
+  const sizeEl = document.getElementById('dbSize');
+  if (sizeEl) {
+    sizeEl.value = String(cfg.dodgeBurnSize);
+    const out = sizeEl.nextElementSibling;
+    if (out) out.textContent = String(cfg.dodgeBurnSize);
+    sizeEl.addEventListener('input', () => {
+      const v = parseInt(sizeEl.value, 10);
+      cfg.dodgeBurnSize = v;
+      if (out) out.textContent = String(v);
+    });
+  }
+})();
+
 const wandToleranceEl = document.getElementById('wandTolerance');
 if (wandToleranceEl) {
   const out = wandToleranceEl.nextElementSibling;
