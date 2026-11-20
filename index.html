@@ -882,6 +882,87 @@
     user-select: none;
   }
 
+  /* ★ Q 面板扩展：大小 / 浓度 / 硬度 参数面板 */
+  #qParamPanel{
+    position: fixed;
+    z-index: 61;
+    width: 280px;
+    padding: 10px 12px;
+    background: var(--panel);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    user-select: none;
+  }
+  #qParamPanel[hidden]{ display: none !important; }
+  #qParamPanel .qParamRow{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+  }
+  #qParamPanel .qParamRow > span{
+    flex: 0 0 30px;
+    color: var(--dim);
+    font-size: 11px;
+    letter-spacing: -.02em;
+  }
+  #qParamPanel .qParamRow > input[type=range]{
+    flex: 1;
+    min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 3px;
+    border-radius: 3px;
+    background: rgba(255,255,255,.14);
+    outline: none;
+    cursor: pointer;
+  }
+  #qParamPanel .qParamRow > input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #e9e9f0;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(110,231,255,.18);
+  }
+  #qParamPanel .qParamRow > input[type=range]::-moz-range-thumb{
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #e9e9f0;
+    border: none;
+    cursor: pointer;
+  }
+  #qParamPanel .qParamRow > i{
+    flex: 0 0 38px;
+    text-align: right;
+    font-style: normal;
+    color: #b9b9c9;
+    font-size: 10.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  /* 开关行（线性 / 反向）：开关靠右 */
+  #qParamPanel .qParamRowSwitch .sw{
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+  }
+  /* 无对应参数的 channel 变灰 */
+  #qParamPanel .qParamRow.disabled{
+    opacity: .28;
+    pointer-events: none;
+    filter: grayscale(.6);
+  }
+
   /* ===== 图层面板 ===== */
   #layersPanel{
     position:fixed;right:14px;bottom:14px;width:250px;
@@ -1334,7 +1415,7 @@
         <div class="row"><span>线宽</span><input id="pLw" type="range" min="1" max="120" value="20"><i>2.0</i></div>
         <div class="row" id="pHardnessRow"><span>硬度</span><input id="pHardness" type="range" min="0" max="100" value="100"><i>100%</i></div>
         <div class="row" id="pLinearRow"><span>线性</span><label class="sw"><input id="pLinear" type="checkbox"><span></span></label></div>
-        <div class="row" id="pLinearReverseRow" hidden><span>反向</span><label class="sw"><input id="pLinearReverse" type="checkbox" checked><span></span></label></div>
+        <div class="row" id="pLinearReverseRow" hidden><span>反向</span><label class="sw"><input id="pLinearReverse" type="checkbox"><span></span></label></div>
       </section>
 
       <section id="pModeSection">
@@ -1383,13 +1464,13 @@
         <div class="row" id="bSmoothRow"><span>平滑</span><input id="bSmooth" type="range" min="0" max="90" value="35"><i>35%</i></div>
         <div class="row" id="bAlphaRow"><span>浓度</span><input id="bAlpha" type="range" min="5" max="100" value="100"><i>100%</i><button id="bAlphaPen" class="pressure-btn" data-state="0" data-mode="pressure" title="浓度压感"><svg class="ico-pressure" viewBox="0 0 16 16"><path d="M2 5 Q9 5.5 14 8 Q9 10.5 2 11 Z" fill="currentColor"/></svg><svg class="ico-velocity" viewBox="0 0 16 16"><path d="M2 8 L10 8 M7 5 L10 8 L7 11" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="12.5" y1="4.5" x2="12.5" y2="11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/></svg><svg class="ico-direction" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M10.6 5.4 L9 9 L5.4 10.6 L7 7 Z" fill="currentColor"/></svg></button></div>
         <div class="row" id="bGradAlphaRow" hidden>
-          <span style="flex:0 0 40px">alpha</span>
+          <span style="flex:0 0 40px">线性</span>
           <label class="sw row-sw" style="margin-left:0"><input id="bGradAlphaOn" type="checkbox"><span></span></label>
           <span style="flex:0 0 auto;margin-left:12px;color:var(--dim);font-size:10.5px;letter-spacing:-.02em">反向</span>
           <label class="sw row-sw"><input id="bGradAlphaReverse" type="checkbox"><span></span></label>
         </div>
         <div class="row" id="bLinearRow"><span>线性</span><label class="sw"><input id="bLinear" type="checkbox"><span></span></label></div>
-        <div class="row" id="bLinearReverseRow" hidden><span>反向</span><label class="sw"><input id="bLinearReverse" type="checkbox" checked><span></span></label></div>
+        <div class="row" id="bLinearReverseRow" hidden><span>反向</span><label class="sw"><input id="bLinearReverse" type="checkbox"><span></span></label></div>
 
       </section>
 
@@ -1489,6 +1570,34 @@
 <div id="radialMenu" hidden>
   <svg id="radialSvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
   <div id="radialLabel"></div>
+</div>
+
+<div id="qParamPanel" hidden>
+  <div class="qParamRow" id="qParamRowSize">
+    <span>大小</span>
+    <input id="qParamSize" type="range" min="1" max="120" value="2">
+    <i>2</i>
+    <button id="qParamSizePen" class="pressure-btn" data-state="0" data-mode="pressure" title="大小压感"><svg class="ico-pressure" viewBox="0 0 16 16"><path d="M2 5 Q9 5.5 14 8 Q9 10.5 2 11 Z" fill="currentColor"/></svg><svg class="ico-velocity" viewBox="0 0 16 16"><path d="M2 8 L10 8 M7 5 L10 8 L7 11" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="12.5" y1="4.5" x2="12.5" y2="11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/></svg><svg class="ico-direction" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M10.6 5.4 L9 9 L5.4 10.6 L7 7 Z" fill="currentColor"/></svg></button>
+  </div>
+  <div class="qParamRow" id="qParamRowAlpha">
+    <span>浓度</span>
+    <input id="qParamAlpha" type="range" min="5" max="100" value="100">
+    <i>100%</i>
+    <button id="qParamAlphaPen" class="pressure-btn" data-state="0" data-mode="pressure" title="浓度压感"><svg class="ico-pressure" viewBox="0 0 16 16"><path d="M2 5 Q9 5.5 14 8 Q9 10.5 2 11 Z" fill="currentColor"/></svg><svg class="ico-velocity" viewBox="0 0 16 16"><path d="M2 8 L10 8 M7 5 L10 8 L7 11" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="12.5" y1="4.5" x2="12.5" y2="11.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.55"/></svg><svg class="ico-direction" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M10.6 5.4 L9 9 L5.4 10.6 L7 7 Z" fill="currentColor"/></svg></button>
+  </div>
+  <div class="qParamRow" id="qParamRowHard">
+    <span>硬度</span>
+    <input id="qParamHard" type="range" min="0" max="100" value="100">
+    <i>100%</i>
+  </div>
+  <div class="qParamRow qParamRowSwitch" id="qParamRowLinear">
+    <span>线性</span>
+    <label class="sw"><input id="qParamLinear" type="checkbox"><span></span></label>
+  </div>
+  <div class="qParamRow qParamRowSwitch" id="qParamRowReverse">
+    <span>反向</span>
+    <label class="sw"><input id="qParamReverse" type="checkbox"><span></span></label>
+  </div>
 </div>
 
 <div id="quickPicker" hidden>
@@ -1613,8 +1722,8 @@ const cfg = {
   /* 放置的「线性」开关（散布 / 拖拽各自独立） */
   placeLinearScatter: false,
   placeLinearDrag: false,
-  placeLinearReverse: true,    // 放置线性的反向（独立于绘画）
-  linearReverse: true,         // 线性渐变的反向（独立于渐变线的反向）
+  placeLinearReverse: false,   // 放置线性的反向（独立生效：反向开=有渐变，方向反）
+  linearReverse: false,        // 线性反向（独立生效：反向开=有渐变，方向反）
     bWidth: 2, bSmooth: 0.35, bSpacing: 0.15,
   bAlphaLine: 1.0, bAlphaLasso: 1.0,
 bEraserWidth: 16,
@@ -1957,6 +2066,11 @@ let gradientLineWidth = 8;      // 像素
    ── 缓存「上一次有效方向」作为 fallback，避免拖动初期方向乱跳。 */
 let _gradLastLineAngle = 0;
 let _gradHasValidAngle = false;
+
+/* ★ 直线模式：下笔后按 Shift 锁定水平/垂直
+   ── 只在 strokeActive && strokePaintMode === 'gradient' 期间被 pointermove 更新
+   ── 先按 Shift 再下笔 → 走涂抹过渡分支，不会进入这里 */
+let _gradShiftConstrain = false;
 function getCurPLw() {
   return cfg.ctrlMode === 'scatter' ? cfg.pLwScatter : cfg.pLwDrag;
 }
@@ -3210,13 +3324,14 @@ function syncLinearUI() {
   const bLinearRevRowEl   = document.getElementById('bLinearReverseRow');
   if (!bLinearEl || !bLinearRowEl) return;
 
+  /* ★ 线性行、反向行都显示（都不依赖对方的勾选状态，各自独立生效） */
   bLinearRowEl.hidden = !(isLine || isLasso);
+  if (bLinearRevRowEl) bLinearRevRowEl.hidden = !(isLine || isLasso);
 
   if (isLine)       bLinearEl.checked = !!cfg.paintLinearLine;
   else if (isLasso) bLinearEl.checked = !!cfg.paintLinearLasso;
   else              bLinearEl.checked = false;
 
-  if (bLinearRevRowEl) bLinearRevRowEl.hidden = !bLinearEl.checked;
   if (bLinearRevEl)    bLinearRevEl.checked = !!cfg.linearReverse;
 }
 
@@ -11293,10 +11408,23 @@ function clearStrokeBuf() {
 
 /* 当前绘制模式是否启用了「线性」 */
 function isLinearActive() {
-  if (strokePaintMode === 'line')  return !!cfg.paintLinearLine;
-  if (strokePaintMode === 'lasso') return !!cfg.paintLinearLasso;
-  if (strokePaintMode === 'place-scatter') return !!cfg.placeLinearScatter;
-  if (strokePaintMode === 'place-drag')    return !!cfg.placeLinearDrag;
+  /* ★ 线性或反向任一开启 → 应用渐变
+     · 线性单独开 → 正向渐变（实→虚）
+     · 反向单独开 → 反向渐变（虚→实）
+     · 两者都开   → 反向渐变
+     · 两者都关   → 无渐变 */
+  if (strokePaintMode === 'line') {
+    return !!(cfg.paintLinearLine || cfg.linearReverse);
+  }
+  if (strokePaintMode === 'lasso') {
+    return !!(cfg.paintLinearLasso || cfg.linearReverse);
+  }
+  if (strokePaintMode === 'place-scatter') {
+    return !!(cfg.placeLinearScatter || cfg.placeLinearReverse);
+  }
+  if (strokePaintMode === 'place-drag') {
+    return !!(cfg.placeLinearDrag || cfg.placeLinearReverse);
+  }
   return false;
 }
 
@@ -12464,8 +12592,23 @@ function drawGradientLine(x, y) {
 
   const x0 = strokeOriginX;
   const y0 = strokeOriginY;
-  const dx = x - x0;
-  const dy = y - y0;
+
+  /* ★ Shift 约束（下笔后按 Shift 生效）：
+     ── 拿鼠标相对起点的 dx / dy 比较绝对值，主轴保留，副轴归零
+     ── 主 = 水平 → dy = 0，主 = 垂直 → dx = 0
+     ── 约束后 ex / ey 就是约束后的终点，dab 沿这条线均匀排布 */
+  let dx = x - x0;
+  let dy = y - y0;
+  if (_gradShiftConstrain && !strokeErasing) {
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      dy = 0;         /* 水平线 */
+    } else {
+      dx = 0;         /* 垂直线 */
+    }
+  }
+
+  const ex = x0 + dx;
+  const ey = y0 + dy;
   const dist = Math.hypot(dx, dy);
 
   /* 直线方向：每帧按「起点 → 当前终点」实时计算。
@@ -12737,10 +12880,10 @@ function drawGradientLine(x, y) {
 
               sctx.globalAlpha = 1;
         /* ★ 末尾补点也应用噪波 */
-        let lastDabX = x;
-        let lastDabY = y;
+        let lastDabX = ex;
+        let lastDabY = ey;
         if (!strokeErasing) {
-          const nd = getNoiseDistortion(x, y, 0.5);
+          const nd = getNoiseDistortion(ex, ey, 0.5);
           lastDabX = nd.x;
           lastDabY = nd.y;
         }
@@ -12775,7 +12918,7 @@ function drawGradientLine(x, y) {
     sctx.globalCompositeOperation = 'destination-in';
     sctx.globalAlpha = 1;
     if (cfg.gradientAlphaOn) {
-      const alphaGrad = sctx.createLinearGradient(x0, y0, x, y);
+      const alphaGrad = sctx.createLinearGradient(x0, y0, ex, ey);
       /* 默认（未反向）：起点透明 → 终点不透明
          反向：起点不透明 → 终点透明 */
       const startA = cfg.gradientReverse ? baseAlpha : 0;
@@ -12866,6 +13009,7 @@ function startPaintStroke(x, y, pressure) {
     /* 重置直线方向连续性缓存（每笔开始时没有方向信息） */
     _gradLastLineAngle = 0;
     _gradHasValidAngle = false;
+    _gradShiftConstrain = false;   /* ★ 新笔画开始，Shift 约束默认关闭 */
 
     /* 渐变线在本笔开始时确定一次宽度 / 角度 / 圆度（避免每帧随机闪烁） */
     gradientLineWidth = strokeErasing ? cfg.bEraserWidth : rollBWidthGradient();
@@ -15641,6 +15785,12 @@ cvs.addEventListener('pointermove', e => {
     }
 
   } else {
+    /* ★ 直线模式：下笔后按 Shift 锁定水平/垂直
+       ── 先按 Shift 再下笔走涂抹分支，进不到这里
+       ── 下笔后按 Shift → 实时切换约束（松开 Shift 立即解除） */
+    if (strokePaintMode === 'gradient') {
+      _gradShiftConstrain = !!e.shiftKey;
+    }
     continuePaintStroke(x, y, pressure);
   }
 }, { passive: false });
@@ -17665,9 +17815,7 @@ if (bLinearEl) {
     const v = bLinearEl.checked;
     if (cfg.paintMode === 'line')       cfg.paintLinearLine  = v;
     else if (cfg.paintMode === 'lasso') cfg.paintLinearLasso = v;
-
-    const row = document.getElementById('bLinearReverseRow');
-    if (row) row.hidden = !v;
+    /* ★ 反向行不再随线性开关隐藏 */
   });
 }
 
@@ -17692,7 +17840,8 @@ function syncPlaceLinearUI() {
   if (pLinearReverseEl) {
     pLinearReverseEl.checked = !!cfg.placeLinearReverse;
   }
-  if (revRow) revRow.hidden = !pLinearEl.checked;
+  /* ★ 反向行始终显示，不依赖线性勾选 */
+  if (revRow) revRow.hidden = false;
 }
 
 (function bindPlaceLinear() {
@@ -17704,8 +17853,7 @@ function syncPlaceLinearUI() {
     const v = pLinearEl.checked;
     if (cfg.ctrlMode === 'drag') cfg.placeLinearDrag = v;
     else                          cfg.placeLinearScatter = v;
-    const revRow = document.getElementById('pLinearReverseRow');
-    if (revRow) revRow.hidden = !v;
+    /* ★ 反向行不再随线性开关隐藏 */
   });
 
   if (pLinearReverseEl) {
@@ -18388,8 +18536,14 @@ window.addEventListener('keydown', e => {
 
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight')
       && !tfActive && !backtickHeld) {
-    blurBar.style.display = 'flex';
-    if (blurBrushPreview) updateBlurBrushPreview();
+    /* ★ 直线模式：正在画线时按 Shift 是锁定水平/垂直，
+       不弹涂抹过渡面板（约束状态由 pointermove 实时读取 e.shiftKey） */
+    if (strokeActive && strokePaintMode === 'gradient') {
+      /* 不显示 blurBar，Shift 只用于约束方向 */
+    } else {
+      blurBar.style.display = 'flex';
+      if (blurBrushPreview) updateBlurBrushPreview();
+    }
   }
 
   if (tfActive) {
@@ -18678,6 +18832,12 @@ window.addEventListener('keyup', e => {
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
     blurBar.style.display = 'none';
     if (backtickHeld && !tfActive) updateLassoCursor(e);
+    /* ★ 直线模式：松开 Shift 立即解除约束并重绘（不用等下一次 pointermove） */
+    if (strokeActive && strokePaintMode === 'gradient' && _gradShiftConstrain) {
+      _gradShiftConstrain = false;
+      drawGradientLine(lastPointerPos.x, lastPointerPos.y);
+      scheduleRender();
+    }
   }
   /* ★ 键盘 Alt 状态复位（keydown 中置 true，这里置 false） */
 if (e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight') {
@@ -18716,6 +18876,9 @@ window.addEventListener('blur', () => {
     qKeyHeld = false;
     if (radialActive && radialMode === 'blend') hideRadial();
   }
+  /* 参数面板兜底隐藏（hideRadial 内部已经处理，这里再兜一层） */
+  const qpBlur = document.getElementById('qParamPanel');
+  if (qpBlur) qpBlur.hidden = true;
   /* ★ A 键加深 / 减淡清理 */
   if (aHeld) {
     aHeld = false;
@@ -19007,6 +19170,324 @@ function hideRadial() {
   radialInnerHoverIndex = -1;
   radialMode = 'number';
   radialMenuEl.hidden = true;
+  const qp = document.getElementById('qParamPanel');
+  if (qp) qp.hidden = true;
+}
+
+/* =========================================================
+   Q 面板扩展：大小 / 浓度 / 硬度 参数配置
+   ========================================================= */
+function getQParamConfig() {
+  const t = cfg.tool;
+
+  if (t === 'paint') {
+    const mode = cfg.paintMode;
+    if (mode === 'line') {
+      return {
+        size:  { visible: true, min: 1, max: 120, step: 1,
+                 val: cfg.bWidth,
+                 set: v => cfg.bWidth = v,
+                 fmt: v => String(Math.round(v)) },
+        alpha: { visible: true, min: 5, max: 100, step: 1,
+                 val: Math.round(cfg.bAlphaLine * 100),
+                 set: v => cfg.bAlphaLine = v / 100,
+                 fmt: v => Math.round(v) + '%' },
+        hard:  { visible: true, min: 0, max: 100, step: 1,
+                 val: Math.round(cfg.hardnessLine * 100),
+                 set: v => cfg.hardnessLine = v / 100,
+                 fmt: v => Math.round(v) + '%' },
+        penSize: true, penAlpha: true,
+        linear:  { visible: true, on: !!cfg.paintLinearLine,
+                   set: v => { cfg.paintLinearLine = v; } },
+        reverse: { visible: true, on: !!cfg.linearReverse,
+                   set: v => { cfg.linearReverse = v; } }
+      };
+    }
+    if (mode === 'gradient') {
+      return {
+        size:  { visible: true, min: 1, max: 120, step: 1,
+                 val: cfg.gradientWidth,
+                 set: v => cfg.gradientWidth = v,
+                 fmt: v => String(Math.round(v)) },
+        alpha: { visible: true, min: 5, max: 100, step: 1,
+                 val: Math.round(cfg.gradientAlpha * 100),
+                 set: v => cfg.gradientAlpha = v / 100,
+                 fmt: v => Math.round(v) + '%' },
+        hard:  { visible: true, min: 0, max: 100, step: 1,
+                 val: Math.round(cfg.hardnessGradient * 100),
+                 set: v => cfg.hardnessGradient = v / 100,
+                 fmt: v => Math.round(v) + '%' },
+        penSize: false, penAlpha: true,
+        linear:  { visible: true, on: !!cfg.gradientAlphaOn,
+                   set: v => { cfg.gradientAlphaOn = v; } },
+        reverse: { visible: true, on: !!cfg.gradientReverse,
+                   set: v => { cfg.gradientReverse = v; } }
+      };
+    }
+    /* lasso */
+    return {
+      size:  { visible: false },
+      alpha: { visible: true, min: 5, max: 100, step: 1,
+               val: Math.round(cfg.bAlphaLasso * 100),
+               set: v => cfg.bAlphaLasso = v / 100,
+               fmt: v => Math.round(v) + '%' },
+      hard:  { visible: true, min: 0, max: 100, step: 1,
+               val: Math.round(cfg.hardnessLasso * 100),
+               set: v => cfg.hardnessLasso = v / 100,
+               fmt: v => Math.round(v) + '%' },
+      penSize: false, penAlpha: true,
+      linear:  { visible: true, on: !!cfg.paintLinearLasso,
+                 set: v => { cfg.paintLinearLasso = v; } },
+      reverse: { visible: true, on: !!cfg.linearReverse,
+                 set: v => { cfg.linearReverse = v; } }
+    };
+  }
+
+  if (t === 'place') {
+    const isScatter = cfg.ctrlMode === 'scatter';
+    const alphaVal = isScatter ? cfg.pAlphaScatter : cfg.pAlphaDrag;
+    const linearOn = isScatter ? !!cfg.placeLinearScatter : !!cfg.placeLinearDrag;
+    const linearSet = v => {
+      if (cfg.ctrlMode === 'scatter') cfg.placeLinearScatter = v;
+      else                            cfg.placeLinearDrag = v;
+    };
+    return {
+      size:  { visible: true, min: 6, max: 160, step: 1,
+               val: cfg.pSize,
+               set: v => cfg.pSize = v,
+               fmt: v => String(Math.round(v)) },
+      alpha: { visible: true, min: 5, max: 100, step: 1,
+               val: Math.round(alphaVal * 100),
+               set: v => {
+                 if (cfg.ctrlMode === 'scatter') cfg.pAlphaScatter = v / 100;
+                 else                            cfg.pAlphaDrag    = v / 100;
+               },
+               fmt: v => Math.round(v) + '%' },
+      hard:  { visible: true, min: 0, max: 100, step: 1,
+               val: Math.round(cfg.pHardness * 100),
+               set: v => cfg.pHardness = v / 100,
+               fmt: v => Math.round(v) + '%' },
+      penSize: true, penAlpha: true,
+      linear:  { visible: true, on: linearOn, set: linearSet },
+      reverse: { visible: true, on: !!cfg.placeLinearReverse,
+                 set: v => { cfg.placeLinearReverse = v; } }
+    };
+  }
+
+  if (t === 'liquify') {
+    return {
+      size:  { visible: true, min: 10, max: 240, step: 1,
+               val: cfg.lqSize,
+               set: v => cfg.lqSize = v,
+               fmt: v => String(Math.round(v)) },
+      alpha: { visible: true, min: 5, max: 100, step: 1,
+               val: Math.round(cfg.lqStrength * 100),
+               set: v => cfg.lqStrength = v / 100,
+               fmt: v => Math.round(v) + '%' },
+      hard:  { visible: false },
+      penSize: false, penAlpha: false,
+      linear:  { visible: false },
+      reverse: { visible: false }
+    };
+  }
+
+  return { size: { visible: false }, alpha: { visible: false }, hard: { visible: false },
+           penSize: false, penAlpha: false,
+           linear: { visible: false }, reverse: { visible: false } };
+}
+
+/* 同步参数面板 UI：滑杆 min/max/value + 压感按钮 state */
+function syncQParamPanel() {
+  const conf = getQParamConfig();
+  const panel = document.getElementById('qParamPanel');
+  if (!panel) return;
+
+  function fillRow(channel, rowId, inputId, penBtnId) {
+    const row = document.getElementById(rowId);
+    const input = document.getElementById(inputId);
+    if (!row || !input) return;
+    const out = row.querySelector('i');
+    const cfgCh = conf[channel];
+
+    if (!cfgCh.visible) {
+      row.classList.add('disabled');
+      return;
+    }
+    row.classList.remove('disabled');
+    if (cfgCh.min != null)  input.min  = String(cfgCh.min);
+    if (cfgCh.max != null)  input.max  = String(cfgCh.max);
+    if (cfgCh.step != null) input.step = String(cfgCh.step);
+    input.value = String(cfgCh.val);
+    if (out && cfgCh.fmt) out.textContent = cfgCh.fmt(cfgCh.val);
+
+    if (penBtnId) {
+      const penBtn = document.getElementById(penBtnId);
+      const enabled = (channel === 'size') ? conf.penSize : conf.penAlpha;
+      if (penBtn) penBtn.style.display = enabled ? '' : 'none';
+    }
+  }
+
+  fillRow('size',  'qParamRowSize',  'qParamSize',  'qParamSizePen');
+  fillRow('alpha', 'qParamRowAlpha', 'qParamAlpha', 'qParamAlphaPen');
+  fillRow('hard',  'qParamRowHard',  'qParamHard',  null);
+
+  syncQParamPenState('size',  document.getElementById('qParamSizePen'));
+  syncQParamPenState('alpha', document.getElementById('qParamAlphaPen'));
+
+  /* ★ 线性 / 反向开关 */
+  const linearRow   = document.getElementById('qParamRowLinear');
+  const reverseRow  = document.getElementById('qParamRowReverse');
+  const linearInput = document.getElementById('qParamLinear');
+  const reverseInput = document.getElementById('qParamReverse');
+
+  if (linearRow && linearInput) {
+    if (!conf.linear || !conf.linear.visible) {
+      linearRow.classList.add('disabled');
+    } else {
+      linearRow.classList.remove('disabled');
+      linearInput.checked = !!conf.linear.on;
+    }
+  }
+  if (reverseRow && reverseInput) {
+    if (!conf.reverse || !conf.reverse.visible) {
+      reverseRow.classList.add('disabled');
+    } else {
+      reverseRow.classList.remove('disabled');
+      reverseInput.checked = !!conf.reverse.on;
+    }
+  }
+}
+
+/* 从当前工具同步压感按钮的 state / mode */
+function syncQParamPenState(channel, btn) {
+  if (!btn) return;
+  const t = cfg.tool;
+  let on = false, rev = false, mode = 'pressure';
+  if (channel === 'size') {
+    if (t === 'paint') { on = cfg.paintSizePressure;  rev = cfg.paintSizePressureReverse;  mode = cfg.paintSizePenMode; }
+    else if (t === 'place') { on = cfg.placeSizePressure;  rev = cfg.placeSizePressureReverse;  mode = cfg.placeSizePenMode; }
+  } else if (channel === 'alpha') {
+    if (t === 'paint') { on = cfg.paintAlphaPressure; rev = cfg.paintAlphaPressureReverse; mode = cfg.paintAlphaPenMode; }
+    else if (t === 'place') { on = cfg.placeAlphaPressure; rev = cfg.placeAlphaPressureReverse; mode = cfg.placeAlphaPenMode; }
+  }
+  const state = !on ? 0 : (rev ? 2 : 1);
+  btn.dataset.state = String(state);
+  btn.dataset.mode = mode;
+  btn.title = makePressureTitle(mode, state);
+}
+
+/* =========================================================
+   同步 Q 面板 → 左侧主面板
+   ── 主面板有三类控件：
+      · 简单滑杆（bAlpha / bHardness / pHardness / lqSize / lqStrength）
+        → setRangeDisplay(id, v) 直接更新 input.value + <i> 标签
+      · 双模式滑杆（bWidthCtl / pSizeCtl / pAlphaCtl）
+        → 调用 ctl.refreshLabel() 让内部重读 cfg 并刷新
+      · 压感按钮（bSizePen / pSizePen / bAlphaPen / pAlphaPen）
+        → 更新 dataset.state / dataset.mode / title
+   ========================================================= */
+
+/* 滑杆值 → 主面板 UI */
+function syncQParamToMainPanel() {
+  const t = cfg.tool;
+
+  if (t === 'paint') {
+    /* 大小：bWidth / gradientWidth 都走 bWidthCtl（内部按 paintMode 读字段） */
+    if (bWidthCtl) bWidthCtl.refreshLabel();
+
+    /* 浓度：line / lasso / gradient 都写同一个 bAlpha 滑杆 */
+    let a;
+    if (cfg.paintMode === 'gradient')      a = cfg.gradientAlpha;
+    else if (cfg.paintMode === 'lasso')    a = cfg.bAlphaLasso;
+    else                                   a = cfg.bAlphaLine;
+    setRangeDisplay('bAlpha', Math.round((a == null ? 1 : a) * 100));
+
+    /* 硬度：同上，写同一个 bHardness 滑杆 */
+    let h;
+    if (cfg.paintMode === 'gradient')      h = cfg.hardnessGradient;
+    else if (cfg.paintMode === 'lasso')    h = cfg.hardnessLasso;
+    else                                   h = cfg.hardnessLine;
+    setRangeDisplay('bHardness', Math.round((h == null ? 1 : h) * 100));
+
+  } else if (t === 'place') {
+    /* 大小：双模式 pSizeCtl（会同时处理范围模式下的 label） */
+    if (pSizeCtl) pSizeCtl.refreshLabel();
+
+    /* 浓度：双模式 pAlphaCtl（散布 / 拖拽各自独立） */
+    if (pAlphaCtl) pAlphaCtl.refreshLabel();
+
+    /* 硬度：简单滑杆 */
+    setRangeDisplay('pHardness', Math.round(cfg.pHardness * 100));
+
+  } else if (t === 'liquify') {
+    setRangeDisplay('lqSize', cfg.lqSize);
+    setRangeDisplay('lqStrength', Math.round(cfg.lqStrength * 100));
+  }
+}
+
+/* 压感状态 → 主面板按钮 UI（读 cfg，不读 Q 面板） */
+function syncQParamPenToMainPanel(channel) {
+  const t = cfg.tool;
+  let mainBtnId = null;
+  if (channel === 'size') {
+    if (t === 'paint')      mainBtnId = 'bSizePen';
+    else if (t === 'place') mainBtnId = 'pSizePen';
+  } else if (channel === 'alpha') {
+    if (t === 'paint')      mainBtnId = 'bAlphaPen';
+    else if (t === 'place') mainBtnId = 'pAlphaPen';
+  }
+  if (!mainBtnId) return;
+  const mainBtn = document.getElementById(mainBtnId);
+  if (!mainBtn) return;
+
+  let on = false, rev = false, mode = 'pressure';
+  if (channel === 'size') {
+    if (t === 'paint')      { on = cfg.paintSizePressure;  rev = cfg.paintSizePressureReverse;  mode = cfg.paintSizePenMode; }
+    else if (t === 'place') { on = cfg.placeSizePressure;  rev = cfg.placeSizePressureReverse;  mode = cfg.placeSizePenMode; }
+  } else if (channel === 'alpha') {
+    if (t === 'paint')      { on = cfg.paintAlphaPressure; rev = cfg.paintAlphaPressureReverse; mode = cfg.paintAlphaPenMode; }
+    else if (t === 'place') { on = cfg.placeAlphaPressure; rev = cfg.placeAlphaPressureReverse; mode = cfg.placeAlphaPenMode; }
+  }
+
+  const state = !on ? 0 : (rev ? 2 : 1);
+  mainBtn.dataset.state = String(state);
+  mainBtn.dataset.mode = mode;
+  mainBtn.title = makePressureTitle(mode, state);
+}
+
+/* 滑杆拖动 → 写回当前工具字段 + 同步主面板 */
+function applyQParamInput(channel, value) {
+  const conf = getQParamConfig();
+  const cfgCh = conf[channel];
+  if (!cfgCh || !cfgCh.visible) return;
+  cfgCh.set(value);
+  syncQParamToMainPanel();     /* ★ 新增：同步到左侧主面板 */
+}
+
+/* 压感按钮短按 → 写回当前工具字段 + 同步主面板 */
+function applyQParamPenState(channel, state) {
+  const t = cfg.tool;
+  if (channel === 'size') {
+    if (t === 'paint')      { cfg.paintSizePressure  = (state > 0); cfg.paintSizePressureReverse  = (state === 2); }
+    else if (t === 'place') { cfg.placeSizePressure  = (state > 0); cfg.placeSizePressureReverse  = (state === 2); }
+  } else if (channel === 'alpha') {
+    if (t === 'paint')      { cfg.paintAlphaPressure = (state > 0); cfg.paintAlphaPressureReverse = (state === 2); }
+    else if (t === 'place') { cfg.placeAlphaPressure = (state > 0); cfg.placeAlphaPressureReverse = (state === 2); }
+  }
+  syncQParamPenToMainPanel(channel);   /* ★ 新增：同步到左侧主面板 */
+}
+
+/* 压感按钮长按 → 切 mode + 同步主面板 */
+function applyQParamPenMode(channel, mode) {
+  const t = cfg.tool;
+  if (channel === 'size') {
+    if (t === 'paint')      cfg.paintSizePenMode  = mode;
+    else if (t === 'place') cfg.placeSizePenMode  = mode;
+  } else if (channel === 'alpha') {
+    if (t === 'paint')      cfg.paintAlphaPenMode = mode;
+    else if (t === 'place') cfg.placeAlphaPenMode = mode;
+  }
+  syncQParamPenToMainPanel(channel);   /* ★ 新增：同步到左侧主面板 */
 }
 
 /* ★ Q 键：打开混合模式双圈径向菜单 */
@@ -19041,6 +19522,24 @@ function openBlendRadial() {
 
   renderRadial();
   updateRadialHover(lastClientX, lastClientY);
+
+  /* ★ 同步参数面板（先同步再显示，因为要读 offsetHeight 定位） */
+  syncQParamPanel();
+  const qp = document.getElementById('qParamPanel');
+  if (qp) {
+    qp.hidden = false;
+    const pW = qp.offsetWidth  || 280;
+    const pH = qp.offsetHeight || 110;
+    let pLeft = left + (size - pW) / 2;
+    pLeft = Math.max(8, Math.min(window.innerWidth - pW - 8, pLeft));
+    let pTop  = top + size + 8;
+    if (pTop + pH > window.innerHeight - 8) {
+      pTop = top - pH - 8;
+      if (pTop < 8) pTop = 8;
+    }
+    qp.style.left = pLeft + 'px';
+    qp.style.top  = pTop  + 'px';
+  }
 }
 
 function getBlendLabel(value) {
@@ -19260,6 +19759,89 @@ if (collapseLayersBtn && layersPanelEl) {
 buildCustomSlotsUI();
 updateCustomBrushPreview();
 updateBlurBrushPreview();
+
+/* ★ Q 面板参数滑杆 / 压感按钮绑定 */
+(function bindQParamPanel() {
+  const sizeEl  = document.getElementById('qParamSize');
+  const alphaEl = document.getElementById('qParamAlpha');
+  const hardEl  = document.getElementById('qParamHard');
+
+  function bindSlider(inputEl, channel) {
+    if (!inputEl) return;
+    inputEl.addEventListener('input', () => {
+      const v = parseFloat(inputEl.value);
+      applyQParamInput(channel, v);
+      const row = inputEl.closest('.qParamRow');
+      const out = row ? row.querySelector('i') : null;
+      if (out) {
+        const conf = getQParamConfig();
+        const cfgCh = conf[channel];
+        if (cfgCh && cfgCh.visible && cfgCh.fmt) out.textContent = cfgCh.fmt(v);
+      }
+    });
+  }
+  bindSlider(sizeEl,  'size');
+  bindSlider(alphaEl, 'alpha');
+  bindSlider(hardEl,  'hard');
+
+  const sizePenEl  = document.getElementById('qParamSizePen');
+  const alphaPenEl = document.getElementById('qParamAlphaPen');
+
+  setupPressureBtn(sizePenEl,
+    s => applyQParamPenState('size', s),
+    m => applyQParamPenMode('size', m)
+  );
+  setupPressureBtn(alphaPenEl,
+    s => applyQParamPenState('alpha', s),
+    m => applyQParamPenMode('alpha', m)
+  );
+
+  /* ★ 线性 / 反向开关事件 */
+  const linearEl  = document.getElementById('qParamLinear');
+  const reverseEl = document.getElementById('qParamReverse');
+
+  if (linearEl) {
+    linearEl.addEventListener('change', () => {
+      const conf = getQParamConfig();
+      if (conf.linear && conf.linear.visible && conf.linear.set) {
+        conf.linear.set(linearEl.checked);
+        /* 同步左侧主面板 */
+        if (cfg.tool === 'paint') {
+          if (cfg.paintMode === 'gradient') {
+            const bGradOn = document.getElementById('bGradAlphaOn');
+            if (bGradOn) bGradOn.checked = !!cfg.gradientAlphaOn;
+          } else {
+            syncLinearUI();
+          }
+        } else if (cfg.tool === 'place') {
+          syncPlaceLinearUI();
+        }
+      }
+    });
+  }
+
+  if (reverseEl) {
+    reverseEl.addEventListener('change', () => {
+      const conf = getQParamConfig();
+      if (conf.reverse && conf.reverse.visible && conf.reverse.set) {
+        conf.reverse.set(reverseEl.checked);
+        /* 同步左侧主面板 */
+        if (cfg.tool === 'paint') {
+          if (cfg.paintMode === 'gradient') {
+            const bGradRev = document.getElementById('bGradAlphaReverse');
+            if (bGradRev) bGradRev.checked = !!cfg.gradientReverse;
+          } else {
+            const bLinearRev = document.getElementById('bLinearReverse');
+            if (bLinearRev) bLinearRev.checked = !!cfg.linearReverse;
+          }
+        } else if (cfg.tool === 'place') {
+          const pLinearRev = document.getElementById('pLinearReverse');
+          if (pLinearRev) pLinearRev.checked = !!cfg.placeLinearReverse;
+        }
+      }
+    });
+  }
+})();
 
 /* ★ A 键加深 / 减淡：面板事件绑定 */
 (function bindDodgeBurnUI() {
