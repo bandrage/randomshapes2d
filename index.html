@@ -398,26 +398,51 @@
 
   #hint{
     position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
-    color:rgba(255,255,255,.75);
-    font-size:12px;letter-spacing:.1em;pointer-events:none;z-index:5;
-    background:rgba(0,0,0,.55);
-    padding:8px 16px;
-    border-radius:10px;
-    border:1px solid rgba(255,255,255,.08);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    /* 自动换行：flex + wrap，容器窄自动折行，宽自动并回 */
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:center;
-    align-items:center;
-    gap:4px 14px;
-    line-height:1.55;
-    max-width:min(92vw, 880px);
+    z-index:30;
+    color:rgba(255,255,255,.82);
+    font-size:11.5px;letter-spacing:.02em;
+    background:rgba(14,14,20,.88);
+    padding:12px 16px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:0 12px 40px rgba(0,0,0,.55);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    display:grid;
+    grid-template-columns:repeat(4,minmax(168px,1fr));
+    gap:8px 18px;
+    line-height:1.4;
+    max-width:min(94vw, 980px);
+    max-height:min(62vh, 480px);
+    overflow:auto;
+  }
+  #hint[hidden]{display:none !important;}
+  #hint .hint-title{
+    grid-column:1 / -1;
+    display:flex;align-items:center;justify-content:space-between;
+    padding-bottom:6px;margin-bottom:2px;
+    border-bottom:1px solid rgba(255,255,255,.10);
+    color:#fff;font-size:12px;font-weight:600;letter-spacing:.06em;
+  }
+  #hint .hint-title span{color:var(--dim);font-weight:400;font-size:10.5px;letter-spacing:.02em;}
+  #hint .hint-col{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  #hint .hint-group{
+    color:#6ee7ff;font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;margin:3px 0 1px;
   }
   #hint .hint-item{
-    white-space:nowrap;
+    display:flex;gap:7px;align-items:baseline;
+    white-space:normal;
   }
+  #hint kbd{
+    flex:0 0 auto;
+    font-family:inherit;font-size:10.5px;line-height:1.4;
+    padding:1px 5px;border-radius:5px;
+    background:rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.12);
+    color:#e9e9f0;
+  }
+  #hint .hint-desc{color:rgba(255,255,255,.72);line-height:1.35;}
     /* ===== 快捷拾色器（单击 Alt 唤起） ===== */
   #quickPicker{
     position:fixed;z-index:80;
@@ -736,6 +761,92 @@
     width:14px;height:14px;border-radius:50%;
     background:#e9e9f0;border:none;cursor:pointer;
   }
+    /* ★ W 键：尺子 / 辅助线面板 */
+  #rulerPanel{
+    position:fixed;top:18px;left:50%;transform:translateX(-50%);
+    display:none;flex-direction:column;gap:8px;
+    padding:10px 14px;border-radius:12px;
+    background:var(--panel);
+    backdrop-filter:blur(14px) saturate(1.4);
+    -webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border:1px solid var(--line);
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+    z-index:23;user-select:none;font-size:12px;
+  }
+  #rulerPanel .rrRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  #rulerPanel .rrRow > span{color:#c9c9d9;white-space:nowrap;flex:0 0 auto;}
+  #rulerPanel .rrRow > i{color:#b9b9c9;font-style:normal;min-width:26px;text-align:right;font-variant-numeric:tabular-nums;}
+  #rulerPanel .rrTypes{display:flex;gap:4px;flex-wrap:wrap;}
+  #rulerPanel .rrTypes button{
+    padding:4px 9px;border-radius:7px;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--dim);
+    font-size:11px;cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  #rulerPanel .rrTypes button:hover{background:rgba(255,255,255,.1);color:#fff;}
+  #rulerPanel .rrTypes button.on{
+    background:linear-gradient(135deg,rgba(110,231,255,.22),rgba(167,139,250,.22));
+    border-color:rgba(110,231,255,.55);color:#fff;
+  }
+  #rulerPanel input[type=range]{
+    width:180px;-webkit-appearance:none;appearance:none;
+    height:3px;border-radius:3px;background:rgba(255,255,255,.14);
+    outline:none;cursor:pointer;
+  }
+  #rulerPanel input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:#e9e9f0;border:none;cursor:pointer;
+    box-shadow:0 0 0 3px rgba(110,231,255,.25);
+  }
+  #rulerPanel input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;background:#e9e9f0;border:none;cursor:pointer;
+  }
+  #rulerPanel .rrHint{color:#8d8da0;font-size:10.5px;}
+  #rulerCvs{
+    position:fixed;left:0;top:0;width:100vw;height:100vh;
+    pointer-events:none;z-index:5;display:none;
+  }
+  #rulerCenter,#rulerHandle{
+    position:fixed;left:0;top:0;display:none;border-radius:50%;
+    touch-action:none;z-index:6;
+  }
+  #rulerCenter{
+    width:14px;height:14px;margin:-7px 0 0 -7px;
+    background:rgba(110,231,255,.9);border:2px solid rgba(0,0,0,.55);
+    box-shadow:0 0 10px rgba(110,231,255,.8);cursor:move;
+  }
+  #rulerHandle{
+    width:20px;height:20px;margin:-10px 0 0 -10px;
+    background:rgba(16,18,24,.9);border:2px solid rgba(110,231,255,.95);
+    box-shadow:0 0 10px rgba(110,231,255,.6);cursor:grab;
+  }
+  /* ★ 消失点手柄：红 / 绿 / 蓝，各自独立拖动（p2 / p3） */
+  #rulerVP0,#rulerVP1,#rulerVP2{
+    position:fixed;left:0;top:0;display:none;
+    width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;
+    border:2px solid rgba(0,0,0,.6);touch-action:none;z-index:7;
+    cursor:grab;
+  }
+  #rulerVP0{background:#ff5a5f;box-shadow:0 0 10px rgba(255,90,95,.85);}
+  #rulerVP1{background:#4ade80;box-shadow:0 0 10px rgba(74,222,128,.85);}
+  #rulerVP2{background:#60a5fa;box-shadow:0 0 10px rgba(96,165,250,.85);}
+  /* ★ 引导线交点手柄（简约空心圈） */
+  #rulerX0,#rulerX1,#rulerX2,#rulerX3,#rulerX4,#rulerX5{
+    position:fixed;left:0;top:0;display:none;
+    width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;
+    border:1.5px solid rgba(255,255,255,.55);
+    background:rgba(10,12,16,.50);
+    touch-action:none;z-index:8;cursor:grab;
+  }
+  /* ★ 吸附开关 */
+
+  #rulerPanel .rrSnap{
+    display:flex;align-items:center;gap:5px;margin-left:auto;
+    color:#c9c9d9;cursor:pointer;font-size:11px;white-space:nowrap;
+  }
+  #rulerPanel .rrSnap input{
+    width:13px;height:13px;margin:0;accent-color:#6ee7ff;cursor:pointer;
+  }
+
 
     #cropDialog{
     position:fixed;top:50%;left:50%;
@@ -1173,9 +1284,12 @@
     white-space:nowrap;font-size:11px;color:#e9e9f0;padding:0 2px;
   }
 
+  @media (max-width:900px){
+    #hint{grid-template-columns:repeat(2,minmax(140px,1fr));}
+  }
   @media (max-width:520px){
     #ui{width:calc(100vw - 24px);left:12px;top:12px}
-    #hint{font-size:11px}
+    #hint{font-size:11px;grid-template-columns:1fr;max-height:60vh;}
     #customPanel{top:auto;bottom:14px;right:12px;width:140px;max-height:60dvh;}
     .custom-preview{height:56px}
     #layersPanel{width:200px;max-height:42dvh;bottom:12px;right:12px}
@@ -1193,6 +1307,20 @@
 <body>
 
 <canvas id="c"></canvas>
+
+<canvas id="rulerCvs"></canvas>
+<div id="rulerCenter"></div>
+<div id="rulerHandle"></div>
+<div id="rulerVP0"></div>
+<div id="rulerVP1"></div>
+<div id="rulerVP2"></div>
+<div id="rulerX0"></div>
+<div id="rulerX1"></div>
+<div id="rulerX2"></div>
+<div id="rulerX3"></div>
+<div id="rulerX4"></div>
+<div id="rulerX5"></div>
+
 
 <div id="blurBar">
   <div class="bbContent">
@@ -1248,9 +1376,9 @@
     </div>
     <span style="margin-left:14px">色调</span>
     <div class="dbTones" id="dbTones">
-      <button data-v="shadows">亮调</button>
+      <button data-v="shadows">暗调</button>
       <button data-v="midtones" class="on">中间调</button>
-      <button data-v="highlights">暗调</button>
+      <button data-v="highlights">亮调</button>
     </div>
   </div>
   <div class="dbRow">
@@ -1261,6 +1389,29 @@
     <input id="dbSize" type="range" min="10" max="240" value="60">
     <i>60</i>
   </div>
+</div>
+
+<div id="rulerPanel">
+  <div class="rrRow">
+    <span>类型</span>
+    <div class="rrTypes" id="rrTypes">
+      <button data-t="p1" class="on">透视 · 一点</button>
+      <button data-t="p2">透视 · 两点</button>
+      <button data-t="p3">透视 · 三点</button>
+      <button data-t="sym">对称</button>
+      <button data-t="radial">径向</button>
+    </div>
+    <label class="rrSnap" title="关闭后：不吸附笔触，也没有对称 / 径向复制">
+      <input id="rrSnap" type="checkbox" checked>
+      <span>吸附</span>
+    </label>
+  </div>
+  <div class="rrRow" id="rrCountRow" style="display:none">
+    <span>方向数</span>
+    <input id="rrCount" type="range" min="2" max="24" value="6">
+    <i>6</i>
+  </div>
+  <div class="rrHint">蓝点移动整体 · 彩色点单独调整消失点（Shift 锁定 0/45/90°）· 长按 W 临时不吸附</div>
 </div>
 
 <div id="curvePanel" hidden>
@@ -1615,35 +1766,58 @@
   <div id="qpSwatches"></div>
 </div>
 
-<div id="hint">
-  <span class="hint-item">1放置</span>
-  <span class="hint-item">2绘画</span>
-  <span class="hint-item">3液化</span>
-  <span class="hint-item">S套索/魔棒</span>
-  <span class="hint-item">G填充（左填·右擦）</span>
-  <span class="hint-item">E橡皮</span>
-  <span class="hint-item">X调大小</span>
-  <span class="hint-item">Shift模糊/加选</span>
-  <span class="hint-item">长摁Alt吸色</span>
-  <span class="hint-item">单击Alt拾色器</span>
-  <span class="hint-item">空格平移/复位</span>
-  <span class="hint-item">Ctrl+N新建</span>
-  <span class="hint-item">Ctrl+S导出PSD</span>
-  <span class="hint-item">Ctrl+M曲线</span>
-  <span class="hint-item">Ctrl+E合并</span>
-  <span class="hint-item">Ctrl+Z/Y撤销重做</span>
-  <span class="hint-item">Tab灰度</span>
-  <span class="hint-item">Ctrl+D取消选区</span>
-  <span class="hint-item">Ctrl+I反选</span>
-  <span class="hint-item">Ctrl+C/X/V复制剪贴</span>
-  <span class="hint-item">T变换</span>
-  <span class="hint-item">Delete清空</span>
-  <span class="hint-item">Ctrl+点击选层</span>
-  <span class="hint-item">Ctrl+拖动移动</span>
-  <span class="hint-item">Ctrl+空格缩放</span>
-  <span class="hint-item">Ctrl+J复制图层</span>
-  <span class="hint-item">H显示/隐藏快捷键提示</span>
-  <span class="hint-item">Ctrl+H 收起/展开UI</span>
+<div id="hint" hidden>
+  <div class="hint-title">快捷键 <span>按 H 显示 / 隐藏</span></div>
+
+  <div class="hint-col">
+    <div class="hint-group">工具</div>
+    <div class="hint-item"><kbd>1 / 2 / 3</kbd><span class="hint-desc">放置 / 绘画 / 液化</span></div>
+    <div class="hint-item"><kbd>E</kbd><span class="hint-desc">橡皮（按住）</span></div>
+    <div class="hint-item"><kbd>G</kbd><span class="hint-desc">填充 · 左填 / 右擦</span></div>
+    <div class="hint-item"><kbd>S</kbd><span class="hint-desc">套索 / 魔棒</span></div>
+    <div class="hint-item"><kbd>A</kbd><span class="hint-desc">加深 / 减淡</span></div>
+    <div class="hint-item"><kbd>Q</kbd><span class="hint-desc">混合模式菜单</span></div>
+    <div class="hint-item"><kbd>T</kbd><span class="hint-desc">变换</span></div>
+    <div class="hint-item"><kbd>W</kbd><span class="hint-desc">尺子开 / 关</span></div>
+    <div class="hint-item"><kbd>W ×2</kbd><span class="hint-desc">复位尺子</span></div>
+    <div class="hint-item"><kbd>长按 W</kbd><span class="hint-desc">临时不吸附</span></div>
+  </div>
+
+  <div class="hint-col">
+    <div class="hint-group">笔刷</div>
+    <div class="hint-item"><kbd>X</kbd><span class="hint-desc">调笔刷大小（按住）</span></div>
+    <div class="hint-item"><kbd>Alt</kbd><span class="hint-desc">长按吸色</span></div>
+    <div class="hint-item"><kbd>单击 Alt</kbd><span class="hint-desc">拾色器</span></div>
+    <div class="hint-item"><kbd>Shift</kbd><span class="hint-desc">约束 / 加选 / 模糊</span></div>
+    <div class="hint-group">视图</div>
+    <div class="hint-item"><kbd>空格</kbd><span class="hint-desc">平移（单击复位）</span></div>
+    <div class="hint-item"><kbd>Ctrl+空格</kbd><span class="hint-desc">缩放画布</span></div>
+    <div class="hint-item"><kbd>方向键</kbd><span class="hint-desc">微调 · Shift 10px</span></div>
+    <div class="hint-item"><kbd>Tab</kbd><span class="hint-desc">灰度预览</span></div>
+    <div class="hint-item"><kbd>Esc</kbd><span class="hint-desc">取消当前操作</span></div>
+  </div>
+
+  <div class="hint-col">
+    <div class="hint-group">图层</div>
+    <div class="hint-item"><kbd>Ctrl+J</kbd><span class="hint-desc">复制图层</span></div>
+    <div class="hint-item"><kbd>Ctrl+E</kbd><span class="hint-desc">向下合并</span></div>
+    <div class="hint-item"><kbd>Delete</kbd><span class="hint-desc">清空图层内容</span></div>
+    <div class="hint-item"><kbd>Ctrl+点击</kbd><span class="hint-desc">选择图层</span></div>
+    <div class="hint-item"><kbd>Ctrl+拖动</kbd><span class="hint-desc">移动内容</span></div>
+    <div class="hint-item"><kbd>Ctrl+D</kbd><span class="hint-desc">取消选区</span></div>
+    <div class="hint-item"><kbd>Ctrl+I</kbd><span class="hint-desc">反选</span></div>
+  </div>
+
+  <div class="hint-col">
+    <div class="hint-group">文件 · 编辑</div>
+    <div class="hint-item"><kbd>Ctrl+N</kbd><span class="hint-desc">新建画布</span></div>
+    <div class="hint-item"><kbd>Ctrl+S</kbd><span class="hint-desc">导出 PSD</span></div>
+    <div class="hint-item"><kbd>Ctrl+M</kbd><span class="hint-desc">曲线</span></div>
+    <div class="hint-item"><kbd>Ctrl+Z / Y</kbd><span class="hint-desc">撤销 / 重做</span></div>
+    <div class="hint-item"><kbd>Ctrl+C / X / V</kbd><span class="hint-desc">复制 / 剪切 / 粘贴</span></div>
+    <div class="hint-item"><kbd>H</kbd><span class="hint-desc">快捷键提示</span></div>
+    <div class="hint-item"><kbd>Ctrl+H</kbd><span class="hint-desc">收起 / 展开 UI</span></div>
+  </div>
 </div>
 
 <script>
@@ -1742,10 +1916,10 @@ bEraserWidth: 16,
   lqMode: 'push', lqStyle: 'smooth', lqSize: 80, lqStrength: 0.5,
   /* ★ A 键加深 / 减淡工具（默认喷枪、软笔） */
   dodgeBurnMode: 'burn',        // 'burn' 加深 | 'dodge' 减淡
-  dodgeBurnTone: 'midtones',    // 'shadows' 亮调 | 'midtones' 中间调 | 'highlights' 暗调
+  dodgeBurnTone: 'midtones',    // 'shadows' 暗调 | 'midtones' 中间调 | 'highlights' 亮调
   dodgeBurnStrength: 0.30,      // 强度 0~1（滑杆 1~100 → /100）
   dodgeBurnSize: 60,            // 笔刷大小 CSS 像素
-  dodgeBurnHardness: 0.30,      // 笔刷硬度（喷枪软笔默认 0.3）
+  dodgeBurnHardness: 0.0,       // 笔刷硬度（0 = 纯软边，喷枪默认）
   blurSize: 80,
   blurStrength: 0.5,
   blurMode: 'smudge',      // Shift 模式：'smudge'(涂抹) | 'blend'(过渡)
@@ -2563,7 +2737,8 @@ function _renderViewImpl() {
 
       previewCtx.globalCompositeOperation = strokeBlend;
       previewCtx.globalAlpha = strokeAlpha;
-      previewCtx.drawImage(clippedStroke, 0, 0);
+      /* ★ 对称 / 径向：预览阶段同步复制笔触 */
+      drawStrokeWithRulerCopies(previewCtx, clippedStroke);
       previewCtx.globalCompositeOperation = 'source-over';
       previewCtx.globalAlpha = 1;
 
@@ -2633,6 +2808,9 @@ function _renderViewImpl() {
   if (!tfActive && hasSelection()) drawSelection();
   if (tfActive) drawTransformUI();
   if (!tfActive && (hasSelection() || lassoActive) && !dashAnimRunning) startDashAnim();
+
+  /* ★ 尺子覆盖层跟随平移 / 缩放重绘（无选区时也必须重绘） */
+  drawRuler();
 }
 
 function drawSelection() {
@@ -5889,29 +6067,45 @@ function buildDragMask(cssX, cssY, shape) {
    ── 每次 dab 局部 getImageData，对笔刷范围内像素：
       · 计算距离 → 笔刷 alpha（软边余弦衰减）
       · 计算像素亮度 L（0~1）→ 色调权重 tw
-         - 亮调（shadows）   ：(1-L)²   → L=0 时最大
+         - 暗调（shadows）   ：(1-L)²   → L=0 时最大
          - 中间调（midtones） ：4L(1-L)  → L=0.5 时最大
-         - 暗调（highlights） ：L²       → L=1 时最大
+         - 亮调（highlights） ：L²       → L=1 时最大
       · delta = strength × brushAlpha × tw × timeFactor
       · 加深（burn）：RGB ×= (1 - delta)  朝黑靠近
       · 减淡（dodge）：RGB += (255-RGB) × delta  朝白靠近
    ── 喷枪：按住鼠标时通过 rAF 持续 dab，每次按时间差累积强度
    ── 喷枪频率基准 30Hz（60fps 下每帧 timeFactor ≈ 0.55）
    ========================================================= */
-function applyDodgeBurnDab(cssX, cssY, timeFactor) {
+/* 仿 PS 的连续喷枪式加深 / 减淡：
+   每帧把「上一落点 → 当前点」当作一次连续的笔刷覆盖，直接按
+   「像素到这段路径的距离」解析计算强度 —— 完全不做离散 dab 采样，
+   因此不存在一个个圆戳的接缝、扇贝状边缘，也没有 8bit 反复取整的同心圈纹。
+
+   每个像素的强度 = 空间软边 × 时间占比 × 帧系数：
+     · 空间软边：随像素到路径的「垂直」距离平滑衰减（smootherstep，两端导数为 0），
+       与帧边界无关 → 相邻帧叠加后沿笔触方向绝对均匀
+     · 时间占比：像素被这条软边路径扫过的长度 ÷ 本帧位移（封顶 1），
+       相当于 PS 的驻留时间：慢 → 累积多，快 → 覆盖轻
+   x0/y0 → x1/y1 为 CSS 坐标，timeFactor 为帧时间系数。 */
+function applyDodgeBurnStroke(cssX0, cssY0, cssX1, cssY1, timeFactor, skipRender) {
   const active = getActiveLayer();
   if (!active || !active.visible || active.locked) return;
 
   const W = baseCvs.width, H = baseCvs.height;
-  const cxP = cssX * dpr;
-  const cyP = cssY * dpr;
-  const rP  = Math.max(4, cfg.dodgeBurnSize * dpr * 0.5);
-  const r2  = rP * rP;
+  const rP = Math.max(4, cfg.dodgeBurnSize * dpr * 0.5);
+  const r2 = rP * rP;
 
-  const bx0 = Math.max(0, Math.floor(cxP - rP));
-  const by0 = Math.max(0, Math.floor(cyP - rP));
-  const bx1 = Math.min(W, Math.ceil(cxP + rP));
-  const by1 = Math.min(H, Math.ceil(cyP + rP));
+  const ax = cssX0 * dpr, ay = cssY0 * dpr;
+  const bx = cssX1 * dpr, by = cssY1 * dpr;
+  const segX = bx - ax, segY = by - ay;
+  const segLen = Math.sqrt(segX * segX + segY * segY);
+  const invSeg2 = segLen > 1e-6 ? 1 / (segLen * segLen) : 0;
+
+  /* 整段路径 + 笔刷半径的包围盒 */
+  const bx0 = Math.max(0, Math.floor(Math.min(ax, bx) - rP));
+  const by0 = Math.max(0, Math.floor(Math.min(ay, by) - rP));
+  const bx1 = Math.min(W, Math.ceil(Math.max(ax, bx) + rP));
+  const by1 = Math.min(H, Math.ceil(Math.max(ay, by) + rP));
   if (bx1 <= bx0 || by1 <= by0) return;
 
   const pw = bx1 - bx0;
@@ -5924,12 +6118,11 @@ function applyDodgeBurnDab(cssX, cssY, timeFactor) {
   const isBurn   = (cfg.dodgeBurnMode === 'burn');
   const tone     = cfg.dodgeBurnTone;
   const strength = Math.max(0.01, Math.min(1, cfg.dodgeBurnStrength));
-  const hard     = Math.max(0, Math.min(1, cfg.dodgeBurnHardness));
+  const hard     = Math.max(0, Math.min(0.98, cfg.dodgeBurnHardness));
   const tf       = Math.max(0.2, Math.min(3, timeFactor || 1));
-
-  /* 每帧基础 delta：strength 30% × 0.04 = 0.012/帧；
-     tf≈0.55 时实际 ≈ 0.0067/帧，60fps 持续 1 秒约 0.4（30% 提亮），手感合适 */
-  const baseDelta = strength * 0.04 * tf;
+  /* 每帧基础 delta：strength 30% × 0.06 = 0.018/帧；tf≈0.55 时 ≈ 0.01/帧 */
+  const baseDelta = strength * 0.06;
+  const invHardGap = 1 / Math.max(1e-6, 1 - hard);
 
   /* 选区 / 锁定像素遮罩 */
   let maskData = null;
@@ -5943,34 +6136,60 @@ function applyDodgeBurnDab(cssX, cssY, timeFactor) {
   }
 
   for (let y = 0; y < ph; y++) {
-    const gy = by0 + y;
-    const dy = gy - cyP;
-    const rowBase = y * pw;
-
+    const py = by0 + y + 0.5;
+    const row = y * pw;
     for (let x = 0; x < pw; x++) {
-      const gx = bx0 + x;
-      const dx = gx - cxP;
-      const d2 = dx * dx + dy * dy;
+      const px = bx0 + x + 0.5;
+
+      /* 像素在路径方向上的投影位置（可超出线段两端）与到直线的垂直距离，
+         用于计算「这一帧里笔刷在该像素上停留了多久」 */
+      let sRaw = 0, pPerp2 = 0, u = 0;
+      if (segLen > 1e-6) {
+        sRaw = ((px - ax) * segX + (py - ay) * segY) / segLen;
+        const cross = (px - ax) * segY - (py - ay) * segX;
+        pPerp2 = cross * cross * invSeg2;
+        u = sRaw / segLen;
+        if (u < 0) u = 0; else if (u > 1) u = 1;
+      }
+      const qx = ax + segX * u;
+      const qy = ay + segY * u;
+      const ddx = px - qx, ddy = py - qy;
+      const d2 = ddx * ddx + ddy * ddy;
       if (d2 > r2) continue;
 
-      const di = (rowBase + x) * 4;
+      /* ① 空间软边：移动时只看「到路径直线」的垂直距离 —— 该距离与帧边界
+         无关，所以相邻帧叠加后沿笔触方向完全均匀（静止时退回点距离，
+         保持圆形笔刷）。纵向的起止由下面的时间占比自然收尾。 */
+      const edgeDist = (segLen > 1e-6 ? Math.sqrt(pPerp2) : Math.sqrt(d2)) / rP;
+      let ba;
+      if (edgeDist <= hard) ba = 1;
+      else {
+        const tt = (edgeDist - hard) * invHardGap;
+        /* smootherstep：两端一阶、二阶导数为 0，收边最柔顺 */
+        ba = 1 - tt * tt * tt * (tt * (tt * 6 - 15) + 10);
+      }
+      if (ba <= 0.0005) continue;
+
+      /* ② 时间占比：像素被这条软边路径扫过的时间 ÷ 本帧时长。
+         用「像素在路径投影点附近的弦长区间」和线段求交，
+         相邻两帧在接缝处自然衔接（各占一半），不会产生按帧闪烁的条纹。 */
+      let timeFrac = 1;
+      if (segLen > 1e-6) {
+        const halfChord = Math.sqrt(Math.max(0, r2 - pPerp2));
+        const covered = Math.min(sRaw + halfChord, segLen) - Math.max(sRaw - halfChord, 0);
+        timeFrac = covered > 0 ? Math.min(1, covered / segLen) : 0;
+      }
+      if (timeFrac <= 0) continue;
+      const c = tf * timeFrac * ba;
+      if (c <= 0.0005) continue;
+
+      const di = (row + x) * 4;
 
       /* 选区 / 锁定像素 */
       let mAlpha = 1;
       if (maskData) mAlpha *= maskData[di + 3] / 255;
       if (lockData) mAlpha *= lockData[di + 3] / 255;
       if (mAlpha < 0.01) continue;
-
-      /* 笔刷软边 alpha */
-      const dist = Math.sqrt(d2);
-      const t = dist / rP;
-      let ba;
-      if (t <= hard) ba = 1;
-      else {
-        const tt = (t - hard) / Math.max(1e-6, 1 - hard);
-        ba = 0.5 * (1 + Math.cos(Math.PI * tt));
-      }
-      if (ba < 0.01) continue;
 
       const r = d[di], g = d[di + 1], b = d[di + 2], a = d[di + 3];
       if (a < 3) continue;
@@ -5989,32 +6208,35 @@ function applyDodgeBurnDab(cssX, cssY, timeFactor) {
         tw = 4 * L * (1 - L);
       }
 
-      const delta = baseDelta * ba * tw * mAlpha;
+      let delta = baseDelta * c * tw * mAlpha;
       if (delta < 0.0001) continue;
+      if (delta > 0.9) delta = 0.9;   /* 单帧上限，避免极慢速时过冲 */
 
-      let nr, ng, nb;
       if (isBurn) {
         const k = 1 - delta;
-        nr = r * k;
-        ng = g * k;
-        nb = b * k;
+        d[di]     = r * k;
+        d[di + 1] = g * k;
+        d[di + 2] = b * k;
       } else {
-        nr = r + (255 - r) * delta;
-        ng = g + (255 - g) * delta;
-        nb = b + (255 - b) * delta;
+        d[di]     = r + (255 - r) * delta;
+        d[di + 1] = g + (255 - g) * delta;
+        d[di + 2] = b + (255 - b) * delta;
       }
-
-      d[di]     = nr;
-      d[di + 1] = ng;
-      d[di + 2] = nb;
     }
   }
 
   bctx.putImageData(img, bx0, by0);
-  renderView();
+  /* 由调用方统一渲染一次，避免每小节都整屏重绘 */
+  if (!skipRender) renderView();
+}
+
+/* 单点入口（点击瞬间、或没有位移的帧） */
+function applyDodgeBurnDab(cssX, cssY, timeFactor, skipRender) {
+  applyDodgeBurnStroke(cssX, cssY, cssX, cssY, timeFactor, skipRender);
 }
 
 /* 喷枪 rAF：按住鼠标时持续 dab（每次按帧间隔累积强度） */
+/* 喷枪 rAF：按住鼠标时持续施加（每次按帧间隔累积强度） */
 function dbAirbrushTick() {
   if (!dodgeBurnActive) { dbRafId = null; return; }
   const now = performance.now();
@@ -6023,7 +6245,15 @@ function dbAirbrushTick() {
   if (dt > 0 && dbHasPointer) {
     /* 30Hz 基准：60fps 下 dt=16.67 → factor=0.55；掉帧时系数变大 */
     const factor = Math.max(0.2, Math.min(3, dt / 30));
-    applyDodgeBurnDab(dbCursorX, dbCursorY, factor);
+
+    /* ★ 仿 PS：整帧只处理「上一落点 → 当前点」这一段连续路径，
+       按像素到线段的距离解析计算强度，不做任何离散 dab。
+       ── 沿笔触方向强度完全均匀，没有圆戳接缝 / 扇贝边；
+       ── 每帧只读写一次像素，也没有反复取整产生的同心圈纹。 */
+    applyDodgeBurnStroke(dbLastDabX, dbLastDabY, dbCursorX, dbCursorY, factor, true);
+    renderView();
+    dbLastDabX = dbCursorX;
+    dbLastDabY = dbCursorY;
   }
   dbRafId = requestAnimationFrame(dbAirbrushTick);
 }
@@ -6035,6 +6265,8 @@ function startDodgeBurn(cssX, cssY, pointerId) {
 
   dbCursorX = cssX;
   dbCursorY = cssY;
+  dbLastDabX = cssX;   // 新增
+  dbLastDabY = cssY;   // 新增
   dbHasPointer = true;
   dbLastTickTime = performance.now();
 
@@ -9848,6 +10080,29 @@ function flushActiveLayer() {
 /* 把「一组图层画布」从下到上叠加成一个新画布 */
 /* 传入的是「图层对象」数组（含 canvas / opacity / blendMode）。
    合成时把每层的 opacity 应用上去，保证合并结果所见即所得。 */
+/* 找到剪贴蒙版图层所依附的「底」图层：
+   与渲染时 composeLayersTo 的规则完全一致 ——
+   clip 层由「栈中位于其下方、最近的一个可见图层」的 alpha 裁剪。
+   合并时若不按这个规则裁剪，被蒙住的区域就会露出来。 */
+function findClipBaseLayer(layer, fallbackList) {
+  const gi = layers.indexOf(layer);
+  if (gi > 0) {
+    for (let j = gi - 1; j >= 0; j--) {
+      if (layers[j].visible) return layers[j];
+    }
+    return null;
+  }
+  /* 找不到全局索引（异常情况）时退回到传入的列表内向下查找 */
+  if (fallbackList) {
+    for (let j = fallbackList.length - 1; j >= 0; j--) {
+      const cand = fallbackList[j];
+      if (cand === layer) continue;
+      if (cand.visible) return cand;
+    }
+  }
+  return null;
+}
+
 function compositeCanvases(layerList, width, height) {
   const tmp = document.createElement('canvas');
   tmp.width = width;
@@ -9857,9 +10112,39 @@ function compositeCanvases(layerList, width, height) {
   tctx.globalCompositeOperation = 'source-over';
   tctx.globalAlpha = 1;
 
+  /* 给 clip 层做裁剪用的临时画布（按需创建一次） */
+  let clipTmpCvs = null;
+  let clipTmpCtx = null;
+
   for (let i = 0; i < layerList.length; i++) {
     const l = layerList[i];
-    const src = getLayerCanvas(l) || l.canvas;
+    let src = getLayerCanvas(l) || l.canvas;
+
+    /* ★ 剪贴蒙版：先用底图层的 alpha 裁掉蒙版外区域，再做正常合成 */
+    if (l.clip) {
+      const baseLayer = findClipBaseLayer(l, layerList);
+      const baseSrc = baseLayer ? (getLayerCanvas(baseLayer) || baseLayer.canvas) : null;
+      if (baseSrc) {
+        if (!clipTmpCvs) {
+          clipTmpCvs = document.createElement('canvas');
+          clipTmpCtx = clipTmpCvs.getContext('2d');
+        }
+        if (clipTmpCvs.width !== width || clipTmpCvs.height !== height) {
+          clipTmpCvs.width = width;
+          clipTmpCvs.height = height;
+        }
+        clipTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
+        clipTmpCtx.globalCompositeOperation = 'source-over';
+        clipTmpCtx.globalAlpha = 1;
+        clipTmpCtx.clearRect(0, 0, width, height);
+        clipTmpCtx.drawImage(src, 0, 0);
+        clipTmpCtx.globalCompositeOperation = 'destination-in';
+        clipTmpCtx.drawImage(baseSrc, 0, 0);
+        clipTmpCtx.globalCompositeOperation = 'source-over';
+        src = clipTmpCvs;
+      }
+    }
+
     if (i === 0) {
       /* ★ 最底层：用 source-over 绘制，opacity 烘焙进像素
          （最底层的 blendMode 不在这里烘焙 —— 它会保留到结果图层上，
@@ -9935,6 +10220,10 @@ function mergeLayers(ids) {
      这样结果图层与组外下方图层的混合关系保持不变，视觉与合并前一致。
      组内上方图层的混合模式已在 compositeCanvases 里烘焙进像素。 */
   topLayer.blendMode = layers[indices[0]].blendMode || 'source-over';
+  /* ★ 剪贴蒙版已在 compositeCanvases 里按底图层 alpha 烘焙进像素，
+     结果图层必须清掉 clip 标记 —— 否则它会被下方的其他图层再裁一次，
+     反而让合并结果与合并前不一致。 */
+  topLayer.clip = false;
   /* 不透明度重置为 100% —— 像素已烘焙 */
   topLayer.opacity = 1;
 
@@ -10008,6 +10297,9 @@ function mergeDown() {
   /* below.blendMode 保持不变 —— 不改 */
   /* 不透明度重置为 100% —— 像素已烘焙（原 below.opacity 在 compositeCanvases 里已生效） */
   below.opacity = 1;
+  /* ★ below 若自己也是剪贴层，其蒙版已在 compositeCanvases 里烘焙，
+     必须清掉 clip 标记，避免合并结果被下方图层再裁一次 */
+  below.clip = false;
 
   /* 删除上面的图层 */
   const delIdx = layers.findIndex(l => l.id === above.id);
@@ -12986,6 +13278,11 @@ function startPaintStroke(x, y, pressure) {
   strokeSeed = Math.random() * 1000;  // ★ 为每一笔生成不同的噪波种子
   strokeOriginX = x;
   strokeOriginY = y;
+    /* ★ 透视尺吸附：每笔重新选择消失点 / 吸附直线 */
+  rulerLineReady = false;
+  rulerSnapAxis = -1;
+  rulerSnapX0 = x;
+  rulerSnapY0 = y;
   strokeEndX = x;
   strokeEndY = y;
   curPressure = pressure;
@@ -13100,6 +13397,14 @@ function startPaintStroke(x, y, pressure) {
 
 function continuePaintStroke(x, y, pressure) {
   if (!strokeActive) return;
+    /* ★ 透视尺吸附：投影到「过起点、指向消失点」的直线
+       吸附关闭（手动关闭 / 长按 W）时不投影 */
+  if (rulerSnapOn() && (ruler.type === 'p1' || ruler.type === 'p2' || ruler.type === 'p3')) {
+    const sp = snapRulerPoint(x, y);
+    if (sp) { x = sp[0]; y = sp[1]; }
+  }
+  /* ★ 绘制中刷新尺子覆盖层：隐藏当前所沿轴的动态线，其余轴继续跟随笔尖 */
+  if (rulerActive) scheduleRulerRedraw();
   curPressure = pressure;
   strokeEndX = x;
   strokeEndY = y;
@@ -13269,7 +13574,8 @@ function commitStroke() {
   bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.globalCompositeOperation = strokeBlend;
   bctx.globalAlpha = strokeAlpha;
-  bctx.drawImage(strokeBuf, 0, 0);
+  /* ★ 对称 / 径向：提交时同样写入复制出的笔触 */
+  drawStrokeWithRulerCopies(bctx, strokeBuf);
   bctx.restore();
 
   clearStrokeBuf();
@@ -13666,6 +13972,7 @@ let aHeld = false;
 let dodgeBurnActive = false;
 let dodgeBurnPointerId = null;
 let dbCursorX = 0, dbCursorY = 0;
+let dbLastDabX = 0, dbLastDabY = 0;   /* 上一帧的 dab 落点，用于沿路径插值补 dab */
 let dbHasPointer = false;
 let dbRafId = null;
 let dbLastTickTime = 0;
@@ -13677,6 +13984,792 @@ function showDodgeBurnPanel() {
 function hideDodgeBurnPanel() {
   const panel = document.getElementById('dodgeBurnPanel');
   if (panel) panel.style.display = 'none';
+}
+/* =========================================================
+   ★ W 键：尺子 / 辅助线（透视 · 对称 · 径向）
+   · 短按 W 进入 / 退出尺子模式
+   · 尺子参数存画布世界坐标：平移 / 缩放画布时尺子跟着画走
+   · 蓝点 = 移动；外圈手柄 = 旋转 + 缩放
+   ========================================================= */
+let rulerActive = false;
+let wDownTime = 0;
+let rulerDrag = null;
+let rulerDragBefore = null;
+const ruler = {
+  type: 'p1',        // p1 | p2 | p3 | sym | radial
+  /* ★ 对称 / 径向各自独立的方向数，互不影响 */
+  symCount: 6,
+  radialCount: 6,
+  cx: 0, cy: 0,
+  angle: 0,
+  radius: 300,
+  /* ★ p2 / p3：每个消失点相对中心的独立偏移（世界坐标） */
+  vps: [{ ox: -300, oy: 0 }, { ox: 300, oy: 0 }, { ox: 0, oy: -210 }],
+  placed: false
+};
+
+/* ★ 吸附开关（面板）与长按 W 的临时抑制 */
+let rulerSnapEnabled = true;
+let wSnapSuppressed = false;
+let lastWUpTime = -1e9;
+let wToggleTimer = 0;
+function rulerSnapOn() {
+  return rulerActive && rulerSnapEnabled && !wSnapSuppressed;
+}
+
+/* 保证三个消失点偏移存在 */
+/* 保证三个消失点偏移存在 */
+function ensureRulerVPs() {
+  if (!Array.isArray(ruler.vps) || ruler.vps.length < 3) {
+    const r = Math.max(80, ruler.radius || 300);
+    ruler.vps = [{ ox: -r, oy: 0 }, { ox: r, oy: 0 }, { ox: 0, oy: -r * 0.7 }];
+  }
+}
+
+/* ★ 每个透视轴的两条引导线方向（世界角度）
+   默认左右轴取不对称张角，避免两轴引导线互相平行（平行会导致交点退化） */
+function ensureRulerDirs() {
+  ensureRulerVPs();
+  if (!Array.isArray(ruler.dirs) || ruler.dirs.length < 3 || !Array.isArray(ruler.dirs[0])) {
+    /* ★ 默认取「地面」造型：红 / 绿各两条线向下收拢，
+       在水平线下方围出一个居中的四边形（像一块地面）；
+       蓝轴两条线自上方向下张开，与红 / 绿线在附近相交 */
+    const s1 = Math.atan(0.28);   // 平缓坡度
+    const s2 = Math.atan(0.75);   // 较陡坡度
+    const sb = Math.atan(1.60);   // 蓝轴坡度
+    ruler.dirs = [
+      [s1, s2],                      // 红：向右下
+      [Math.PI - s1, Math.PI - s2],  // 绿：向左下
+      [Math.PI - sb, sb]             // 蓝：一条向左下、一条向右下
+    ];
+  }
+}
+
+/* 过两点的无限直线求交 */
+function lineIntersect(p1, d1, p2, d2) {
+  const den = d1.x * d2.y - d1.y * d2.x;
+  if (Math.abs(den) < 1e-6) return null;
+  const t = ((p2.x - p1.x) * d2.y - (p2.y - p1.y) * d2.x) / den;
+  return { x: p1.x + d1.x * t, y: p1.y + d1.y * t };
+}
+
+/* 动态线重绘节流 */
+let rulerRedrawRAF = 0;
+function scheduleRulerRedraw() {
+  if (rulerRedrawRAF) return;
+  rulerRedrawRAF = requestAnimationFrame(() => {
+    rulerRedrawRAF = 0;
+    drawRuler();
+  });
+}
+
+/* 交点世界坐标（拖动用）与当前锁定的轴 */
+let rulerInters = [];
+let rulerSnapAxis = -1;
+
+/* ★ 当前类型的方向数：对称最少 1，径向最少 2 */
+function rulerCount() {
+  return ruler.type === 'radial' ? ruler.radialCount : ruler.symCount;
+}
+function setRulerCount(v) {
+  const min = ruler.type === 'sym' ? 1 : 2;
+  const n = Math.max(min, Math.min(24, v | 0));
+  if (ruler.type === 'radial') ruler.radialCount = n;
+  else ruler.symCount = n;
+  return n;
+}
+
+/* ★ 吸附勾选框跟随「手动开关 + 长按 W 临时抑制」 */
+function syncRulerSnapUI() {
+  const el = document.getElementById('rrSnap');
+  if (el) el.checked = rulerSnapEnabled && !wSnapSuppressed;
+}
+
+/* ★ 尺子状态快照 / 还原（用于 Ctrl+Z 撤回尺子位移、旋转、缩放、消失点） */
+function snapshotRulerState() {
+  ensureRulerVPs();
+  ensureRulerDirs();
+  return {
+    type: ruler.type,
+    symCount: ruler.symCount,
+    radialCount: ruler.radialCount,
+    cx: ruler.cx, cy: ruler.cy,
+    angle: ruler.angle, radius: ruler.radius,
+    vps: ruler.vps.map(v => ({ ox: v.ox, oy: v.oy })),
+    dirs: ruler.dirs.map(d => [d[0], d[1]]),
+    placed: ruler.placed
+  };
+}
+function rulerStatesEqual(a, b) {
+  if (!a || !b) return false;
+  if (a.type !== b.type || a.cx !== b.cx || a.cy !== b.cy ||
+      a.angle !== b.angle || a.radius !== b.radius ||
+      a.symCount !== b.symCount || a.radialCount !== b.radialCount) return false;
+  for (let i = 0; i < 3; i++) {
+    if (!a.vps[i] || !b.vps[i]) return false;
+    if (a.vps[i].ox !== b.vps[i].ox || a.vps[i].oy !== b.vps[i].oy) return false;
+    if (a.dirs && b.dirs) {
+      if (!a.dirs[i] || !b.dirs[i]) return false;
+      if (a.dirs[i][0] !== b.dirs[i][0] || a.dirs[i][1] !== b.dirs[i][1]) return false;
+    }
+  }
+  return true;
+}
+function restoreRulerState(s) {
+  if (!s) return;
+  ruler.type = s.type;
+  ruler.symCount = s.symCount;
+  ruler.radialCount = s.radialCount;
+  ruler.cx = s.cx; ruler.cy = s.cy;
+  ruler.angle = s.angle; ruler.radius = s.radius;
+  ruler.vps = s.vps.map(v => ({ ox: v.ox, oy: v.oy }));
+  ruler.dirs = s.dirs ? s.dirs.map(d => [d[0], d[1]]) : null;
+  ruler.placed = s.placed;
+  updateRulerPanelUI();
+  drawRuler();
+}
+function pushRulerHistory(state) {
+  history.push({ kind: 'ruler', ruler: state });
+  if (history.length > 16) history.shift();
+  redoStack.length = 0;
+}
+
+function resetRulerPlacement() {
+  /* 尺子坐标用「世界坐标（CSS px）」：baseCvs 是物理像素，需要除以 dpr */
+  const wWorld = baseCvs.width / dpr;
+  const hWorld = baseCvs.height / dpr;
+  ruler.cx = wWorld / 2;
+  ruler.cy = hWorld / 2;
+  ruler.radius = Math.max(80, Math.min(wWorld, hWorld) * 0.30);
+  ruler.angle = 0;
+  const r = ruler.radius;
+  ruler.vps = [{ ox: -r, oy: 0 }, { ox: r, oy: 0 }, { ox: 0, oy: -r * 0.7 }];
+  ruler.dirs = null;
+  ruler.placed = true;
+}
+
+function updateRulerPanelUI() {
+  const types = document.getElementById('rrTypes');
+  if (types) {
+    types.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('on', b.dataset.t === ruler.type);
+    });
+  }
+  const row = document.getElementById('rrCountRow');
+  if (row) row.style.display = (ruler.type === 'sym' || ruler.type === 'radial') ? 'flex' : 'none';
+  const cnt = document.getElementById('rrCount');
+  if (cnt) {
+    /* ★ 对称最少 1，径向最少 2；两种类型各自保存数字 */
+    cnt.min = (ruler.type === 'sym') ? '1' : '2';
+    const n = rulerCount();
+    cnt.value = String(n);
+    const out = cnt.nextElementSibling;
+    if (out) out.textContent = String(n);
+  }
+  syncRulerSnapUI();
+}
+
+function setRulerActive(on) {
+  rulerActive = !!on;
+  const panel = document.getElementById('rulerPanel');
+  if (panel) panel.style.display = rulerActive ? 'flex' : 'none';
+  if (rulerActive && !ruler.placed) resetRulerPlacement();
+  updateRulerPanelUI();
+  drawRuler();
+}
+
+function toggleRuler() {
+  setRulerActive(!rulerActive);
+}
+
+/* 画尺子（屏幕坐标覆盖层，不参与导出） */
+const rulerVPElements = [0, 1, 2].map(i => document.getElementById('rulerVP' + i));
+const rulerXElements = [0, 1, 2, 3, 4, 5].map(i => document.getElementById('rulerX' + i));
+
+function drawRuler() {
+  const cv = document.getElementById('rulerCvs');
+  if (!cv) return;
+  const cEl = document.getElementById('rulerCenter');
+  const hEl = document.getElementById('rulerHandle');
+
+  if (!rulerActive) {
+    cv.style.display = 'none';
+    if (cEl) cEl.style.display = 'none';
+    if (hEl) hEl.style.display = 'none';
+    for (const el of rulerVPElements) if (el) el.style.display = 'none';
+    for (const el of rulerXElements) if (el) el.style.display = 'none';
+    return;
+  }
+
+  const w = window.innerWidth || 1;
+  const h = window.innerHeight || 1;
+  const dp = window.devicePixelRatio || 1;
+  const bw = Math.round(w * dp), bh = Math.round(h * dp);
+  if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+  cv.style.display = 'block';
+
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dp, 0, 0, dp, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const cxS = ruler.cx * viewScale + viewOffsetX;
+  const cyS = ruler.cy * viewScale + viewOffsetY;
+  const artW = baseCvs.width * viewScale;
+  const artH = baseCvs.height * viewScale;
+
+  const PI = Math.PI;
+  const FAR = 1e5;
+  const acc  = 'rgba(110,231,255,.65)';
+  const soft = 'rgba(110,231,255,.26)';
+
+  ctx.save();
+  /* ★ 透视尺无限延伸：不裁剪到画布范围；对称 / 径向仍限制在画布内 */
+  if (ruler.type === 'sym' || ruler.type === 'radial') {
+    ctx.beginPath();
+    ctx.rect(viewOffsetX, viewOffsetY, artW, artH);
+    ctx.clip();
+  }
+  ctx.lineWidth = 1;
+  /* 吸附关闭时整体变淡，提示当前不生效 */
+  ctx.globalAlpha = rulerSnapOn() ? 1 : 0.45;
+
+  const vpDot = (x, y, col) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 4.5, 0, PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0,0,0,.6)';
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  };
+
+  /* p2 / p3 的消失点屏幕坐标（供绘制与 DOM 手柄共用） */
+  let vpPts = null;
+  rulerInters = [];
+
+  if (ruler.type === 'p2' || ruler.type === 'p3') {
+    ensureRulerVPs();
+    ensureRulerDirs();
+    const nVP = ruler.type === 'p2' ? 2 : 3;
+    /* 红 / 绿 / 蓝 */
+    const vpCols   = ['rgba(255,90,95,.95)', 'rgba(74,222,128,.95)', 'rgba(96,165,250,.95)'];
+    const lineCols = ['rgba(255,90,95,.32)', 'rgba(74,222,128,.32)', 'rgba(96,165,250,.32)'];
+    const dynCols  = ['rgba(255,90,95,.55)', 'rgba(74,222,128,.55)', 'rgba(96,165,250,.55)'];
+
+    vpPts = [];
+    const vpWorld = [];
+    for (let i = 0; i < nVP; i++) {
+      const wx = ruler.cx + ruler.vps[i].ox;
+      const wy = ruler.cy + ruler.vps[i].oy;
+      vpWorld.push({ x: wx, y: wy });
+      vpPts.push({ x: wx * viewScale + viewOffsetX, y: wy * viewScale + viewOffsetY });
+    }
+
+    /* 地平线（很淡）+ 二点透视的竖直轴 */
+    const hdx = vpPts[1].x - vpPts[0].x;
+    const hdy = vpPts[1].y - vpPts[0].y;
+    const hl = Math.hypot(hdx, hdy);
+    if (hl > 2) {
+      const hux = hdx / hl, huy = hdy / hl;
+      ctx.strokeStyle = 'rgba(255,255,255,.16)';
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath();
+      ctx.moveTo(vpPts[0].x - hux * FAR, vpPts[0].y - huy * FAR);
+      ctx.lineTo(vpPts[1].x + hux * FAR, vpPts[1].y + huy * FAR);
+      ctx.stroke();
+
+      /* ★ 垂直于地平线的竖直参考线（p2 / p3 都显示） */
+      const vux = -huy, vuy = hux;
+      ctx.strokeStyle = 'rgba(255,196,120,.45)';
+      ctx.beginPath();
+      ctx.moveTo(cxS - vux * FAR, cyS - vuy * FAR);
+      ctx.lineTo(cxS + vux * FAR, cyS + vuy * FAR);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    /* ★ 每个轴 2 条引导线（穿过各自的灭点），简约风格 */
+    for (let i = 0; i < nVP; i++) {
+      ctx.strokeStyle = lineCols[i];
+      ctx.beginPath();
+      for (let k = 0; k < 2; k++) {
+        const a = ruler.dirs[i][k];
+        ctx.moveTo(vpPts[i].x - Math.cos(a) * FAR, vpPts[i].y - Math.sin(a) * FAR);
+        ctx.lineTo(vpPts[i].x + Math.cos(a) * FAR, vpPts[i].y + Math.sin(a) * FAR);
+      }
+      ctx.stroke();
+    }
+
+    /* ★ 交点：p2 四个（红×绿），p3 六个（红×绿、绿×蓝、蓝×红） */
+    const pairs = (ruler.type === 'p2')
+      ? [[0, 0, 1, 0], [0, 0, 1, 1], [0, 1, 1, 0], [0, 1, 1, 1]]
+      : [[0, 0, 1, 0], [0, 1, 1, 1], [1, 0, 2, 0], [1, 1, 2, 1], [2, 0, 0, 0], [2, 1, 0, 0]];
+    for (const [ai, ak, bi, bk] of pairs) {
+      const d1 = { x: Math.cos(ruler.dirs[ai][ak]), y: Math.sin(ruler.dirs[ai][ak]) };
+      const d2 = { x: Math.cos(ruler.dirs[bi][bk]), y: Math.sin(ruler.dirs[bi][bk]) };
+      const ip = lineIntersect(vpWorld[ai], d1, vpWorld[bi], d2);
+      if (ip) rulerInters.push({ x: ip.x, y: ip.y, ai, ak, bi, bk });
+      else rulerInters.push(null);
+    }
+
+    /* ★ 动态线：灭点连到鼠标；正在沿该轴画时不显示 */
+    if (typeof lastClientX === 'number' && typeof lastClientY === 'number') {
+      const mx = lastClientX, my = lastClientY;
+      if (mx >= 0 && my >= 0 && mx <= w && my <= h) {
+        for (let i = 0; i < nVP; i++) {
+          if (drawing && rulerSnapAxis === i) continue;
+          ctx.strokeStyle = dynCols[i];
+          ctx.setLineDash([4, 5]);
+          ctx.beginPath();
+          ctx.moveTo(vpPts[i].x, vpPts[i].y);
+          ctx.lineTo(mx, my);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
+    for (let i = 0; i < nVP; i++) vpDot(vpPts[i].x, vpPts[i].y, vpCols[i]);
+  } else if (ruler.type === 'p1') {
+    /* ★ 一点透视：十字线 */
+    const ux = Math.cos(ruler.angle), uy = Math.sin(ruler.angle);
+    ctx.strokeStyle = 'rgba(255,90,95,.34)';
+    ctx.setLineDash([7, 5]);
+    ctx.beginPath();
+    ctx.moveTo(cxS - ux * FAR, cyS - uy * FAR);
+    ctx.lineTo(cxS + ux * FAR, cyS + uy * FAR);
+    ctx.moveTo(cxS - uy * FAR, cyS + ux * FAR);
+    ctx.lineTo(cxS + uy * FAR, cyS - ux * FAR);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* ★ 动态线：灭点连到鼠标（正在沿该轴绘制时先隐藏） */
+    if (!(drawing && rulerSnapAxis === 0) &&
+        typeof lastClientX === 'number' && typeof lastClientY === 'number') {
+      const mx = lastClientX, my = lastClientY;
+      if (mx >= 0 && my >= 0 && mx <= w && my <= h) {
+        ctx.strokeStyle = 'rgba(255,90,95,.55)';
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        ctx.moveTo(cxS, cyS);
+        ctx.lineTo(mx, my);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    vpDot(cxS, cyS, 'rgba(255,90,95,.9)');
+  } else {
+    const n = Math.max(ruler.type === 'sym' ? 1 : 2, Math.min(24, rulerCount() | 0));
+    const rs = Math.min(Math.max(ruler.radius * viewScale, 24), 6000);
+
+    ctx.strokeStyle = 'rgba(110,231,255,.18)';
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    ctx.arc(cxS, cyS, rs, 0, PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = soft;
+    ctx.beginPath();
+    if (ruler.type === 'sym') {
+      for (let i = 0; i < n; i++) {
+        const a = ruler.angle + (i * PI) / n;
+        const dx = Math.cos(a) * FAR, dy = Math.sin(a) * FAR;
+        ctx.moveTo(cxS + dx, cyS + dy);
+        ctx.lineTo(cxS - dx, cyS - dy);
+      }
+    } else {
+      for (let i = 0; i < n; i++) {
+        const a = ruler.angle + (i * PI * 2) / n;
+        ctx.moveTo(cxS, cyS);
+        ctx.lineTo(cxS + Math.cos(a) * FAR, cyS + Math.sin(a) * FAR);
+      }
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = acc;
+    ctx.beginPath();
+    const dx0 = Math.cos(ruler.angle) * FAR, dy0 = Math.sin(ruler.angle) * FAR;
+    if (ruler.type === 'sym') {
+      ctx.moveTo(cxS + dx0, cyS + dy0);
+      ctx.lineTo(cxS - dx0, cyS - dy0);
+    } else {
+      ctx.moveTo(cxS, cyS);
+      ctx.lineTo(cxS + dx0, cyS + dy0);
+    }
+    ctx.stroke();
+    vpDot(cxS, cyS, acc);
+  }
+
+  ctx.restore();
+
+  /* 消失点手柄：p2 显示红 / 绿，p3 再显示蓝；各自独立拖动 */
+  const showVP = (ruler.type === 'p2') ? 2 : (ruler.type === 'p3' ? 3 : 0);
+  for (let i = 0; i < 3; i++) {
+    const el = rulerVPElements[i];
+    if (!el) continue;
+    if (i < showVP && vpPts && vpPts[i]) {
+      el.style.display = 'block';
+      el.style.left = vpPts[i].x + 'px';
+      el.style.top = vpPts[i].y + 'px';
+      el.style.opacity = rulerSnapOn() ? '1' : '0.45';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  /* ★ 引导线交点手柄（p2: 4 个，p3: 6 个），拖动即改变两条线的角度 */
+  const AXCOL = ['rgba(255,90,95,.85)', 'rgba(74,222,128,.85)', 'rgba(96,165,250,.85)'];
+  for (let i = 0; i < rulerXElements.length; i++) {
+    const el = rulerXElements[i];
+    if (!el) continue;
+    const ip = (rulerInters && rulerInters[i]) ? rulerInters[i] : null;
+    if (ip && (ruler.type === 'p2' || ruler.type === 'p3')) {
+      el.style.display = 'block';
+      el.style.left = (ip.x * viewScale + viewOffsetX) + 'px';
+      el.style.top = (ip.y * viewScale + viewOffsetY) + 'px';
+      /* ★ 圆圈内部一半是第一条轴的颜色、一半是第二条轴的颜色 */
+      el.style.background = 'linear-gradient(135deg, ' + AXCOL[ip.ai] + ' 0 50%, ' + AXCOL[ip.bi] + ' 50% 100%)';
+      el.style.opacity = rulerSnapOn() ? '1' : '0.45';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  /* 手柄：蓝点 = 移动整体；外圈 = 旋转 / 缩放（p2 / p3 由彩色消失点代替） */
+  /* ★ 手柄距离跟随 viewScale，不再封顶，保证缩放画布时尺子同比缩放 */
+  const hd = Math.max(ruler.radius * viewScale, 64);
+
+  if (cEl) {
+    cEl.style.display = 'block';
+    cEl.style.left = cxS + 'px';
+    cEl.style.top = cyS + 'px';
+    cEl.style.opacity = rulerSnapOn() ? '1' : '0.55';
+  }
+  if (hEl) {
+    if (ruler.type === 'p2' || ruler.type === 'p3') {
+      hEl.style.display = 'none';
+    } else {
+      hEl.style.display = 'block';
+      hEl.style.left = (cxS + Math.cos(ruler.angle) * hd) + 'px';
+      hEl.style.top  = (cyS + Math.sin(ruler.angle) * hd) + 'px';
+    }
+  }
+}
+
+/* 手柄拖拽：移动 / 旋转 + 缩放 / 单独拖动消失点 */
+(function initRulerInteraction() {
+  const cEl = document.getElementById('rulerCenter');
+  const hEl = document.getElementById('rulerHandle');
+  if (!cEl || !hEl) return;
+
+  /* 按住 Shift 时角度吸附到 0 / 45 / 90 … */
+  const snap45 = a => Math.round(a / (Math.PI / 4)) * (Math.PI / 4);
+
+  cEl.addEventListener('pointerdown', e => {
+    if (!rulerActive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try { cEl.setPointerCapture(e.pointerId); } catch (_) {}
+    rulerDragBefore = snapshotRulerState();
+    rulerDrag = { kind: 'move', x0: e.clientX, y0: e.clientY, cx0: ruler.cx, cy0: ruler.cy };
+    cEl.style.cursor = 'grabbing';
+  });
+
+  hEl.addEventListener('pointerdown', e => {
+    if (!rulerActive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try { hEl.setPointerCapture(e.pointerId); } catch (_) {}
+    const cxS = ruler.cx * viewScale + viewOffsetX;
+    const cyS = ruler.cy * viewScale + viewOffsetY;
+    rulerDragBefore = snapshotRulerState();
+    rulerDrag = {
+      kind: 'rotate',
+      sx: cxS,
+      sy: cyS,
+      baseDist: Math.max(1, Math.hypot(e.clientX - cxS, e.clientY - cyS)),
+      baseRadius: ruler.radius
+    };
+    hEl.style.cursor = 'grabbing';
+  });
+
+  /* 红 / 绿 / 蓝消失点：p2 用前两个，p3 用三个，可各自单独拖动 */
+  rulerVPElements.forEach((el, idx) => {
+    if (!el) return;
+    el.addEventListener('pointerdown', e => {
+      if (!rulerActive) return;
+      const nVP = ruler.type === 'p2' ? 2 : (ruler.type === 'p3' ? 3 : 0);
+      if (idx >= nVP) return;
+      e.preventDefault();
+      e.stopPropagation();
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+      ensureRulerVPs();
+      rulerDragBefore = snapshotRulerState();
+      rulerDrag = {
+        kind: 'vp', idx,
+        x0: e.clientX, y0: e.clientY,
+        ox0: ruler.vps[idx].ox, oy0: ruler.vps[idx].oy
+      };
+      el.style.cursor = 'grabbing';
+    });
+  });
+
+  /* ★ 交点拖动：两条线分别转向鼠标（交点跟着鼠标走） */
+  rulerXElements.forEach((el, idx) => {
+    if (!el) return;
+    el.addEventListener('pointerdown', e => {
+      if (!rulerActive) return;
+      const ip = rulerInters && rulerInters[idx];
+      if (!ip) return;
+      e.preventDefault();
+      e.stopPropagation();
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+      ensureRulerDirs();
+      rulerDragBefore = snapshotRulerState();
+      rulerDrag = { kind: 'inter', idx, ai: ip.ai, ak: ip.ak, bi: ip.bi, bk: ip.bk };
+      el.style.cursor = 'grabbing';
+    });
+  });
+
+  window.addEventListener('pointermove', e => {
+    if (!rulerDrag) return;
+    if (rulerDrag.kind === 'move') {
+      let dx = (e.clientX - rulerDrag.x0) / viewScale;
+      let dy = (e.clientY - rulerDrag.y0) / viewScale;
+      if (e.shiftKey) {
+        const a = snap45(Math.atan2(dy, dx));
+        const len = Math.hypot(dx, dy);
+        dx = Math.cos(a) * len; dy = Math.sin(a) * len;
+      }
+      ruler.cx = rulerDrag.cx0 + dx;
+      ruler.cy = rulerDrag.cy0 + dy;
+    } else if (rulerDrag.kind === 'vp') {
+      let ox = rulerDrag.ox0 + (e.clientX - rulerDrag.x0) / viewScale;
+      let oy = rulerDrag.oy0 + (e.clientY - rulerDrag.y0) / viewScale;
+      if (e.shiftKey) {
+        /* 约束在过中心的 水平 / 垂直 / 45° 方向 */
+        const a = snap45(Math.atan2(oy, ox));
+        const len = Math.hypot(ox, oy);
+        ox = Math.cos(a) * len; oy = Math.sin(a) * len;
+      }
+      ruler.vps[rulerDrag.idx] = { ox, oy };
+    } else if (rulerDrag.kind === 'inter') {
+      /* ★ 交点拖动：两条线分别转向鼠标位置 */
+      const wx = (e.clientX - viewOffsetX) / viewScale;
+      const wy = (e.clientY - viewOffsetY) / viewScale;
+      ensureRulerVPs();
+      ensureRulerDirs();
+      const d = rulerDrag;
+      const va = { x: ruler.cx + ruler.vps[d.ai].ox, y: ruler.cy + ruler.vps[d.ai].oy };
+      const vb = { x: ruler.cx + ruler.vps[d.bi].ox, y: ruler.cy + ruler.vps[d.bi].oy };
+      let aa = Math.atan2(wy - va.y, wx - va.x);
+      let ab = Math.atan2(wy - vb.y, wx - vb.x);
+      if (e.shiftKey) { aa = snap45(aa); ab = snap45(ab); }
+      ruler.dirs[d.ai][d.ak] = aa;
+      ruler.dirs[d.bi][d.bk] = ab;
+    } else {
+      const dx = e.clientX - rulerDrag.sx;
+      const dy = e.clientY - rulerDrag.sy;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 10) {
+        const a = Math.atan2(dy, dx);
+        ruler.angle = e.shiftKey ? snap45(a) : a;
+      }
+      const k = dist / rulerDrag.baseDist;
+      ruler.radius = Math.max(60, Math.min(20000, rulerDrag.baseRadius * k));
+    }
+    drawRuler();
+  });
+
+  window.addEventListener('pointerup', () => {
+    if (!rulerDrag) return;
+    const drag = rulerDrag;
+    rulerDrag = null;
+    if (drag.kind === 'move') cEl.style.cursor = 'move';
+    else if (drag.kind === 'vp') {
+      const el = rulerVPElements[drag.idx];
+      if (el) el.style.cursor = 'grab';
+    } else if (drag.kind === 'inter') {
+      const el = rulerXElements[drag.idx];
+      if (el) el.style.cursor = 'grab';
+    } else hEl.style.cursor = 'grab';
+
+    /* ★ 尺子位移 / 旋转 / 缩放 / 消失点变化 → 记入撤销栈 */
+    const before = rulerDragBefore;
+    rulerDragBefore = null;
+    if (before && !rulerStatesEqual(before, snapshotRulerState())) {
+      pushRulerHistory(before);
+    }
+  });
+})();
+
+/* 面板：类型按钮 / 方向数滑杆 */
+(function initRulerPanel() {
+  const types = document.getElementById('rrTypes');
+  if (types) {
+    types.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      ruler.type = btn.dataset.t || 'p1';
+      updateRulerPanelUI();
+      drawRuler();
+    });
+  }
+  const cnt = document.getElementById('rrCount');
+  if (cnt) {
+    cnt.addEventListener('input', () => {
+      /* ★ 对称 / 径向各存各的方向数 */
+      const n = setRulerCount(parseInt(cnt.value, 10) || 6);
+      const out = cnt.nextElementSibling;
+      if (out) out.textContent = String(n);
+      drawRuler();
+    });
+  }
+  /* ★ 吸附开关：关闭后不吸附笔触，也没有对称 / 径向复制 */
+  const snapEl = document.getElementById('rrSnap');
+  if (snapEl) {
+    rulerSnapEnabled = !!snapEl.checked;
+    snapEl.addEventListener('change', () => {
+      rulerSnapEnabled = !!snapEl.checked;
+      drawRuler();
+    });
+  }
+})();
+/* =========================================================
+   尺子的实际效果
+   · 透视：吸附笔触为过起点、指向消失点的直线
+   · 对称：沿 N 条对称轴镜像复制
+   · 径向：绕中心旋转复制 N 份
+   ========================================================= */
+let rulerLineReady = false;
+let rulerSnapX0 = 0, rulerSnapY0 = 0;
+let rulerLineAnchorX = 0, rulerLineAnchorY = 0;
+let rulerLineDx = 1, rulerLineDy = 0;
+
+function getRulerVPsWorld() {
+  if (!rulerActive) return null;
+  if (ruler.type === 'p1') return [{ x: ruler.cx, y: ruler.cy }];
+  if (ruler.type === 'p2' || ruler.type === 'p3') {
+    /* ★ 每个消失点用各自的偏移，允许非正透视（各轴比例不对称） */
+    ensureRulerVPs();
+    const n = ruler.type === 'p2' ? 2 : 3;
+    const vps = [];
+    for (let i = 0; i < n; i++) {
+      vps.push({ x: ruler.cx + ruler.vps[i].ox, y: ruler.cy + ruler.vps[i].oy });
+    }
+    return vps;
+  }
+  return null;
+}
+
+function snapRulerPoint(x, y) {
+  if (!rulerLineReady) {
+    const vps = getRulerVPsWorld();
+    if (!vps || !vps.length) return null;
+
+    let mdx = x - rulerSnapX0, mdy = y - rulerSnapY0;
+    const ml = Math.hypot(mdx, mdy);
+    if (ml < 0.5) return null;
+    mdx /= ml; mdy /= ml;
+
+    let best = null, bestIdx = -1, bestDot = -1, vAxis = null;
+    for (let i = 0; i < vps.length; i++) {
+      const vp = vps[i];
+      let ax = rulerSnapX0 - vp.x, ay = rulerSnapY0 - vp.y;
+      const al = Math.hypot(ax, ay) || 1;
+      ax /= al; ay /= al;
+      const d = Math.abs(ax * mdx + ay * mdy);
+      if (d > bestDot) { bestDot = d; best = vp; bestIdx = i; }
+    }
+
+    /* ★ 二点透视：第三条轴 = 垂直于地平线的竖直方向（平行于参考竖线） */
+    if (ruler.type === 'p2') {
+      ensureRulerVPs();
+      let hx = ruler.vps[1].ox - ruler.vps[0].ox;
+      let hy = ruler.vps[1].oy - ruler.vps[0].oy;
+      const hl = Math.hypot(hx, hy);
+      if (hl > 1) {
+        hx /= hl; hy /= hl;
+        const nx = -hy, ny = hx;
+        const d = Math.abs(nx * mdx + ny * mdy);
+        if (d > bestDot) { bestDot = d; best = null; vAxis = { x: nx, y: ny }; }
+      }
+    }
+    if (!best && !vAxis) return null;
+    /* 记录锁定的是哪个轴（动态线据此隐藏） */
+    rulerSnapAxis = vAxis ? -1 : bestIdx;
+
+    let ax, ay;
+    if (vAxis) {
+      ax = vAxis.x; ay = vAxis.y;
+    } else {
+      ax = rulerSnapX0 - best.x; ay = rulerSnapY0 - best.y;
+      const al = Math.hypot(ax, ay);
+      if (al > 0.5) { ax /= al; ay /= al; }
+      else { ax = mdx; ay = mdy; }
+    }
+
+    rulerLineAnchorX = rulerSnapX0;
+    rulerLineAnchorY = rulerSnapY0;
+    rulerLineDx = ax;
+    rulerLineDy = ay;
+    rulerLineReady = true;
+  }
+
+  const t = (x - rulerLineAnchorX) * rulerLineDx +
+            (y - rulerLineAnchorY) * rulerLineDy;
+  return [rulerLineAnchorX + rulerLineDx * t, rulerLineAnchorY + rulerLineDy * t];
+}
+
+function getRulerStrokeCopies() {
+  /* ★ 吸附关闭（手动关闭 / 长按 W）时也不做对称 / 径向复制 */
+  if (!rulerSnapOn()) return null;
+  const n = Math.max(ruler.type === 'sym' ? 1 : 2, Math.min(24, rulerCount() | 0));
+  const list = [];
+  if (ruler.type === 'sym') {
+    /* ★ 修复：N 条对称轴需要完整的二面体对称 —— 总共 2N 份（含原始笔触）。
+       只画 N 个镜像会缺 (N-1) 个旋转拷贝，图案不闭合（例如 2 轴只有 3 份，
+       缺 180° 旋转），所以先补 N-1 个旋转，再补 N 个镜像。 */
+    for (let i = 1; i < n; i++) {
+      list.push({ kind: 'rot', ang: (i * Math.PI * 2) / n });
+    }
+    for (let i = 0; i < n; i++) {
+      list.push({ kind: 'mirror', ang: ruler.angle + (i * Math.PI) / n });
+    }
+    return list;
+  }
+  if (ruler.type === 'radial') {
+    for (let i = 1; i < n; i++) {
+      list.push({ kind: 'rot', ang: (i * Math.PI * 2) / n });
+    }
+    return list;
+  }
+  return null;
+}
+
+function drawStrokeWithRulerCopies(ctx, src) {
+  ctx.drawImage(src, 0, 0);
+  const copies = getRulerStrokeCopies();
+  if (!copies || !copies.length) return;
+  const cx = ruler.cx, cy = ruler.cy;
+  for (const cp of copies) {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(cx, cy);
+    if (cp.kind === 'rot') {
+      ctx.rotate(cp.ang);
+    } else {
+      ctx.rotate(cp.ang);
+      ctx.scale(1, -1);
+      ctx.rotate(-cp.ang);
+    }
+    ctx.translate(-cx, -cy);
+    ctx.drawImage(src, 0, 0);
+    ctx.restore();
+  }
 }
 let altPressUsed = false;  // 本次 Alt 是否被用于吸色（颜色确实变了才置 true）
 let altPressTime = 0;      // Alt 按下的时间戳
@@ -14470,6 +15563,8 @@ document.addEventListener('pointerdown', e => {
 
 /* 当前工具是否支持通过 X 键调笔刷大小 */
 function canAdjustSize() {
+  /* A 键加深 / 减淡模式：也允许 X 调它的笔刷大小 */
+  if (aHeld) return true;
   if (cfg.tool === 'place') return cfg.ctrlMode !== 'drag';
   if (cfg.tool === 'liquify') return true;
   if (cfg.tool === 'paint') {
@@ -14522,6 +15617,16 @@ function setLqSizeValue(v) {
 function setBlurSizeValue(v) {
   cfg.blurSize = v;
   blurBrushCacheKey = '';  /* 尺寸变了，缓存失效 */
+}
+/* X 调加深 / 减淡笔刷大小：同步 cfg、面板滑块与数值标签 */
+function setDodgeBurnSizeValue(v) {
+  cfg.dodgeBurnSize = v;
+  const el = document.getElementById('dbSize');
+  if (el) {
+    el.value = String(v);
+    const out = el.nextElementSibling;
+    if (out) out.textContent = String(v);
+  }
 }
 /* X 调画笔大小：普通画笔 / 渐变线共用。内部按 paintMode 分发到 bWidth / gradientWidth。
    ── 范围模式：把整个范围的中点移到 v（min/max 一起平移，宽度不变），
@@ -14990,6 +16095,16 @@ function performCrop(x0, y0, x1, y1, scale) {
   viewOffsetX = (window.innerWidth  / 2) - cw / 2;
   viewOffsetY = (window.innerHeight / 2) - ch / 2;
 
+  /* ★ 尺子跟随图像一起缩放 / 平移：世界坐标 → 新画布坐标
+     （先减去裁切原点，再乘缩放倍数） */
+  if (ruler.placed) {
+    ensureRulerVPs();
+    ruler.cx = (ruler.cx - x0) * scale;
+    ruler.cy = (ruler.cy - y0) * scale;
+    ruler.radius *= scale;
+    ruler.vps = ruler.vps.map(v => ({ ox: v.ox * scale, oy: v.oy * scale }));
+  }
+
   /* 清空选区（坐标已变） */
   selectionOps = [];
   selectionInverted = false;
@@ -15133,6 +16248,10 @@ cvs.addEventListener('pointerdown', e => {
           sizeAdjustTarget = 'bWidth';
         }
       }
+    } else if (aHeld) {
+      /* A 键加深 / 减淡：拖拽调整 dodgeBurnSize */
+      sizeAdjustStartValue = cfg.dodgeBurnSize;
+      sizeAdjustTarget = 'dodgeBurnSize';
     } else if (cfg.tool === 'place') {
       if (eraserHeld) { sizeAdjustStartValue = cfg.pEraserSize; sizeAdjustTarget = 'pEraserSize'; }
       else            { sizeAdjustStartValue = cfg.pSize;       sizeAdjustTarget = 'pSize'; }
@@ -15479,7 +16598,13 @@ cvs.addEventListener('pointerdown', e => {
       pendingFirstX = x;
       pendingFirstY = y;
       pendingFirstPressure = pressure;
+      /* ★ 透视尺：以起点为锚点，散布沿最近的透视轴吸附 */
+      rulerLineReady = false;
+      rulerSnapAxis = -1;
+      rulerSnapX0 = x;
+      rulerSnapY0 = y;
     } else {
+
       startDragShape(x, y);
     }
   } else {
@@ -15562,6 +16687,15 @@ cvs.addEventListener('pointermove', e => {
       setBlurSizeValue(newVal);
       /* 让模糊/涂抹的圆形光标跟随新尺寸 */
       updateLqCursor(e.clientX, e.clientY, e);
+          } else if (sizeAdjustTarget === 'dodgeBurnSize') {
+      const minV = 10, maxV = 240;
+      const rate = (maxV - minV) / 400;
+      let v = sizeAdjustStartValue + dx * rate;
+      v = Math.max(minV, Math.min(maxV, v));
+      newVal = Math.round(v);
+      setDodgeBurnSizeValue(newVal);
+      /* 让加深 / 减淡的圆形光标实时跟随新尺寸 */
+      updateBrushCursor(e.clientX, e.clientY, e);
     } else if (sizeAdjustTarget === 'bWidth' ||
                sizeAdjustTarget === 'bEraserWidth' ||
                sizeAdjustTarget === 'gradientWidth') {
@@ -15744,16 +16878,24 @@ cvs.addEventListener('pointermove', e => {
     strokeEndY = y;
 
     if (cfg.ctrlMode === 'scatter') {
-      /* ★ 记录路径点（5px 阈值节流），供线性渐变找最远起点 */
+      /* ★ 记录路径点（5px 阈值节流），供线性渐变找最远起点（用原始鼠标位置） */
       if (placePts.length === 0 ||
           Math.hypot(x - placePts[placePts.length - 1].x,
                      y - placePts[placePts.length - 1].y) > 5) {
         placePts.push({ x, y });
       }
 
-      const dx = x - placePrev.x, dy = y - placePrev.y;
+      /* ★ 透视尺：散布的落点吸附到离起点最近的那条透视轴上 */
+      let sx = x, sy = y;
+      if (rulerSnapOn()) {
+        const sp = snapRulerPoint(x, y);
+        if (sp) { sx = sp[0]; sy = sp[1]; }
+      }
+
+      const dx = sx - placePrev.x, dy = sy - placePrev.y;
       const dist = Math.hypot(dx, dy);
       if (dist < 0.01) return;
+
 
       /* 首帧延迟：此时 updateVelocity 已跑过，
          _currentDirection / _currentVelocity 是真实值，补 stamp 起点 */
@@ -15777,8 +16919,12 @@ cvs.addEventListener('pointermove', e => {
         );
       }
       placeAcc += dist - travelled;
-      placePrev.x = x;
-      placePrev.y = y;
+      placePrev.x = sx;
+      placePrev.y = sy;
+
+      /* 透视动态线：散布过程中同步刷新（沿当前轴放置时该轴虚线隐藏） */
+      if (rulerActive) scheduleRulerRedraw();
+
 
     } else {
       renderDragShape(x, y);
@@ -15969,6 +17115,8 @@ function endStroke(e) {
   if (e && e.pointerId !== ptrId) return;
   drawing = false;
   ptrId = null;
+  /* ★ 抬笔后恢复所有动态线显示 */
+  if (rulerActive) scheduleRulerRedraw();
 
   if (cfg.tool === 'place') {
     /* 首帧延迟：若始终没有 move（单击），用中性方向补一个 stamp */
@@ -16061,6 +17209,8 @@ window.addEventListener('pointermove', e => {
   lastClientX = e.clientX;
   lastClientY = e.clientY;
   if (radialActive) updateRadialHover(e.clientX, e.clientY);
+  /* 尺子的动态线（灭点 → 鼠标）跟随指针刷新 */
+  if (rulerActive && !drawing) scheduleRulerRedraw();
 }, { passive: true });
 
 /* =========================================================
@@ -16402,6 +17552,12 @@ function restoreSnapshot(snap) {
     return;
   }
 
+  /* ★ 尺子操作快照：只还原尺子（位移 / 旋转 / 缩放 / 消失点） */
+  if (snap.kind === 'ruler') {
+    restoreRulerState(snap.ruler);
+    return;
+  }
+
   /* ★ 防御：空字符串 / 过短 data 的快照 = 坏数据，
      直接跳过恢复，避免画布被 clearRect 后变空白。 */
   if (!snap.data || snap.data.length < 50) {
@@ -16479,7 +17635,9 @@ function undo() {
 
   /* 撤销前，把当前状态存进 redoStack */
   try {
-    redoStack.push(captureCurrentState());
+    redoStack.push(snap.kind === 'ruler'
+      ? { kind: 'ruler', ruler: snapshotRulerState() }
+      : captureCurrentState());
     if (redoStack.length > 16) redoStack.shift();
   } catch (err) {
     /* ★ 不能静默：redoStack 里没有当前状态 = 前进将无法回到"粘贴后"。
@@ -16497,7 +17655,9 @@ function redo() {
 
   /* 重做前，把当前状态存回 history */
   try {
-    history.push(captureCurrentState());
+    history.push(snap.kind === 'ruler'
+      ? { kind: 'ruler', ruler: snapshotRulerState() }
+      : captureCurrentState());
     if (history.length > 16) history.shift();
   } catch (err) {
     console.error('[redo] 保存当前状态到 history 失败，撤销可能失效', err);
@@ -18430,9 +19590,7 @@ window.addEventListener('keydown', e => {
     const tgt = e.target;
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.tagName === 'SELECT')) return;
     const hintEl = document.getElementById('hint');
-    if (hintEl) {
-      hintEl.style.display = (hintEl.style.display === 'none') ? 'flex' : 'none';
-    }
+    if (hintEl) hintEl.hidden = !hintEl.hidden;
     return;
   }
 
@@ -18474,6 +19632,19 @@ window.addEventListener('keydown', e => {
       if (!tfActive && !altPressed && !ctrlPressed) {
         cvs.style.cursor = 'ew-resize';
       }
+    }
+  }
+
+   /* ---- W 键：短按进入 / 退出尺子模式（抬手时判定）
+        按住时临时关闭吸附，松开恢复用户设置 ---- */
+  if (e.code === 'KeyW' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (!e.repeat) {
+      /* ★ 新的按下取消待执行的「单击关闭」，双击时 UI 不会闪一下 */
+      if (wToggleTimer) { clearTimeout(wToggleTimer); wToggleTimer = 0; }
+      wDownTime = performance.now();
+      wSnapSuppressed = true;
+      syncRulerSnapUI();
+      drawRuler();
     }
   }
 
@@ -18792,6 +19963,39 @@ window.addEventListener('keyup', e => {
     return;
   }
 
+  /* ---- 松开 W：短按（< 350ms）切换尺子模式；双击复位尺子 ---- */
+  if (e.code === 'KeyW') {
+    const now = performance.now();
+    const dur = wDownTime > 0 ? now - wDownTime : 1e9;
+    wDownTime = 0;
+    if (dur < 350) {
+      if (now - lastWUpTime < 320) {
+        /* ★ 双击 W：复位尺子；取消第一下排队的单击关闭，避免 UI 闪一下 */
+        lastWUpTime = -1e9;
+        if (wToggleTimer) { clearTimeout(wToggleTimer); wToggleTimer = 0; }
+        if (!rulerActive) setRulerActive(true);
+        resetRulerPlacement();
+        updateRulerPanelUI();
+        drawRuler();
+      } else {
+        lastWUpTime = now;
+        if (rulerActive) {
+          /* 已打开：延迟关闭，给双击留判定时间（打开保持即时） */
+          wToggleTimer = setTimeout(() => {
+            wToggleTimer = 0;
+            toggleRuler();
+          }, 200);
+        } else {
+          toggleRuler();
+        }
+      }
+    }
+    wSnapSuppressed = false;
+    syncRulerSnapUI();
+    drawRuler();
+    return;
+  }
+
   /* ---- 松开 X ---- */
   if (e.code === 'KeyX') {
     sizeHeld = false;
@@ -18892,6 +20096,14 @@ window.addEventListener('blur', () => {
   /* S 状态复位（防止 Alt+Tab 后 S 卡在按下） */
   backtickHeld = false;
   lastSKeydownTime = -1e9;
+
+  /* W 键长按的临时吸附抑制复位 */
+  if (wSnapSuppressed) {
+    wSnapSuppressed = false;
+    wDownTime = 0;
+    syncRulerSnapUI();
+    drawRuler();
+  }
 
   /* G 状态复位 */
   if (gHeld) {
