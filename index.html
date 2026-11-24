@@ -10120,7 +10120,7 @@ function compositeCanvases(layerList, width, height) {
     const l = layerList[i];
     let src = getLayerCanvas(l) || l.canvas;
 
-    /* ★ 剪贴蒙版：先用底图层的 alpha 裁掉蒙版外区域，再做正常合成 */
+    /* ★ 剪贴蒙版：先用底图层的 alpha 裁掉蒙版外区域，再做混合 */
     if (l.clip) {
       const baseLayer = findClipBaseLayer(l, layerList);
       const baseSrc = baseLayer ? (getLayerCanvas(baseLayer) || baseLayer.canvas) : null;
@@ -10146,14 +10146,13 @@ function compositeCanvases(layerList, width, height) {
     }
 
     if (i === 0) {
-      /* ★ 最底层：用 source-over 绘制，opacity 烘焙进像素
-         （最底层的 blendMode 不在这里烘焙 —— 它会保留到结果图层上，
-          保证结果图层与组外下方图层的混合关系不变） */
+      /* ★ 最底层：source-over，opacity 烘焙进像素；
+         它的 blendMode 不在这里烘焙，而是保留到结果图层上，
+         这样结果图层与组外下方图层的混合关系不变（Krita 同款做法） */
       tctx.globalCompositeOperation = 'source-over';
       tctx.globalAlpha = l.opacity ?? 1;
     } else {
-      /* ★ 上方图层：按各自的 blendMode + opacity 混合到已绘制的
-         "下方图层合成结果" 上 —— 与真实渲染顺序一致 */
+      /* ★ 上方图层：按各自的 blendMode + opacity 混合到已烘焙的下方内容上 */
       tctx.globalCompositeOperation = l.blendMode || 'source-over';
       tctx.globalAlpha = l.opacity ?? 1;
     }
@@ -10219,7 +10218,11 @@ function mergeLayers(ids) {
   /* ★ 保留组内最底层的原混合模式 ——
      这样结果图层与组外下方图层的混合关系保持不变，视觉与合并前一致。
      组内上方图层的混合模式已在 compositeCanvases 里烘焙进像素。 */
-  topLayer.blendMode = layers[indices[0]].blendMode || 'source-over';
+  /* ★ 结果图层的混合模式必须取「组内第一个可见图层」的混合模式：
+     不可见图层不参与合成，它的混合模式也不该被继承；
+     否则组内可见的剪贴/滤色层在合并后会退化成「正常」 */
+  const firstVisible = visibleLayers.length ? visibleLayers[0] : null;
+  topLayer.blendMode = firstVisible ? (firstVisible.blendMode || 'source-over') : 'source-over';
   /* ★ 剪贴蒙版已在 compositeCanvases 里按底图层 alpha 烘焙进像素，
      结果图层必须清掉 clip 标记 —— 否则它会被下方的其他图层再裁一次，
      反而让合并结果与合并前不一致。 */
@@ -10292,9 +10295,15 @@ function mergeDown() {
 
   /* 合并后新图层强制可见 */
   below.visible = true;
-  /* ★ 保留 below 原有的混合模式 —— 它还要跟"下方图层"正确混合
-     （下方图层就是 below 原本的下层，位置不变，所以 blendMode 保持即可） */
-  /* below.blendMode 保持不变 —— 不改 */
+  below.blendMode = visibleLayers.length
+    ? (visibleLayers[0].blendMode || 'source-over')
+    : 'source-over';
+  /* ★ below 可见时保留它原有的混合模式（它还要和下方图层正确混合）；
+     below 不可见时，合成结果的最底层其实是 above，它的混合模式没被烘焙，
+     必须继承过来，否则滤色/正片叠底等效果会丢失、显示成「正常」 */
+  below.blendMode = visibleLayers.length
+    ? (visibleLayers[0].blendMode || 'source-over')
+    : 'source-over';
   /* 不透明度重置为 100% —— 像素已烘焙（原 below.opacity 在 compositeCanvases 里已生效） */
   below.opacity = 1;
   /* ★ below 若自己也是剪贴层，其蒙版已在 compositeCanvases 里烘焙，
@@ -10707,20 +10716,26 @@ function composeLayersTo(ctx, targetW, targetH, opts) {
 
     if (layer.clip && i > 0) {
       /* 找下方第一个可见图层作为底 */
-      let belowCanvas = null;
+      let belowLayer = null;
       for (let j = i - 1; j >= 0; j--) {
-        if (layers[j].visible) {
-          belowCanvas = getLayerCanvas(layers[j]);
-          break;
-        }
+        if (layers[j].visible) { belowLayer = layers[j]; break; }
       }
-      if (!belowCanvas) {
+      if (!belowLayer) {
         ctx.globalCompositeOperation = blend;
         ctx.globalAlpha = layer.opacity ?? 1;
         ctx.drawImage(src, 0, 0);
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
         continue;
+      }
+      /* ★ 底图层若就是活动层（有 overrideCanvas），
+         裁剪时必须用 overrideCanvas —— 否则画在 clip 链中间层的笔触，
+         会让上层 clip 被一个「没有笔触的底图层」裁剪，导致被蒙住的区域短暂露出 */
+      let belowCanvas;
+      if (overrideCvs && belowLayer.id === overrideId) {
+        belowCanvas = overrideCvs;
+      } else {
+        belowCanvas = getLayerCanvas(belowLayer);
       }
 
       if (layerTmpCvs.width !== targetW || layerTmpCvs.height !== targetH) {
@@ -14279,12 +14294,16 @@ function drawRuler() {
       ctx.lineTo(vpPts[1].x + hux * FAR, vpPts[1].y + huy * FAR);
       ctx.stroke();
 
-      /* ★ 垂直于地平线的竖直参考线（p2 / p3 都显示） */
+      /* ★ 垂直于地平线的竖直参考线（p2 / p3 都显示）
+         p2：经过尺子中心；p3：必须穿过垂轴灭点 vp2，
+         这样移动垂轴灭点或其他灭点时，黄线都会重算，始终与垂轴灭点相交 */
       const vux = -huy, vuy = hux;
+      const vax = (ruler.type === 'p3') ? vpPts[2].x : cxS;
+      const vay = (ruler.type === 'p3') ? vpPts[2].y : cyS;
       ctx.strokeStyle = 'rgba(255,196,120,.45)';
       ctx.beginPath();
-      ctx.moveTo(cxS - vux * FAR, cyS - vuy * FAR);
-      ctx.lineTo(cxS + vux * FAR, cyS + vuy * FAR);
+      ctx.moveTo(vax - vux * FAR, vay - vuy * FAR);
+      ctx.lineTo(vax + vux * FAR, vay + vuy * FAR);
       ctx.stroke();
       ctx.setLineDash([]);
     }
